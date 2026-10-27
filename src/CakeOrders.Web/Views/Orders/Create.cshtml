@@ -11,7 +11,7 @@
         <div class="field"><label asp-for="CustomerPhone"></label><input asp-for="CustomerPhone" placeholder="09xxxxxxxxx" dir="ltr" /><span asp-validation-for="CustomerPhone"></span></div>
         <div class="field"><label asp-for="OrderType"></label><select asp-for="OrderType" asp-items="Model.OrderTypes"><option value="">انتخاب نوع سفارش</option></select><span asp-validation-for="OrderType"></span></div>
         <div class="field"><label asp-for="CakeType"></label><select asp-for="CakeType" asp-items="Html.GetEnumSelectList<CakeType>()"></select></div>
-        <div class="field"><label for="DeliveryAtPersian">تاریخ و ساعت تحویل (شمسی)</label><input id="DeliveryAtPersian" type="text" autocomplete="off" placeholder="انتخاب تاریخ و ساعت شمسی" required /><input asp-for="DeliveryAt" type="hidden" value="@Model.DeliveryAt.ToString("yyyy-MM-ddTHH:mm:ss")" /><span asp-validation-for="DeliveryAt"></span></div>
+        <div class="field"><label for="DeliveryAtPersian">تاریخ و ساعت تحویل (شمسی)</label><input id="DeliveryAtPersian" type="text" value="@CakeOrders.Web.Helpers.PersianDateTime.Format(Model.DeliveryAt)" autocomplete="off" placeholder="انتخاب تاریخ و ساعت شمسی" required /><input asp-for="DeliveryAt" type="hidden" value="@Model.DeliveryAt.ToString("yyyy-MM-ddTHH:mm:ss")" /><span asp-validation-for="DeliveryAt"></span></div>
     </div></section>
     <section class="form-panel"><h2>مشخصات کیک</h2><div class="form-grid">
         <div class="field"><label asp-for="RequestedWeightKg"></label><input asp-for="RequestedWeightKg" type="number" min="0.1" max="100" step="0.1" /><span asp-validation-for="RequestedWeightKg"></span></div>
@@ -49,7 +49,7 @@
             format: 'YYYY/MM/DD HH:mm',
             autoClose: true,
             initialValue: true,
-            initialValueType: 'gregorian',
+            initialValueType: 'persian',
             timePicker: { enabled: true, meridiem: { enabled: false } },
             onSelect: function (unixDate) {
                 const d = new Date(unixDate);
