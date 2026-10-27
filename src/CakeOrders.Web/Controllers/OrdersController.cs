@@ -34,7 +34,7 @@ public sealed class OrdersController(CakeOrdersDbContext db) : Controller
 
         var order = new Order
         {
-            OrderNumber = $"CO-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}",
+            OrderNumber = $"CO-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}",
             Channel = model.Channel,
             Status = model.Channel == OrderChannel.Online ? OrderStatus.PendingReview : OrderStatus.Confirmed,
             CreatedAtUtc = DateTime.UtcNow,
@@ -66,7 +66,7 @@ public sealed class OrdersController(CakeOrdersDbContext db) : Controller
         };
         order.StatusHistory.Add(new OrderStatusHistory
         {
-            PreviousStatus = order.Status,
+            PreviousStatus = OrderStatus.PendingReview,
             NewStatus = order.Status,
             ChangedAtUtc = DateTime.UtcNow,
             Note = "ثبت اولیه سفارش"
