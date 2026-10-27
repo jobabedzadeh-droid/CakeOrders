@@ -7,6 +7,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
 {
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderStatusHistory> OrderStatusHistory => Set<OrderStatusHistory>();
+    public DbSet<Referrer> Referrers => Set<Referrer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,7 +22,9 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.OrderType).HasMaxLength(100).IsRequired();
             entity.Property(x => x.RequestedWeightKg).HasPrecision(8, 2);
             entity.Property(x => x.PricePerKg).HasPrecision(18, 2);
-            entity.Property(x => x.SecondaryPricePerKg).HasPrecision(18, 2);
+            entity.Property(x => x.CakeText).HasMaxLength(500);
+            entity.Property(x => x.SampleImagePath).HasMaxLength(500);
+            entity.Property(x => x.PrintImagePath).HasMaxLength(500);
             entity.Property(x => x.FinalAmount).HasPrecision(18, 2);
             entity.Property(x => x.DepositAmount).HasPrecision(18, 2);
             entity.Property(x => x.MacaronCost).HasPrecision(18, 2);
@@ -32,6 +35,14 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.OtherCost).HasPrecision(18, 2);
             entity.Property(x => x.Discount).HasPrecision(18, 2);
             entity.HasMany(x => x.StatusHistory).WithOne(x => x.Order).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Referrer>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.LastName).HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => x.Code).IsUnique();
         });
         modelBuilder.Entity<OrderStatusHistory>(entity =>
         {
