@@ -20,15 +20,16 @@ public sealed class Order
     public CakeType CakeType { get; set; } = CakeType.Cream;
     public decimal RequestedWeightKg { get; set; }
     public decimal PricePerKg { get; set; }
-    public decimal? SecondaryPricePerKg { get; set; }
     public string? PrintType { get; set; }
     public string? BackgroundColor { get; set; }
     public string? MoldType { get; set; }
     public bool HasBananaFilling { get; set; }
     public bool HasWalnutFilling { get; set; }
     public string? WritingLocation { get; set; }
+    public string? CakeText { get; set; }
     public string? DesignNotes { get; set; }
     public string? SampleImagePath { get; set; }
+    public string? PrintImagePath { get; set; }
     public decimal MacaronCost { get; set; }
     public decimal FlowerCost { get; set; }
     public decimal DummyCost { get; set; }
