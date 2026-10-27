@@ -36,6 +36,10 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<int>("CakeType")
                         .HasColumnType("int");
 
+                    b.Property<string>("CakeText")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<int>("Channel")
                         .HasColumnType("int");
 
@@ -134,11 +138,12 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .HasColumnType("decimal(8,2)");
 
                     b.Property<string>("SampleImagePath")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
-                    b.Property<decimal?>("SecondaryPricePerKg")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("PrintImagePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<decimal>("ShippingCost")
                         .HasPrecision(18, 2)
@@ -156,6 +161,40 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Referrer", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Referrers");
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.OrderStatusHistory", b =>
