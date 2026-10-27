@@ -1,5 +1,6 @@
 @model IReadOnlyList<CakeOrders.Domain.Entities.Order>
 @using CakeOrders.Domain.Entities
+@using CakeOrders.Web.Helpers
 @{
     ViewData["Title"] = "همه سفارش‌ها";
 }
@@ -24,7 +25,7 @@
                     <td><b>@order.OrderNumber</b></td><td>@(string.IsNullOrWhiteSpace(order.CustomerName) ? "—" : order.CustomerName)<small>@order.CustomerPhone</small></td>
                     <td>@(order.CakeType switch { CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت", _ => "تمام فوندانت" })</td>
                     <td>@(order.Channel == OrderChannel.Online ? "آنلاین" : "حضوری")</td>
-                    <td>@order.DeliveryAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</td>
+                    <td>@PersianDateTime.Format(order.DeliveryAt)</td>
                     <td>@order.FinalAmount.ToString("N0")</td>
                     <td><span class="status">@StatusText(order.Status)</span></td>
                     <td><a asp-action="Details" asp-route-id="@order.Id">جزئیات</a></td>

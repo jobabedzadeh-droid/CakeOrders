@@ -1,5 +1,6 @@
 @model CakeOrders.Domain.Entities.Order
 @using CakeOrders.Domain.Entities
+@using CakeOrders.Web.Helpers
 @{
     ViewData["Title"] = "جزئیات سفارش";
     var cake = Model.CakeType switch { CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت", _ => "تمام فوندانت" };
@@ -14,12 +15,21 @@
         <div><small>وضعیت</small><b>@Model.Status</b></div>
         <div><small>وزن</small><b>@Model.RequestedWeightKg.ToString("N1") کیلوگرم</b></div>
         <div><small>قیمت هر کیلو</small><b>@Model.PricePerKg.ToString("N0")</b></div>
-        <div><small>زمان ثبت</small><b>@Model.CreatedAtUtc.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</b></div>
-        <div><small>زمان تحویل</small><b>@Model.DeliveryAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</b></div>
+        <div><small>زمان ثبت</small><b>@PersianDateTime.Format(Model.CreatedAtUtc)</b></div>
+        <div><small>زمان تحویل</small><b>@PersianDateTime.Format(Model.DeliveryAt)</b></div>
         <div><small>مبلغ نهایی</small><b>@Model.FinalAmount.ToString("N0")</b></div>
         <div><small>بیعانه</small><b>@Model.DepositAmount.ToString("N0")</b></div>
         <div><small>مانده</small><b>@Model.RemainingAmount.ToString("N0")</b></div>
         <div><small>کانال</small><b>@(Model.Channel == OrderChannel.Online ? "آنلاین" : "حضوری")</b></div>
+        <div><small>قالب کیک</small><b>@(Model.MoldType ?? "—")</b></div>
+        <div><small>محل نوشته</small><b>@(Model.WritingLocation ?? "—")</b></div>
+        <div><small>متن روی کیک</small><b>@(Model.CakeText ?? "—")</b></div>
     </div>
+    @if (!string.IsNullOrWhiteSpace(Model.SampleImagePath) || !string.IsNullOrWhiteSpace(Model.PrintImagePath)) {
+        <hr /><h3>تصاویر سفارش</h3><div class="order-image-grid">
+        @if (!string.IsNullOrWhiteSpace(Model.SampleImagePath)) { <div><b>تصویر نمونه کیک</b><img src="@Model.SampleImagePath" alt="تصویر نمونه کیک" /></div> }
+        @if (!string.IsNullOrWhiteSpace(Model.PrintImagePath)) { <div><b>تصویر چاپی</b><img src="@Model.PrintImagePath" alt="تصویر موردنظر برای چاپ" /></div> }
+        </div>
+    }
     @if (!string.IsNullOrWhiteSpace(Model.DesignNotes)) { <hr /><h3>توضیحات</h3><p>@Model.DesignNotes</p> }
 </section>
