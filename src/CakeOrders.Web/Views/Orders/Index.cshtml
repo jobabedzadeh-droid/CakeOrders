@@ -1,0 +1,44 @@
+@model IReadOnlyList<CakeOrders.Domain.Entities.Order>
+@using CakeOrders.Domain.Entities
+@{
+    ViewData["Title"] = "همه سفارش‌ها";
+}
+<div class="page-heading">
+    <div><h1>همه سفارش‌ها</h1><p>آخرین ۲۰۰ سفارش ثبت‌شده</p></div>
+    <a class="btn btn-primary" asp-action="Create">＋ ثبت سفارش جدید</a>
+</div>
+@if (TempData["Success"] is string message) { <div class="alert-success">@message</div> }
+<section class="table-panel">
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state"><span>▤</span><h2>هنوز سفارشی ثبت نشده است</h2><p>برای شروع، اولین سفارش را ثبت کنید.</p><a class="btn btn-primary" asp-action="Create">ثبت سفارش</a></div>
+    }
+    else
+    {
+        <div class="table-scroll"><table>
+            <thead><tr><th>شماره سفارش</th><th>مشتری</th><th>نوع کیک</th><th>کانال</th><th>زمان تحویل</th><th>مبلغ نهایی</th><th>وضعیت</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var order in Model)
+            {
+                <tr>
+                    <td><b>@order.OrderNumber</b></td><td>@(string.IsNullOrWhiteSpace(order.CustomerName) ? "—" : order.CustomerName)<small>@order.CustomerPhone</small></td>
+                    <td>@(order.CakeType switch { CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت", _ => "تمام فوندانت" })</td>
+                    <td>@(order.Channel == OrderChannel.Online ? "آنلاین" : "حضوری")</td>
+                    <td>@order.DeliveryAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</td>
+                    <td>@order.FinalAmount.ToString("N0")</td>
+                    <td><span class="status">@StatusText(order.Status)</span></td>
+                    <td><a asp-action="Details" asp-route-id="@order.Id">جزئیات</a></td>
+                </tr>
+            }
+            </tbody>
+        </table></div>
+    }
+</section>
+@functions {
+    string StatusText(OrderStatus status) => status switch {
+        OrderStatus.PendingReview => "در انتظار بررسی", OrderStatus.Confirmed => "تأیید شده",
+        OrderStatus.Rejected => "رد شده", OrderStatus.InProduction => "در حال تولید",
+        OrderStatus.ReadyForDelivery => "آماده تحویل", OrderStatus.Delivered => "تحویل شده",
+        _ => "لغو شده"
+    };
+}
