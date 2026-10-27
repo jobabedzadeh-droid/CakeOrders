@@ -1,0 +1,25 @@
+@model CakeOrders.Domain.Entities.Order
+@using CakeOrders.Domain.Entities
+@{
+    ViewData["Title"] = "جزئیات سفارش";
+    var cake = Model.CakeType switch { CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت", _ => "تمام فوندانت" };
+}
+<div class="page-heading"><div><h1>جزئیات سفارش</h1><p>شماره سفارش: <b>@Model.OrderNumber</b></p></div><a class="btn btn-light" asp-action="Index">بازگشت به سفارش‌ها</a></div>
+@if (TempData["Success"] is string message) { <div class="alert-success">@message</div> }
+<section class="form-panel">
+    <div class="detail-grid">
+        <div><small>مشتری</small><b>@(Model.CustomerName ?? "—")</b></div>
+        <div><small>شماره تماس</small><b>@(Model.CustomerPhone ?? "—")</b></div>
+        <div><small>نوع کیک</small><b>@cake</b></div>
+        <div><small>وضعیت</small><b>@Model.Status</b></div>
+        <div><small>وزن</small><b>@Model.RequestedWeightKg.ToString("N1") کیلوگرم</b></div>
+        <div><small>قیمت هر کیلو</small><b>@Model.PricePerKg.ToString("N0")</b></div>
+        <div><small>زمان ثبت</small><b>@Model.CreatedAtUtc.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</b></div>
+        <div><small>زمان تحویل</small><b>@Model.DeliveryAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</b></div>
+        <div><small>مبلغ نهایی</small><b>@Model.FinalAmount.ToString("N0")</b></div>
+        <div><small>بیعانه</small><b>@Model.DepositAmount.ToString("N0")</b></div>
+        <div><small>مانده</small><b>@Model.RemainingAmount.ToString("N0")</b></div>
+        <div><small>کانال</small><b>@(Model.Channel == OrderChannel.Online ? "آنلاین" : "حضوری")</b></div>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Model.DesignNotes)) { <hr /><h3>توضیحات</h3><p>@Model.DesignNotes</p> }
+</section>
