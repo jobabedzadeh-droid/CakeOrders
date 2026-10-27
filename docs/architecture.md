@@ -14,3 +14,6 @@ Rahkaran identifiers are stored separately from the internal order ID. Integrati
 - Store uploaded images outside the public web root and validate size, extension, and file signature.
 - Restrict database access to the application identity/login and local/private network.
 - Add authentication, authorization, antiforgery, audit history, and backups before production use.
+
+## Database schema management
+EF Core Code First is the source of truth for the database schema. Configure entities in `CakeOrdersDbContext`, create reviewed migrations, commit migration source files, and apply them with `dotnet ef database update` in development or a reviewed SQL migration script in deployment. Avoid maintaining a parallel hand-written schema as the primary workflow.
