@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+appsettings.Development.json
+.env
+.env.*
+secrets.json
+uploads/
+App_Data/
+*.bak
+*.mdf
+*.ldf
+.DS_Store
+Thumbs.db
