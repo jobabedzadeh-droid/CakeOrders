@@ -11,3 +11,8 @@
 .referrer-feedback.is-found{color:#20754a;font-weight:700}
 .referrer-feedback.is-missing{color:#b42336}
 #DeliveryAtPersian{direction:ltr;text-align:right}
+
+.order-image-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.order-image-grid>div{display:flex;flex-direction:column;gap:10px;min-width:0}
+.order-image-grid img{max-width:100%;max-height:420px;object-fit:contain;align-self:flex-start;border:1px solid var(--line);border-radius:10px;padding:6px;background:#fafbfe}
+@media(max-width:600px){.order-image-grid{grid-template-columns:1fr}}
