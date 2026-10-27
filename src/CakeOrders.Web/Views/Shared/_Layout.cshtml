@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - CakeOrders</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">✿</span><div><b>CakeOrders</b><small>سامانه مدیریت سفارش</small></div></div>
+        <div class="nav-caption">منوی اصلی</div>
+        <a class="nav-link active" asp-controller="Home" asp-action="Index">▦ <span>داشبورد</span></a>
+        <a class="nav-link" href="#orders">▤ <span>همه سفارش‌ها</span></a>
+        <a class="nav-link" href="#new-order">＋ <span>ثبت سفارش جدید</span></a>
+        <a class="nav-link" href="#online">◷ <span>سفارش‌های آنلاین</span></a>
+        <a class="nav-link" href="#production">▧ <span>برنامه تولید و تحویل</span></a>
+        <a class="nav-link" href="#reports">▥ <span>گزارش‌ها</span></a>
+        <div class="sidebar-bottom">نسخه توسعه<br />اطلاعات واقعی هنوز متصل نشده است.</div>
+    </aside>
+    <main class="main">
+        <header class="topbar"><span>پنل مدیریت / <b>@ViewData["Title"]</b></span><span class="operator"><i>م</i> اپراتور سامانه</span></header>
+        <div class="content">@RenderBody()</div>
+        <footer> CakeOrders · سامانه مدیریت سفارش قنادی</footer>
+    </main>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
