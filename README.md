@@ -42,5 +42,18 @@ dotnet run --project src/CakeOrders.Web
 
 Connection strings and secrets must not be committed. Use User Secrets in development or a protected environment variable on the server. The sample connection string in `appsettings.json` is for local development only.
 
+## POS terminal settings and SadadBridge
+
+- Admin-only management page: `/PosTerminals` (create, edit, activate/deactivate terminals).
+- Configure admin credentials on the server with environment variables `CakeOrdersAdmin__Username` and `CakeOrdersAdmin__Password`. Do not commit credentials to appsettings or source control.
+- Configure a long, random bridge API secret on the web server using `SadadBridge__ApiKey`. Configure the same secret locally for SadadBridge. Requests must send `Authorization: Bearer <secret>`.
+- Bridge configuration endpoint: `GET /api/bridge/terminals/{id}`. It returns the selected active terminal's connection settings. This endpoint is a configuration API only; it does not itself start a payment or confirm a transaction.
+- The terminal settings page uses sample values as form defaults only. No sample terminal is inserted automatically.
+- Apply the migration before using the page:
+  ```powershell
+  dotnet ef database update --project src/CakeOrders.Infrastructure --startup-project src/CakeOrders.Web
+  ```
+- The current bridge API key is a shared secret. Restrict it to the private network, use HTTPS, and rotate it if exposed. A production deployment should use separate credentials per bridge/workstation and audit payment-result callbacks before recording payments as successful.
+
 ## Not production-ready yet
-Authentication and authorization, secure sample-image uploads, automated tests, complete status transition workflows, daily delivery scheduling, online-order approval/rejection actions, backup/restore verification, and Rahkaran integration remain future work. Do not expose the SQL Server port publicly.
+Full user/role administration, automated tests, complete payment initiation and result callbacks, complete status transition workflows, daily delivery scheduling, online-order approval/rejection actions, backup/restore verification, and Rahkaran integration remain future work. Do not expose the SQL Server port publicly.
