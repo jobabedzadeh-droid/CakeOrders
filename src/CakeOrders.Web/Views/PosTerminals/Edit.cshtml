@@ -1,0 +1,31 @@
+@model CakeOrders.Web.ViewModels.PosTerminalViewModel
+@{
+    var isEdit = Model.Id > 0;
+    ViewData["Title"] = isEdit ? "ویرایش دستگاه کارت‌خوان" : "افزودن دستگاه کارت‌خوان";
+}
+<div class="page-heading">
+    <div><h1>@ViewData["Title"]</h1><p>آدرس و پورت در فرم پرداخت سفارش نمایش داده نمی‌شوند.</p></div>
+    <a class="btn btn-secondary" asp-action="Index">بازگشت</a>
+</div>
+<section class="form-panel">
+    <form asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <input asp-for="Id" type="hidden" />
+        <div class="form-grid">
+            <div class="form-field"><label asp-for="Name"></label><input asp-for="Name" /><span asp-validation-for="Name" class="field-error"></span></div>
+            <div class="form-field"><label asp-for="IpAddress"></label><input asp-for="IpAddress" dir="ltr" autocomplete="off" /><span asp-validation-for="IpAddress" class="field-error"></span></div>
+            <div class="form-field"><label asp-for="Port"></label><input asp-for="Port" type="number" min="1" max="65535" dir="ltr" /><span asp-validation-for="Port" class="field-error"></span></div>
+            <div class="form-field"><label asp-for="ConnectionType"></label>
+                <select asp-for="ConnectionType"><option value="LAN">شبکه (LAN)</option><option value="Serial">USB / سریال</option></select>
+                <span asp-validation-for="ConnectionType" class="field-error"></span>
+            </div>
+            <div class="form-field"><label asp-for="TerminalCode"></label><input asp-for="TerminalCode" /><span asp-validation-for="TerminalCode" class="field-error"></span></div>
+            <div class="form-field checkbox-field"><label><input asp-for="IsActive" /> فعال باشد</label></div>
+        </div>
+        <div class="form-actions"><button type="submit" class="btn btn-primary">ذخیره تنظیمات</button><a class="btn btn-secondary" asp-action="Index">انصراف</a></div>
+    </form>
+</section>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

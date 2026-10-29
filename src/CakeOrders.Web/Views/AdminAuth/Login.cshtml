@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = "ورود مدیر";
+    var returnUrl = ViewData["ReturnUrl"] as string;
+}
+<div class="page-heading"><div><h1>ورود مدیر سیستم</h1><p>برای مدیریت تنظیمات حساس سامانه وارد شوید.</p></div></div>
+<section class="form-panel" style="max-width:520px">
+    <form asp-controller="AdminAuth" asp-action="Login" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <div class="form-field"><label for="username">نام کاربری</label><input id="username" name="username" autocomplete="username" required /></div>
+        <div class="form-field"><label for="password">رمز عبور</label><input id="password" name="password" type="password" autocomplete="current-password" required /></div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">ورود</button></div>
+    </form>
+</section>

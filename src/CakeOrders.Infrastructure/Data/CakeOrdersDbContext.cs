@@ -8,6 +8,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderStatusHistory> OrderStatusHistory => Set<OrderStatusHistory>();
     public DbSet<Referrer> Referrers => Set<Referrer>();
+    public DbSet<PosTerminal> PosTerminals => Set<PosTerminal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +50,15 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Note).HasMaxLength(1000);
             entity.HasIndex(x => new { x.OrderId, x.ChangedAtUtc });
+        });
+        modelBuilder.Entity<PosTerminal>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.IpAddress).HasMaxLength(45).IsRequired();
+            entity.Property(x => x.ConnectionType).HasMaxLength(20).IsRequired();
+            entity.Property(x => x.TerminalCode).HasMaxLength(100);
+            entity.HasIndex(x => x.Name);
         });
     }
 }
