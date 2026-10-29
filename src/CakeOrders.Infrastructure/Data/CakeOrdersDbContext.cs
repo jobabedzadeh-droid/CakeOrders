@@ -8,6 +8,8 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderStatusHistory> OrderStatusHistory => Set<OrderStatusHistory>();
     public DbSet<Referrer> Referrers => Set<Referrer>();
+    public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<CashRegister> CashRegisters => Set<CashRegister>();
     public DbSet<PosTerminal> PosTerminals => Set<PosTerminal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -59,6 +61,25 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.ConnectionType).HasMaxLength(20).IsRequired();
             entity.Property(x => x.TerminalCode).HasMaxLength(100);
             entity.HasIndex(x => x.Name);
+        });
+        modelBuilder.Entity<Branch>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Address).HasMaxLength(300);
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+        modelBuilder.Entity<CashRegister>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.BridgeInstallationId).HasMaxLength(100);
+            entity.Property(x => x.BridgeSecretHash).HasMaxLength(128);
+            entity.HasIndex(x => new { x.BranchId, x.Name }).IsUnique();
+            entity.HasIndex(x => x.BridgeInstallationId).IsUnique().HasFilter("[BridgeInstallationId] IS NOT NULL");
+            entity.HasIndex(x => x.PosTerminalId).IsUnique().HasFilter("[PosTerminalId] IS NOT NULL");
+            entity.HasOne(x => x.Branch).WithMany(x => x.CashRegisters).HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.PosTerminal).WithMany().HasForeignKey(x => x.PosTerminalId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
