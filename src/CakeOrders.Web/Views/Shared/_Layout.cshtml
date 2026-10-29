@@ -14,14 +14,27 @@
         <a class="nav-link" asp-controller="Home" asp-action="Index">▦ <span>داشبورد</span></a>
         <a class="nav-link" asp-controller="Orders" asp-action="Index">▤ <span>همه سفارش‌ها</span></a>
         <a class="nav-link" asp-controller="Orders" asp-action="Create">＋ <span>ثبت سفارش جدید</span></a>
+        @if (User.IsInRole("Admin"))
+        {
+            <div class="nav-caption">تنظیمات</div>
+            <a class="nav-link" asp-controller="PosTerminals" asp-action="Index">▣ <span>دستگاه‌های کارت‌خوان</span></a>
+            <form asp-controller="AdminAuth" asp-action="Logout" method="post" style="padding:0 18px">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="nav-link" style="width:100%;border:0;background:transparent;text-align:right;cursor:pointer">↪ <span>خروج مدیر</span></button>
+            </form>
+        }
+        else
+        {
+            <a class="nav-link" asp-controller="AdminAuth" asp-action="Login">♙ <span>ورود مدیر</span></a>
+        }
         <div class="nav-caption">در حال توسعه</div>
         <a class="nav-link" href="#" aria-disabled="true">◷ <span>سفارش‌های آنلاین</span></a>
         <a class="nav-link" href="#" aria-disabled="true">▧ <span>برنامه تولید و تحویل</span></a>
         <a class="nav-link" href="#" aria-disabled="true">▥ <span>گزارش‌ها</span></a>
-        <div class="sidebar-bottom">نسخه توسعه<br />ورود کاربران و سطح دسترسی در مرحله بعد اضافه می‌شود.</div>
+        <div class="sidebar-bottom">نسخه توسعه<br />تنظیمات حساس فقط برای مدیر واردشده قابل دسترسی است.</div>
     </aside>
     <main class="main">
-        <header class="topbar"><span>پنل مدیریت / <b>@ViewData["Title"]</b></span><span class="operator"><i>م</i> اپراتور سامانه</span></header>
+        <header class="topbar"><span>پنل مدیریت / <b>@ViewData["Title"]</b></span><span class="operator"><i>م</i> @(User.Identity?.IsAuthenticated == true ? User.Identity.Name : "کاربر سامانه")</span></header>
         <div class="content">@RenderBody()</div>
         <footer>CakeOrders · سامانه مدیریت سفارش قنادی</footer>
     </main>
