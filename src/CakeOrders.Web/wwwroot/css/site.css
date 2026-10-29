@@ -16,3 +16,56 @@
 .order-image-grid>div{display:flex;flex-direction:column;gap:10px;min-width:0}
 .order-image-grid img{max-width:100%;max-height:420px;object-fit:contain;align-self:flex-start;border:1px solid var(--line);border-radius:10px;padding:6px;background:#fafbfe}
 @media(max-width:600px){.order-image-grid{grid-template-columns:1fr}}
+
+
+/* IRANSansWeb FaNum - global Persian typography */
+@font-face{
+  font-family:"IRANSansWeb";
+  src:url("../fonts/IRANSansWeb(FaNum).woff2") format("woff2");
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+}
+@font-face{
+  font-family:"IRANSansWeb";
+  src:url("../fonts/IRANSansWeb(FaNum)_Light.woff2") format("woff2");
+  font-style:normal;
+  font-weight:300;
+  font-display:swap;
+}
+@font-face{
+  font-family:"IRANSansWeb";
+  src:url("../fonts/IRANSansWeb(FaNum)_Medium.woff2") format("woff2");
+  font-style:normal;
+  font-weight:500;
+  font-display:swap;
+}
+@font-face{
+  font-family:"IRANSansWeb";
+  src:url("../fonts/IRANSansWeb(FaNum)_Bold.woff2") format("woff2");
+  font-style:normal;
+  font-weight:700;
+  font-display:swap;
+}
+@font-face{
+  font-family:"IRANSansWeb";
+  src:url("../fonts/IRANSansWeb(FaNum)_UltraLight.woff2") format("woff2");
+  font-style:normal;
+  font-weight:200;
+  font-display:swap;
+}
+html,body,button,input,select,textarea{
+  font-family:"IRANSansWeb",Tahoma,sans-serif;
+}
+button,input,select,textarea{
+  font-size:inherit;
+}
+body{
+  line-height:1.8;
+}
+h1,h2,h3,h4,h5,h6,strong,b,th{
+  font-weight:700;
+}
+.field>label,.nav-caption,.eyebrow{
+  font-weight:500;
+}
