@@ -156,6 +156,85 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
         return RedirectToAction(nameof(Wait), new { paymentId = payment.Id });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Retry(long paymentId, CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable, cancellationToken);
+
+        var previous = await db.PaymentTransactions
+            .FromSqlInterpolated($"SELECT * FROM [PaymentTransactions] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {paymentId}")
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (previous is null)
+            return NotFound();
+
+        if (previous.Status is not (PaymentTransactionStatus.Failed or PaymentTransactionStatus.Cancelled))
+        {
+            TempData["Error"] = "ارسال مجدد فقط برای تراکنش ناموفق یا لغوشده مجاز است.";
+            return RedirectToAction(nameof(Wait), new { paymentId });
+        }
+
+        var order = await db.Orders
+            .FromSqlInterpolated($"SELECT * FROM [Orders] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {previous.OrderId}")
+            .SingleAsync(cancellationToken);
+
+        var hasUnresolved = await db.PaymentTransactions.AnyAsync(x =>
+            x.OrderId == order.Id &&
+            (x.Status == PaymentTransactionStatus.Created ||
+             x.Status == PaymentTransactionStatus.Processing ||
+             x.Status == PaymentTransactionStatus.Unknown ||
+             x.Status == PaymentTransactionStatus.ReconciliationRequired), cancellationToken);
+
+        var available = previous.Purpose == PaymentPurpose.Deposit
+            ? Math.Max(0, order.RequestedDepositAmount - order.DepositAmount)
+            : order.RemainingAmount;
+
+        if (hasUnresolved || order.Status == OrderStatus.Cancelled || previous.Amount > available)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            TempData["Error"] = "به دلیل وجود تراکنش باز یا تغییر مانده سفارش، امکان ارسال مجدد وجود ندارد.";
+            return RedirectToAction(nameof(Wait), new { paymentId });
+        }
+
+        var register = await db.CashRegisters
+            .Include(x => x.Branch)
+            .Include(x => x.PosTerminal)
+            .FirstOrDefaultAsync(x => x.Id == previous.CashRegisterId, cancellationToken);
+
+        if (register is null || !register.IsActive || !register.Branch.IsActive ||
+            register.PosTerminal is null || !register.PosTerminal.IsActive ||
+            string.IsNullOrWhiteSpace(register.BridgeInstallationId) ||
+            string.IsNullOrWhiteSpace(register.BridgeSecretHash))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            TempData["Error"] = "صندوق قبلی فعال نیست؛ از صفحه درخواست پرداخت، صندوق دیگری انتخاب کنید.";
+            return RedirectToAction(nameof(Wait), new { paymentId });
+        }
+
+        var now = DateTime.UtcNow;
+        var retry = new PaymentTransaction
+        {
+            OrderId = order.Id,
+            CashRegisterId = register.Id,
+            PosTerminalId = register.PosTerminal.Id,
+            Purpose = previous.Purpose,
+            Amount = previous.Amount,
+            IdempotencyKey = Guid.NewGuid().ToString("N"),
+            MerchantReference = Guid.NewGuid().ToString("N"),
+            Status = PaymentTransactionStatus.Created,
+            CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
+            CreatedAtUtc = now
+        };
+
+        db.PaymentTransactions.Add(retry);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return RedirectToAction(nameof(Wait), new { paymentId = retry.Id });
+    }
+
     [HttpGet]
     public async Task<IActionResult> Wait(long paymentId, CancellationToken cancellationToken)
     {
