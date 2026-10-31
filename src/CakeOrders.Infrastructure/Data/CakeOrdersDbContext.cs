@@ -39,6 +39,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.RequestedDepositAmount).HasPrecision(18, 2);
             entity.Property(x => x.RequestedDepositAmount).HasPrecision(18, 2);
             entity.Property(x => x.DepositAmount).HasPrecision(18, 2);
+            entity.Property(x => x.PaidAmount).HasPrecision(18, 2);
             entity.Property(x => x.MacaronCost).HasPrecision(18, 2);
             entity.Property(x => x.FlowerCost).HasPrecision(18, 2);
             entity.Property(x => x.DummyCost).HasPrecision(18, 2);
