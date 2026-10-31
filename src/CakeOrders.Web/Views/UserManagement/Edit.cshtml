@@ -1,0 +1,82 @@
+﻿@model CakeOrders.Web.ViewModels.UserManagement.EditUserViewModel
+
+@{
+    ViewData["Title"] = "ویرایش کاربر";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>ویرایش کاربر</h1>
+        <p>اطلاعات حساب کاربری را ویرایش کنید.</p>
+    </div>
+
+    <a asp-action="Index" class="btn btn-secondary">بازگشت</a>
+</div>
+
+<section class="form-panel">
+    <form asp-action="Edit" method="post">
+
+        @Html.AntiForgeryToken()
+
+        <input asp-for="Id" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly"
+             class="validation-summary"></div>
+
+        <div class="form-grid">
+
+            <div class="form-field">
+                <label asp-for="DisplayName"></label>
+                <input asp-for="DisplayName" />
+                <span asp-validation-for="DisplayName"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="UserName"></label>
+                <input asp-for="UserName" />
+                <span asp-validation-for="UserName"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" />
+                <span asp-validation-for="Email"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="PhoneNumber"></label>
+                <input asp-for="PhoneNumber" />
+                <span asp-validation-for="PhoneNumber"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Role">نقش کاربر</label>
+                <select asp-for="Role">
+                    <option value="User">کاربر عملیاتی</option>
+                    <option value="Admin">مدیر سیستم</option>
+                </select>
+                <span asp-validation-for="Role"></span>
+            </div>
+
+            <div class="form-field">
+                <label>وضعیت حساب</label>
+                <label class="checkbox-field">
+                    <input asp-for="IsActive" type="checkbox" />
+                    حساب فعال باشد
+                </label>
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                ذخیره تغییرات
+            </button>
+        </div>
+
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace CakeOrders.Domain.Entities;
 
@@ -13,6 +13,8 @@ public sealed class Order
     public OrderChannel Channel { get; set; } = OrderChannel.InPerson;
     public OrderStatus Status { get; set; } = OrderStatus.PendingReview;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public string? CreatedByUserId { get; set; }
+    public string? UpdatedByUserId { get; set; }
     public DateTime DeliveryAt { get; set; }
     public string? CustomerName { get; set; }
     public string? CustomerPhone { get; set; }
@@ -38,12 +40,17 @@ public sealed class Order
     public decimal OtherCost { get; set; }
     public decimal Discount { get; set; }
     public decimal FinalAmount { get; set; }
+    // مبلغ بیعانه‌ای که هنگام ثبت سفارش درخواست می‌شود؛ پرداخت‌شده محسوب نمی‌شود.
+    public decimal RequestedDepositAmount { get; set; }
+    // فقط مجموع بیعانه‌هایی که پرداخت موفق آن‌ها از کارت‌خوان تأیید شده است.
     public decimal DepositAmount { get; set; }
+    // مجموع تمام پرداخت‌های موفق سفارش، شامل بیعانه و تسویه.
+    public decimal PaidAmount { get; set; }
     public string? ReferrerCode { get; set; }
     public string? RejectionReason { get; set; }
     public string? RahkaranCustomerId { get; set; }
     public string? RahkaranSalesRequestId { get; set; }
     public string? RahkaranReceiptId { get; set; }
     public ICollection<OrderStatusHistory> StatusHistory { get; set; } = new List<OrderStatusHistory>();
-    public decimal RemainingAmount => Math.Max(0, FinalAmount - DepositAmount);
+    public decimal RemainingAmount => Math.Max(0, FinalAmount - PaidAmount);
 }

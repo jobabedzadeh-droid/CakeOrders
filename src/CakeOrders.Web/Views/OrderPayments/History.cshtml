@@ -1,0 +1,75 @@
+@model IReadOnlyList<CakeOrders.Domain.Entities.PaymentTransaction>
+@using CakeOrders.Domain.Entities
+@using CakeOrders.Web.Helpers
+
+@{
+    ViewData["Title"] = "سوابق پرداخت";
+    var orderId = (long)ViewBag.OrderId;
+    var orderNumber = (string)ViewBag.OrderNumber;
+}
+
+<div class="page-heading">
+    <div>
+        <h1>سوابق پرداخت</h1>
+        <p>سفارش: <strong>@orderNumber</strong></p>
+    </div>
+    <a class="btn btn-light" asp-controller="Orders" asp-action="Details" asp-route-id="@orderId">بازگشت به سفارش</a>
+</div>
+
+<section class="table-panel">
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state">
+            <h2>هنوز پرداختی ثبت نشده است</h2>
+            <p>درخواست‌های پرداخت این سفارش پس از ثبت در این قسمت نمایش داده می‌شوند.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>تاریخ ثبت</th>
+                        <th>نوع پرداخت</th>
+                        <th>مبلغ (ریال)</th>
+                        <th>وضعیت</th>
+                        <th>کد پاسخ</th>
+                        <th>RRN</th>
+                        <th>شماره پیگیری</th>
+                        <th>شرح پاسخ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var payment in Model)
+                    {
+                        <tr>
+                            <td>@PersianDateTime.Format(payment.CreatedAtUtc)</td>
+                            <td>@(payment.Purpose == PaymentPurpose.Deposit ? "بیعانه" : "تسویه")</td>
+                            <td>@payment.Amount.ToString("N0")</td>
+                            <td><strong>@StatusText(payment.Status)</strong></td>
+                            <td dir="ltr">@(!string.IsNullOrWhiteSpace(payment.ResponseCode) ? payment.ResponseCode : "—")</td>
+                            <td dir="ltr">@(!string.IsNullOrWhiteSpace(payment.Rrn) ? payment.Rrn : "—")</td>
+                            <td dir="ltr">@(!string.IsNullOrWhiteSpace(payment.TraceNumber) ? payment.TraceNumber : "—")</td>
+                            <td>@(payment.ResponseMessage ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@functions {
+    private static string StatusText(PaymentTransactionStatus status) => status switch
+    {
+        PaymentTransactionStatus.Created => "در صف ارسال",
+        PaymentTransactionStatus.Processing => "در حال پرداخت",
+        PaymentTransactionStatus.Succeeded => "موفق",
+        PaymentTransactionStatus.Failed => "ناموفق",
+        PaymentTransactionStatus.Cancelled => "لغو شده",
+        PaymentTransactionStatus.Unknown => "نامشخص - نیازمند بررسی",
+        PaymentTransactionStatus.ReconciliationRequired => "نیازمند تطبیق دستی",
+        _ => status.ToString()
+    };
+}

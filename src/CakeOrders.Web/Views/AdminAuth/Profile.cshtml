@@ -1,0 +1,73 @@
+﻿@model CakeOrders.Web.ViewModels.Account.ProfileViewModel
+
+@{
+    ViewData["Title"] = "پروفایل کاربری";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>پروفایل کاربری</h1>
+        <p>اطلاعات حساب کاربری خود را مشاهده و ویرایش کنید.</p>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+
+<section class="form-panel">
+    <form asp-action="Profile" method="post">
+
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+        <div class="form-grid">
+
+            <div class="form-field">
+                <label asp-for="DisplayName"></label>
+                <input asp-for="DisplayName" />
+                <span asp-validation-for="DisplayName"></span>
+            </div>
+
+            <div class="form-field">
+                <label>نام کاربری</label>
+                <input value="@Model.UserName" readonly />
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" />
+                <span asp-validation-for="Email"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="PhoneNumber"></label>
+                <input asp-for="PhoneNumber" />
+                <span asp-validation-for="PhoneNumber"></span>
+            </div>
+
+            <div class="form-field">
+                <label>نقش کاربری</label>
+                <input value="@Model.Role" readonly />
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                ذخیره تغییرات
+            </button>
+
+            <a asp-action="ChangePassword" class="btn btn-secondary">
+                تغییر رمز عبور
+            </a>
+        </div>
+
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

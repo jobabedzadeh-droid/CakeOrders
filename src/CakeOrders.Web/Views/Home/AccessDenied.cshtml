@@ -1,0 +1,22 @@
+﻿@{
+    ViewData["Title"] = "عدم دسترسی";
+}
+
+<section class="access-denied">
+    <div class="access-denied-icon">
+        <icon name="shield-alert" size="2xl" />
+    </div>
+
+    <h1>دسترسی غیرمجاز</h1>
+
+    <p>
+        حساب کاربری شما مجوز دسترسی به این بخش از سامانه را ندارد.
+        در صورت نیاز با مدیر سیستم تماس بگیرید.
+    </p>
+
+    <a asp-controller="Home"
+       asp-action="Index"
+       class="btn btn-primary">
+        بازگشت به داشبورد
+    </a>
+</section>

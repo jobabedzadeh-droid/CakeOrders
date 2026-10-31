@@ -1,45 +1,324 @@
-@model IReadOnlyList<CakeOrders.Domain.Entities.Order>
+@model CakeOrders.Web.ViewModels.OrderListViewModel
 @using CakeOrders.Domain.Entities
 @using CakeOrders.Web.Helpers
+
 @{
     ViewData["Title"] = "همه سفارش‌ها";
 }
+
 <div class="page-heading">
-    <div><h1>همه سفارش‌ها</h1><p>آخرین ۲۰۰ سفارش ثبت‌شده</p></div>
-    <a class="btn btn-primary" asp-action="Create">＋ ثبت سفارش جدید</a>
+    <div>
+        <h1>مدیریت سفارش‌ها</h1>
+        <p>جست‌وجو، فیلتر و مشاهده سفارش‌های ثبت‌شده</p>
+    </div>
+
+    <a class="btn btn-primary" asp-action="Create">
+        + ثبت سفارش جدید
+    </a>
 </div>
-@if (TempData["Success"] is string message) { <div class="alert-success">@message</div> }
+
+@if (TempData["Success"] is string message)
+{
+    <div class="alert-success">@message</div>
+}
+
+<section class="form-panel order-filter-panel">
+
+    <form method="get" asp-action="Index">
+
+        <div class="form-grid">
+
+            <div class="form-field">
+                <label>جست‌وجو</label>
+                <input type="text"
+                       name="search"
+                       value="@Model.Search"
+                       placeholder="شماره سفارش، نام مشتری یا موبایل" />
+            </div>
+
+            <div class="form-field">
+                <label>وضعیت سفارش</label>
+                <select name="status">
+                    <option value="">همه وضعیت‌ها</option>
+
+                    @foreach (var item in Enum.GetValues<OrderStatus>())
+                    {
+                        <option value="@((int)item)"
+                                selected="@(Model.Status == item)">
+                            @StatusText(item)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label>کانال ثبت</label>
+                <select name="channel">
+                    <option value="">همه کانال‌ها</option>
+
+                    @foreach (var item in Enum.GetValues<OrderChannel>())
+                    {
+                        <option value="@((int)item)"
+                                selected="@(Model.Channel == item)">
+                            @(item == OrderChannel.InPerson ? "حضوری" : "آنلاین")
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label for="deliveryFromDisplay">تحویل از تاریخ</label>
+
+                <input type="text"
+                       id="deliveryFromDisplay"
+                       class="jalali-date"
+                       value="@(Model.DeliveryFrom.HasValue
+                               ? PersianDateTime.FormatDate(Model.DeliveryFrom.Value)
+                           : "")"
+                       placeholder="انتخاب تاریخ شمسی"
+                       autocomplete="off" />
+
+                <input type="hidden"
+                       id="deliveryFrom"
+                       name="deliveryFrom"
+                       value="@Model.DeliveryFrom?.ToString("yyyy-MM-dd")" />
+            </div>
+
+            <div class="form-field">
+                <label for="deliveryToDisplay">تحویل تا تاریخ</label>
+
+                <input type="text"
+                       id="deliveryToDisplay"
+                       class="jalali-date"
+                       value="@(Model.DeliveryTo.HasValue
+                               ? PersianDateTime.FormatDate(Model.DeliveryTo.Value)
+                           : "")"
+                       placeholder="انتخاب تاریخ شمسی"
+                       autocomplete="off" />
+
+                <input type="hidden"
+                       id="deliveryTo"
+                       name="deliveryTo"
+                       value="@Model.DeliveryTo?.ToString("yyyy-MM-dd")" />
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                جست‌وجو و فیلتر
+            </button>
+
+            <a asp-action="Index" class="btn btn-secondary">
+                پاک‌کردن فیلترها
+            </a>
+        </div>
+
+    </form>
+</section>
+
 <section class="table-panel">
-    @if (Model.Count == 0)
+
+    <div class="page-heading">
+        <div>
+            <h3>فهرست سفارش‌ها</h3>
+            <p>تعداد نتایج: @Model.TotalCount</p>
+        </div>
+    </div>
+
+    @if (Model.Orders.Count == 0)
     {
-        <div class="empty-state"><span>▤</span><h2>هنوز سفارشی ثبت نشده است</h2><p>برای شروع، اولین سفارش را ثبت کنید.</p><a class="btn btn-primary" asp-action="Create">ثبت سفارش</a></div>
+        <div class="empty-state">
+            <h2>سفارشی پیدا نشد</h2>
+            <p>عبارت جست‌وجو یا فیلترهای انتخاب‌شده را بررسی کنید.</p>
+        </div>
     }
     else
     {
-        <div class="table-scroll"><table>
-            <thead><tr><th>شماره سفارش</th><th>مشتری</th><th>نوع کیک</th><th>کانال</th><th>زمان تحویل</th><th>مبلغ نهایی</th><th>وضعیت</th><th></th></tr></thead>
-            <tbody>
-            @foreach (var order in Model)
-            {
-                <tr>
-                    <td><b>@order.OrderNumber</b></td><td>@(string.IsNullOrWhiteSpace(order.CustomerName) ? "—" : order.CustomerName)<small>@order.CustomerPhone</small></td>
-                    <td>@(order.CakeType switch { CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت", _ => "تمام فوندانت" })</td>
-                    <td>@(order.Channel == OrderChannel.Online ? "آنلاین" : "حضوری")</td>
-                    <td>@PersianDateTime.Format(order.DeliveryAt)</td>
-                    <td>@order.FinalAmount.ToString("N0")</td>
-                    <td><span class="status">@StatusText(order.Status)</span></td>
-                    <td><a asp-action="Details" asp-route-id="@order.Id">جزئیات</a></td>
-                </tr>
-            }
-            </tbody>
-        </table></div>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>شماره سفارش</th>
+                        <th>مشتری</th>
+                        <th>نوع کیک</th>
+                        <th>کانال</th>
+                        <th>زمان تحویل</th>
+                        <th>مبلغ نهایی</th>
+                        <th>وضعیت / مبلغ بیعانه</th>
+                        <th>مانده</th>
+                        <th>وضعیت</th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (var order in Model.Orders)
+                    {
+                        <tr>
+                            <td><b>@order.OrderNumber</b></td>
+
+                            <td>
+                                @(order.CustomerName ?? "—")
+                                <small>@order.CustomerPhone</small>
+                            </td>
+
+                            <td>@CakeTypeText(order.CakeType)</td>
+
+                            <td>
+                                @(order.Channel == OrderChannel.Online
+                                    ? "آنلاین"
+                                    : "حضوری")
+                            </td>
+
+                            <td>@PersianDateTime.Format(order.DeliveryAt)</td>
+
+                            <td>@order.FinalAmount.ToString("N0")</td>
+
+                            <td>
+                                @if (order.RequestedDepositAmount <= 0)
+                                {
+                                    <span>بدون بیعانه</span>
+                                }
+                                else if (order.DepositAmount >= order.RequestedDepositAmount)
+                                {
+                                    <strong>@order.DepositAmount.ToString("N0") ریال</strong>
+                                    <small>پرداخت شده</small>
+                                }
+                                else if (order.DepositAmount > 0)
+                                {
+                                    <strong>@order.DepositAmount.ToString("N0") ریال</strong>
+                                    <small>پرداخت ناقص از @order.RequestedDepositAmount.ToString("N0")</small>
+                                }
+                                else
+                                {
+                                    <span class="status">پرداخت نشده</span>
+                                    <small>در انتظار @order.RequestedDepositAmount.ToString("N0") ریال</small>
+                                }
+                            </td>
+
+                            <td>@order.RemainingAmount.ToString("N0")</td>
+
+                            <td>
+                                <span class="status">
+                                    @(order.RequestedDepositAmount > order.DepositAmount && order.Status == OrderStatus.PendingReview ? "در انتظار پرداخت بیعانه" : StatusText(order.Status))
+                                </span>
+                            </td>
+
+                            <td>
+                                <a asp-action="Details"
+                                   asp-route-id="@order.Id">
+                                    جزئیات
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.TotalPages > 1)
+        {
+            <div class="pagination">
+
+                @if (Model.Page > 1)
+                {
+                    <a asp-action="Index"
+                       asp-route-search="@Model.Search"
+                       asp-route-status="@Model.Status"
+                       asp-route-channel="@Model.Channel"
+                       asp-route-deliveryFrom="@Model.DeliveryFrom?.ToString("yyyy-MM-dd")"
+                       asp-route-deliveryTo="@Model.DeliveryTo?.ToString("yyyy-MM-dd")"
+                       asp-route-page="@(Model.Page - 1)">
+                        قبلی
+                    </a>
+                }
+
+                <span>
+                    صفحه @Model.Page از @Model.TotalPages
+                </span>
+
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <a asp-action="Index"
+                       asp-route-search="@Model.Search"
+                       asp-route-status="@Model.Status"
+                       asp-route-channel="@Model.Channel"
+                       asp-route-deliveryFrom="@Model.DeliveryFrom?.ToString("yyyy-MM-dd")"
+                       asp-route-deliveryTo="@Model.DeliveryTo?.ToString("yyyy-MM-dd")"
+                       asp-route-page="@(Model.Page + 1)">
+                        بعدی
+                    </a>
+                }
+
+            </div>
+        }
     }
+
 </section>
+
 @functions {
-    string StatusText(OrderStatus status) => status switch {
-        OrderStatus.PendingReview => "در انتظار بررسی", OrderStatus.Confirmed => "تأیید شده",
-        OrderStatus.Rejected => "رد شده", OrderStatus.InProduction => "در حال تولید",
-        OrderStatus.ReadyForDelivery => "آماده تحویل", OrderStatus.Delivered => "تحویل شده",
-        _ => "لغو شده"
+    string StatusText(OrderStatus status) => status switch
+    {
+        OrderStatus.PendingReview => "در انتظار بررسی",
+        OrderStatus.Confirmed => "تأیید شده",
+        OrderStatus.Rejected => "رد شده",
+        OrderStatus.InProduction => "در حال تولید",
+        OrderStatus.ReadyForDelivery => "آماده تحویل",
+        OrderStatus.Delivered => "تحویل شده",
+        OrderStatus.Cancelled => "لغو شده",
+        _ => "نامشخص"
     };
+
+    string CakeTypeText(CakeType type) => type switch
+    {
+        CakeType.Cream => "خامه‌ای",
+        CakeType.SemiFondant => "نیمه فوندانت",
+        CakeType.FullFondant => "تمام فوندانت",
+        _ => "نامشخص"
+    };
+}
+
+@section Scripts {
+    <script>
+        (function() {
+
+            if (!window.jQuery || !jQuery.fn.persianDatepicker) {
+                console.error('Persian DatePicker is not loaded.');
+                return;
+            }
+
+            function initializeDatePicker(displayId, hiddenId) {
+
+                const display = document.getElementById(displayId);
+                const hidden = document.getElementById(hiddenId);
+
+                jQuery(display).persianDatepicker({
+                    format: 'YYYY/MM/DD',
+                    autoClose: true,
+                    initialValue: false,
+                    onSelect: function(unixDate) {
+
+                        const date = new Date(unixDate);
+
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+
+                        hidden.value = `${year}-${month}-${day}`;
+                    }
+                });
+
+                display.addEventListener('input', function() {
+                    if (!this.value.trim()) {
+                        hidden.value = '';
+                    }
+                });
+            }
+
+            initializeDatePicker('deliveryFromDisplay', 'deliveryFrom');
+            initializeDatePicker('deliveryToDisplay', 'deliveryTo');
+
+        })();
+    </script>
 }

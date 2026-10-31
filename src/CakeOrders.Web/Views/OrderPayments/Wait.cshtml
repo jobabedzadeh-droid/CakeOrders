@@ -1,0 +1,156 @@
+@model CakeOrders.Domain.Entities.PaymentTransaction
+@using CakeOrders.Domain.Entities
+
+@{
+    ViewData["Title"] = "پیگیری پرداخت";
+    var purposeText = Model.Purpose == PaymentPurpose.Deposit ? "بیعانه" : "تسویه";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>پیگیری پرداخت کارت‌خوان</h1>
+        <p>سفارش: <strong>@Model.Order.OrderNumber</strong></p>
+    </div>
+    <a class="btn btn-light" href="@ViewBag.OrderDetailsUrl">بازگشت به سفارش</a>
+</div>
+@if (TempData["Error"] is string errorMessage)
+{
+    <div class="alert-danger">@errorMessage</div>
+}
+
+<section class="form-panel" id="paymentStatusPanel"
+         data-status-url="@ViewBag.StatusUrl">
+    <div class="detail-grid">
+        <div>
+            <small>مبلغ درخواستی</small>
+            <b id="paymentAmount">@Model.Amount.ToString("N0") ریال</b>
+        </div>
+        <div>
+            <small>نوع پرداخت</small>
+            <b>@purposeText</b>
+        </div>
+        <div>
+            <small>شماره پیگیری داخلی</small>
+            <b>#@Model.Id</b>
+        </div>
+    </div>
+
+    <hr />
+
+    <div style="text-align:center;padding:28px 12px">
+        <div id="paymentSpinner" aria-hidden="true"
+             style="width:42px;height:42px;border:4px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;margin:0 auto 18px;animation:payment-spin 1s linear infinite"></div>
+        <h2 id="paymentStatusTitle">در حال بررسی وضعیت پرداخت…</h2>
+        <p id="paymentStatusMessage" role="status" aria-live="polite">
+            درخواست پرداخت ثبت شده است. لطفاً تا دریافت نتیجه کارت‌خوان منتظر بمانید.
+        </p>
+        <p id="paymentResponseMessage" style="white-space:pre-line"></p>
+        <div id="paymentReferences" hidden>
+            <p>شماره مرجع (RRN): <strong id="paymentRrn">—</strong></p>
+            <p>شماره پیگیری کارت‌خوان: <strong id="paymentTrace">—</strong></p>
+        </div>
+    </div>
+
+    <div id="retryPayment" class="form-actions" hidden>
+        <form asp-action="Retry" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="paymentId" value="@Model.Id" />
+            <button type="submit" class="btn btn-primary"
+                    onclick="return confirm('مطمئن هستید درخواست پرداخت مجدد به کارت‌خوان ارسال شود؟');">
+                ارسال مجدد مبلغ به کارت‌خوان
+            </button>
+        </form>
+        <p class="text-muted">این گزینه فقط برای تراکنش ناموفق قطعی یا لغوشده فعال است.</p>
+    </div>
+    <div id="paymentActions" class="form-actions" hidden>
+        <a class="btn btn-primary" href="@ViewBag.OrderDetailsUrl">بازگشت به جزئیات سفارش</a>
+        <a class="btn btn-light" asp-action="History" asp-route-orderId="@Model.OrderId">تاریخچه پرداخت‌ها</a>
+    </div>
+</section>
+
+<style>
+    @@keyframes payment-spin { to { transform: rotate(360deg); } }
+    #paymentStatusPanel[data-state="Succeeded"] #paymentSpinner { display:none; }
+    #paymentStatusPanel[data-state="Failed"] #paymentSpinner,
+    #paymentStatusPanel[data-state="Cancelled"] #paymentSpinner,
+    #paymentStatusPanel[data-state="ReconciliationRequired"] #paymentSpinner { display:none; }
+</style>
+
+@section Scripts {
+<script>
+(function () {
+    const panel = document.getElementById('paymentStatusPanel');
+    const statusUrl = panel.dataset.statusUrl;
+    const spinner = document.getElementById('paymentSpinner');
+    const title = document.getElementById('paymentStatusTitle');
+    const message = document.getElementById('paymentStatusMessage');
+    const response = document.getElementById('paymentResponseMessage');
+    const references = document.getElementById('paymentReferences');
+    const actions = document.getElementById('paymentActions');
+    const retryPayment = document.getElementById('retryPayment');
+    let stopped = false;
+    let timer = null;
+
+    const titles = {
+        Created: 'در انتظار ارسال به کارت‌خوان',
+        Processing: 'در انتظار پاسخ کارت‌خوان',
+        Succeeded: 'پرداخت موفق',
+        Failed: 'پرداخت ناموفق',
+        Cancelled: 'تراکنش لغو شد',
+        Unknown: 'نتیجه پرداخت نامشخص است',
+        ReconciliationRequired: 'نیازمند بررسی دستی'
+    };
+
+    async function refreshStatus() {
+        if (stopped) return;
+
+        try {
+            const result = await fetch(statusUrl, {
+                method: 'GET',
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!result.ok) {
+                throw new Error('دریافت وضعیت تراکنش با خطا مواجه شد (HTTP ' + result.status + ').');
+            }
+
+            const data = await result.json();
+            panel.dataset.state = data.status;
+            title.textContent = titles[data.status] || 'وضعیت تراکنش';
+            message.textContent = data.message || '';
+            response.textContent = data.responseMessage || '';
+
+            if (data.rrn || data.traceNumber) {
+                references.hidden = false;
+                document.getElementById('paymentRrn').textContent = data.rrn || '—';
+                document.getElementById('paymentTrace').textContent = data.traceNumber || '—';
+            }
+
+            if (data.isFinal) {
+                stopped = true;
+                spinner.style.display = 'none';
+                actions.hidden = false;
+                retryPayment.hidden = !(data.status === 'Failed' || data.status === 'Cancelled');
+                return;
+            }
+
+            // Unknown can still receive a late, authenticated terminal result.
+            // Keep checking at a slower interval; never create another payment here.
+            timer = window.setTimeout(refreshStatus, data.status === 'Unknown' ? 5000 : 2000);
+        } catch (error) {
+            message.textContent = error.message || 'ارتباط با سرور موقتاً برقرار نشد؛ تلاش مجدد ادامه دارد.';
+            timer = window.setTimeout(refreshStatus, 4000);
+        }
+    }
+
+    refreshStatus();
+
+    window.addEventListener('beforeunload', function () {
+        stopped = true;
+        if (timer) window.clearTimeout(timer);
+    });
+})();
+</script>
+}

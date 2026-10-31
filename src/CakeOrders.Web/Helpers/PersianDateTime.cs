@@ -22,4 +22,15 @@ public static class PersianDateTime
             builder.Append(c is >= '0' and <= '9' ? digits[c - '0'] : c);
         return builder.ToString();
     }
+
+    public static string FormatDate(DateTime value)
+    {
+        var local = value.Kind == DateTimeKind.Utc
+            ? value.ToLocalTime()
+            : value;
+
+        var text = $"{Calendar.GetYear(local):0000}/{Calendar.GetMonth(local):00}/{Calendar.GetDayOfMonth(local):00}";
+
+        return ToPersianDigits(text);
+    }
 }

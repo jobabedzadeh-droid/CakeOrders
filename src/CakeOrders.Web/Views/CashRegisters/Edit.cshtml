@@ -1,0 +1,71 @@
+﻿@model CakeOrders.Web.ViewModels.CashRegisterViewModel
+
+@{
+    var isEdit = Model.Id > 0;
+    ViewData["Title"] = isEdit ? "ویرایش صندوق" : "افزودن صندوق";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>@ViewData["Title"]</h1>
+        <p>اطلاعات صندوق و دستگاه کارت‌خوان متصل به آن را مشخص کنید.</p>
+    </div>
+
+    <a class="btn btn-secondary" asp-action="Index">بازگشت</a>
+</div>
+
+<section class="form-panel">
+    <form asp-action="@(isEdit ? "Edit" : "Create")"
+          asp-route-id="@Model.Id"
+          method="post">
+
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly"
+             class="validation-summary"></div>
+
+        <input asp-for="Id" type="hidden" />
+
+        <div class="form-grid">
+
+            <div class="form-field">
+                <label asp-for="Name"></label>
+                <input asp-for="Name" autocomplete="off" />
+                <span asp-validation-for="Name" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="BranchId"></label>
+                <select asp-for="BranchId" asp-items="Model.Branches">
+                    <option value="">انتخاب شعبه</option>
+                </select>
+                <span asp-validation-for="BranchId" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="PosTerminalId"></label>
+                <select asp-for="PosTerminalId" asp-items="Model.PosTerminals">
+                    <option value="">بدون کارت‌خوان</option>
+                </select>
+                <span asp-validation-for="PosTerminalId" class="field-error"></span>
+            </div>
+
+            <div class="form-field checkbox-field">
+                <label>
+                    <input asp-for="IsActive" />
+                    صندوق فعال باشد
+                </label>
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">ذخیره اطلاعات</button>
+            <a class="btn btn-secondary" asp-action="Index">انصراف</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

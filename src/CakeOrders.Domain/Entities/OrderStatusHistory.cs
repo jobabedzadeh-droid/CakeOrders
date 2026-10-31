@@ -1,4 +1,4 @@
-namespace CakeOrders.Domain.Entities;
+﻿namespace CakeOrders.Domain.Entities;
 
 public sealed class OrderStatusHistory
 {

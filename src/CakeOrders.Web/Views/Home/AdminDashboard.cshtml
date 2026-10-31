@@ -1,0 +1,50 @@
+﻿@model CakeOrders.Web.ViewModels.DashboardViewModel
+
+@{
+    ViewData["Title"] = "داشبورد مدیریت";
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">ADMINISTRATION PANEL</span>
+        <h1>داشبورد مدیریت</h1>
+        <p>نمای کلی سفارش‌ها، وضعیت تولید و عملکرد مالی مجموعه</p>
+    </div>
+
+    <a class="btn btn-primary"
+       asp-controller="Orders"
+       asp-action="Create">
+        + ثبت سفارش جدید
+    </a>
+</div>
+
+<section class="dashboard-welcome">
+    <div>
+        <h2>خوش آمدید، @User.Identity?.Name</h2>
+        <p>از این بخش می‌توانید وضعیت کلی سفارش‌های مجموعه را مدیریت کنید.</p>
+    </div>
+    <span class="dashboard-role">مدیر سیستم</span>
+</section>
+
+<partial name="_DashboardSummary" model="Model" />
+
+<section class="dashboard-shortcuts">
+    <h2>مدیریت سامانه</h2>
+
+    <div class="shortcut-grid">
+        <a asp-controller="Orders" asp-action="Index">
+            <strong>مدیریت سفارش‌ها</strong>
+            <span>مشاهده و پیگیری تمام سفارش‌ها</span>
+        </a>
+
+        <a asp-controller="Orders" asp-action="Create">
+            <strong>ثبت سفارش جدید</strong>
+            <span>ثبت سفارش مشتری</span>
+        </a>
+
+        <a asp-controller="PosTerminals" asp-action="Index">
+            <strong>مدیریت کارت‌خوان‌ها</strong>
+            <span>مدیریت دستگاه‌ها و تخصیص آن‌ها</span>
+        </a>
+    </div>
+</section>

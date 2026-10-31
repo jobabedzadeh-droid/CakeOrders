@@ -1,0 +1,218 @@
+﻿@model IReadOnlyList<CakeOrders.Domain.Entities.CashRegister>
+
+@{
+    ViewData["Title"] = "مدیریت صندوق‌ها";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>مدیریت صندوق‌ها</h1>
+        <p>مدیریت صندوق‌های فروش و اتصال آن‌ها به دستگاه‌های کارت‌خوان</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">＋ افزودن صندوق</a>
+</div>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert-success">@success</div>
+}
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert-danger">@error</div>
+}
+
+<div id="bridgeResult" class="form-panel" style="display:none; margin-bottom:20px;">
+    <h3>اطلاعات دسترسی SadadBridge</h3>
+
+    <div class="form-field">
+        <label>شناسه نصب (Installation ID)</label>
+        <div style="display:flex; gap:8px;">
+            <input id="bridgeInstallationId" readonly dir="ltr" />
+            <button type="button" class="btn btn-secondary"
+                    onclick="copyBridgeValue('bridgeInstallationId')">
+                کپی
+            </button>
+        </div>
+    </div>
+
+    <div class="form-field">
+        <label>رمز دسترسی (Secret)</label>
+        <div style="display:flex; gap:8px;">
+            <input id="bridgeSecret" readonly dir="ltr" />
+            <button type="button" class="btn btn-secondary"
+                    onclick="copyBridgeValue('bridgeSecret')">
+                کپی
+            </button>
+        </div>
+    </div>
+
+    <div class="alert-danger">
+        هشدار امنیتی: رمز فقط همین یک بار نمایش داده می‌شود.
+        آن را در محل امن ذخیره کنید. با تولید رمز جدید، دسترسی قبلی باطل خواهد شد.
+    </div>
+
+    <button type="button" class="btn btn-secondary"
+            onclick="document.getElementById('bridgeResult').style.display='none'">
+        بستن
+    </button>
+</div>
+
+<section class="table-panel">
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state">
+            <span>▣</span>
+            <h2>هنوز صندوقی تعریف نشده است</h2>
+            <p>برای شروع، یک صندوق برای یکی از شعب مجموعه تعریف کنید.</p>
+            <a class="btn btn-primary" asp-action="Create">افزودن صندوق</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>نام صندوق</th>
+                        <th>شعبه</th>
+                        <th>دستگاه کارت‌خوان</th>
+                        <th>آدرس IP</th>
+                        <th>وضعیت صندوق</th>
+                        <th>دسترسی بریج</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td><b>@item.Name</b></td>
+                            <td>@item.Branch.Name</td>
+                            <td>
+                                @(item.PosTerminal?.Name ?? "بدون کارت‌خوان")
+                            </td>
+                            <td dir="ltr">
+                                @(item.PosTerminal?.IpAddress ?? "—")
+                            </td>
+                            <td>
+                                <span class="status">
+                                    @(item.IsActive ? "فعال" : "غیرفعال")
+                                </span>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(item.BridgeInstallationId)
+                                     && !string.IsNullOrWhiteSpace(item.BridgeSecretHash))
+                                {
+                                    <span class="status">دارای دسترسی</span>
+                                }
+                                else
+                                {
+                                    <span class="status">بدون دسترسی</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-action="Edit" asp-route-id="@item.Id">
+                                    ویرایش
+                                </a>
+
+                                <form asp-action="ToggleActive"
+                                      asp-route-id="@item.Id"
+                                      method="post"
+                                      style="display:inline">
+                                    @Html.AntiForgeryToken()
+
+                                    <button type="submit" class="btn btn-secondary">
+                                        @(item.IsActive ? "غیرفعال‌سازی" : "فعال‌سازی")
+                                    </button>
+                                </form>
+
+                                <form asp-action="GenerateBridgeCredentials"
+                                      asp-route-id="@item.Id"
+                                      method="post"
+                                      class="bridge-credentials-form"
+                                      style="display:inline">
+                                    @Html.AntiForgeryToken()
+
+                                    <button type="submit"
+                                            class="btn btn-primary"
+                                            onclick="return confirm('با تولید دسترسی جدید، اعتبارنامه قبلی این صندوق باطل می‌شود. ادامه می‌دهید؟')">
+                                        تولید دسترسی بریج
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.bridge-credentials-form').forEach(form => {
+            form.addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                const button = form.querySelector('button[type="submit"]');
+                const originalText = button.textContent;
+
+                button.disabled = true;
+                button.textContent = 'در حال تولید...';
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        credentials: 'same-origin'
+                    });
+
+                    const contentType = response.headers.get('content-type') || '';
+
+                    if (!response.ok || !contentType.includes('application/json')) {
+                        throw new Error('تولید دسترسی ناموفق بود. وضعیت HTTP: ' + response.status);
+                    }
+
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        throw new Error(result.message || 'خطا در تولید دسترسی');
+                    }
+
+                    document.getElementById('bridgeInstallationId').value =
+                        result.installationId;
+
+                    document.getElementById('bridgeSecret').value =
+                        result.secret;
+
+                    document.getElementById('bridgeResult').style.display = 'block';
+
+                    document.getElementById('bridgeResult').scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+
+                } catch (error) {
+                    alert(error.message);
+                } finally {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
+            });
+        });
+
+        async function copyBridgeValue(elementId) {
+            const input = document.getElementById(elementId);
+
+            try {
+                await navigator.clipboard.writeText(input.value);
+                alert('مقدار با موفقیت کپی شد.');
+            } catch {
+                input.select();
+                document.execCommand('copy');
+                alert('مقدار کپی شد.');
+            }
+        }
+    </script>
+}

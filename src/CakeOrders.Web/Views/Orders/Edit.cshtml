@@ -1,0 +1,346 @@
+﻿@model CakeOrders.Web.ViewModels.OrderEditViewModel
+@using CakeOrders.Domain.Entities
+
+@{
+    ViewData["Title"] = "ویرایش سفارش";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>ویرایش سفارش</h1>
+        <p>اطلاعات سفارش را اصلاح کنید. در صورت انتخاب تصویر جدید، تصویر قبلی جایگزین خواهد شد.</p>
+    </div>
+    <a class="btn btn-light" asp-action="Details" asp-route-id="@Model.Id">بازگشت به سفارش</a>
+</div>
+
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="order-form">
+
+    <input type="hidden" asp-for="Id" />
+
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+    <section class="form-panel">
+        <h2>اطلاعات پایه</h2>
+        <div class="form-grid">
+
+            <div class="field">
+                <label asp-for="CustomerName"></label>
+                <input asp-for="CustomerName" placeholder="نام و نام خانوادگی" />
+                <span asp-validation-for="CustomerName"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="CustomerPhone"></label>
+                <input asp-for="CustomerPhone" placeholder="09xxxxxxxxx" dir="ltr" />
+                <span asp-validation-for="CustomerPhone"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="OrderType"></label>
+                <select asp-for="OrderType" asp-items="Model.OrderTypes">
+                    <option value="">انتخاب نوع سفارش</option>
+                </select>
+                <span asp-validation-for="OrderType"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="CakeType"></label>
+                <select asp-for="CakeType" asp-items="Html.GetEnumSelectList<CakeType>()"></select>
+            </div>
+
+            <div class="field">
+                <label for="DeliveryAtPersian">تاریخ و ساعت تحویل (شمسی)</label>
+                <input id="DeliveryAtPersian"
+                       type="text"
+                       value="@CakeOrders.Web.Helpers.PersianDateTime.Format(Model.DeliveryAt)"
+                       autocomplete="off"
+                       placeholder="انتخاب تاریخ و ساعت شمسی"
+                       required />
+
+                <input asp-for="DeliveryAt"
+                       type="hidden"
+                       value="@Model.DeliveryAt.ToString("yyyy-MM-ddTHH:mm:ss")" />
+
+                <span asp-validation-for="DeliveryAt"></span>
+            </div>
+
+        </div>
+    </section>
+
+    <section class="form-panel">
+        <h2>مشخصات کیک</h2>
+        <div class="form-grid">
+
+            <div class="field">
+                <label asp-for="RequestedWeightKg"></label>
+                <input asp-for="RequestedWeightKg" type="number" min="0.1" max="100" step="0.1" />
+                <span asp-validation-for="RequestedWeightKg"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="PricePerKg"></label>
+                <input asp-for="PricePerKg" type="number" min="0" step="1000" />
+                <span asp-validation-for="PricePerKg"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="PrintType"></label>
+                <select asp-for="PrintType" asp-items="Model.PrintTypes"></select>
+            </div>
+
+            <div class="field">
+                <label asp-for="BackgroundColor"></label>
+                <input asp-for="BackgroundColor" placeholder="مثلاً سفید و صورتی" />
+            </div>
+
+            <div class="field">
+                <label asp-for="MoldType"></label>
+                <select asp-for="MoldType" asp-items="Model.MoldTypes">
+                    <option value="">انتخاب قالب</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label asp-for="WritingLocation"></label>
+                <select asp-for="WritingLocation" asp-items="Model.WritingLocations">
+                    <option value="">انتخاب محل نوشته</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label>فیلینگ</label>
+                <div class="check-row">
+                    <label><input asp-for="HasBananaFilling" /> موز</label>
+                    <label><input asp-for="HasWalnutFilling" /> گردو</label>
+                </div>
+            </div>
+
+            <div class="field full">
+                <label asp-for="CakeText"></label>
+                <textarea asp-for="CakeText" rows="2" maxlength="500"
+                          placeholder="متنی که باید روی کیک نوشته شود"></textarea>
+                <span asp-validation-for="CakeText"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="SampleImage"></label>
+                <input asp-for="SampleImage"
+                       type="file"
+                       accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                       data-preview-target="samplePreview" />
+                <span asp-validation-for="SampleImage"></span>
+                <small>حداکثر ۵ مگابایت؛ JPG، PNG یا WebP. برای حفظ تصویر فعلی، فایلی انتخاب نکنید.</small>
+
+                <div class="image-preview" id="samplePreview">
+                    @if (!string.IsNullOrWhiteSpace(Model.CurrentSampleImagePath))
+                    {
+                        <img src="@Model.CurrentSampleImagePath" alt="تصویر نمونه فعلی کیک" />
+                    }
+                    else
+                    {
+                        <span>تصویر نمونه‌ای ثبت نشده است</span>
+                    }
+                </div>
+            </div>
+
+            <div class="field">
+                <label asp-for="PrintImage"></label>
+                <input asp-for="PrintImage"
+                       type="file"
+                       accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                       data-preview-target="printPreview" />
+                <span asp-validation-for="PrintImage"></span>
+                <small>تصویری که باید روی کیک چاپ شود. برای حفظ تصویر فعلی، فایلی انتخاب نکنید.</small>
+
+                <div class="image-preview" id="printPreview">
+                    @if (!string.IsNullOrWhiteSpace(Model.CurrentPrintImagePath))
+                    {
+                        <img src="@Model.CurrentPrintImagePath" alt="تصویر چاپی فعلی" />
+                    }
+                    else
+                    {
+                        <span>تصویر چاپی ثبت نشده است</span>
+                    }
+                </div>
+            </div>
+
+            <div class="field full">
+                <label asp-for="DesignNotes"></label>
+                <textarea asp-for="DesignNotes" rows="3"
+                          placeholder="توضیحات تکمیلی سفارش و جزئیات طرح"></textarea>
+                <span asp-validation-for="DesignNotes"></span>
+            </div>
+
+        </div>
+    </section>
+
+    <section class="form-panel">
+        <h2>هزینه‌ها و پرداخت</h2>
+        <div class="form-grid">
+
+            <div class="field">
+                <label asp-for="MacaronCost"></label>
+                <input asp-for="MacaronCost" type="number" min="0" step="1000" />
+            </div>
+
+            <div class="field">
+                <label asp-for="FlowerCost"></label>
+                <input asp-for="FlowerCost" type="number" min="0" step="1000" />
+            </div>
+
+            <div class="field">
+                <label asp-for="DummyCost"></label>
+                <input asp-for="DummyCost" type="number" min="0" step="1000" />
+            </div>
+
+            <div class="field">
+                <label asp-for="PrintingCost"></label>
+                <input asp-for="PrintingCost" type="number" min="0" step="1000" />
+            </div>
+
+            <div class="field">
+                <label asp-for="ShippingCost"></label>
+                <input asp-for="ShippingCost" type="number" min="0" step="1000" />
+            </div>
+
+            <div class="field">
+                <label asp-for="OtherCost"></label>
+                <input asp-for="OtherCost" type="number" min="0" step="1000" />
+            </div>
+
+            <div class="field">
+                <label asp-for="Discount"></label>
+                <input asp-for="Discount" type="number" min="0" step="1000" />
+                <span asp-validation-for="Discount"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="RequestedDepositAmount"></label>
+                <input asp-for="RequestedDepositAmount" type="number" min="0" step="1000" />
+                <span asp-validation-for="RequestedDepositAmount"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="ReferrerCode"></label>
+                <input asp-for="ReferrerCode" placeholder="کد معرف" autocomplete="off" />
+                <span id="referrerName" class="referrer-feedback" aria-live="polite"></span>
+            </div>
+
+        </div>
+
+        <div class="calc-note">
+            مبلغ نهایی هنگام ذخیره در سمت سرور محاسبه می‌شود.
+            کانال و وضعیت سفارش در این فرم تغییر نمی‌کنند.
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <a class="btn btn-light" asp-action="Details" asp-route-id="@Model.Id">انصراف</a>
+        <button class="btn btn-primary" type="submit">ذخیره تغییرات</button>
+    </div>
+
+</form>
+
+@section Scripts {
+    <script>
+        (function() {
+            const deliveryInput = document.getElementById('DeliveryAt');
+            const jalaliInput = document.getElementById('DeliveryAtPersian');
+
+            if (window.jQuery && jQuery.fn.persianDatepicker) {
+                jQuery(jalaliInput).persianDatepicker({
+                    format: 'YYYY/MM/DD HH:mm',
+                    autoClose: true,
+                    initialValue: true,
+                    initialValueType: 'persian',
+                    timePicker: {
+                        enabled: true,
+                        meridiem: { enabled: false }
+                    },
+                    onSelect: function(unixDate) {
+                        const d = new Date(unixDate);
+                        const pad = n => String(n).padStart(2, '0');
+
+                        deliveryInput.value =
+                            d.getFullYear() + '-' +
+                            pad(d.getMonth() + 1) + '-' +
+                            pad(d.getDate()) + 'T' +
+                            pad(d.getHours()) + ':' +
+                            pad(d.getMinutes()) + ':00';
+                    }
+                });
+            } else {
+                jalaliInput.placeholder =
+                    'تقویم شمسی بارگذاری نشد؛ اتصال اینترنت را بررسی کنید';
+            }
+
+            document.querySelectorAll('input[type=file][data-preview-target]')
+                .forEach(input => {
+                    input.addEventListener('change', function() {
+                        const target =
+                            document.getElementById(this.dataset.previewTarget);
+
+                        target.replaceChildren();
+
+                        const file = this.files && this.files[0];
+
+                        if (!file) {
+                            target.textContent = 'تصویری انتخاب نشده است';
+                            return;
+                        }
+
+                        if (!file.type.startsWith('image/')) {
+                            target.textContent = 'فایل انتخاب‌شده تصویر نیست';
+                            return;
+                        }
+
+                        const img = document.createElement('img');
+                        img.alt = 'پیش‌نمایش تصویر انتخاب‌شده';
+                        img.src = URL.createObjectURL(file);
+
+                        img.onload = () => URL.revokeObjectURL(img.src);
+                        target.appendChild(img);
+                    });
+                });
+
+            const codeInput = document.getElementById('ReferrerCode');
+            const nameOutput = document.getElementById('referrerName');
+
+            let lookupTimer;
+
+            codeInput.addEventListener('input', function() {
+                clearTimeout(lookupTimer);
+
+                const code = this.value.trim();
+
+                nameOutput.textContent = '';
+                nameOutput.className = 'referrer-feedback';
+
+                if (!code) return;
+
+                nameOutput.textContent = 'در حال بررسی کد معرف…';
+
+                lookupTimer = setTimeout(async () => {
+                    try {
+                        const response = await fetch(
+                            '@Url.Action("LookupReferrer", "Orders")?code=' +
+                            encodeURIComponent(code)
+                        );
+
+                        const result = await response.json();
+
+                        nameOutput.textContent = result.found
+                            ? result.fullName
+                            : 'کد معرف پیدا نشد';
+
+                        nameOutput.classList.toggle('is-found', result.found);
+                        nameOutput.classList.toggle('is-missing', !result.found);
+                    } catch {
+                        nameOutput.textContent = 'بررسی کد معرف انجام نشد';
+                        nameOutput.classList.add('is-missing');
+                    }
+                }, 300);
+            });
+        })();
+    </script>
+}

@@ -1,11 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using CakeOrders.Domain.Entities;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace CakeOrders.Web.ViewModels;
 
-public sealed class OrderCreateViewModel
+public class OrderCreateViewModel
 {
     [Display(Name = "نام مشتری")]
     [StringLength(200)]
@@ -93,9 +92,9 @@ public sealed class OrderCreateViewModel
     [Range(typeof(decimal), "0", "1000000000")]
     public decimal Discount { get; set; }
 
-    [Display(Name = "بیعانه")]
+    [Display(Name = "مبلغ بیعانه درخواستی")]
     [Range(typeof(decimal), "0", "1000000000")]
-    public decimal DepositAmount { get; set; }
+    public decimal RequestedDepositAmount { get; set; }
 
     [Display(Name = "کد معرف")]
     [StringLength(50)]
