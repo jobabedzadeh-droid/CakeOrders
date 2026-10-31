@@ -44,11 +44,13 @@ public sealed class Order
     public decimal RequestedDepositAmount { get; set; }
     // فقط مجموع بیعانه‌هایی که پرداخت موفق آن‌ها از کارت‌خوان تأیید شده است.
     public decimal DepositAmount { get; set; }
+    // مجموع تمام پرداخت‌های موفق سفارش، شامل بیعانه و تسویه.
+    public decimal PaidAmount { get; set; }
     public string? ReferrerCode { get; set; }
     public string? RejectionReason { get; set; }
     public string? RahkaranCustomerId { get; set; }
     public string? RahkaranSalesRequestId { get; set; }
     public string? RahkaranReceiptId { get; set; }
     public ICollection<OrderStatusHistory> StatusHistory { get; set; } = new List<OrderStatusHistory>();
-    public decimal RemainingAmount => Math.Max(0, FinalAmount - DepositAmount);
+    public decimal RemainingAmount => Math.Max(0, FinalAmount - PaidAmount);
 }
