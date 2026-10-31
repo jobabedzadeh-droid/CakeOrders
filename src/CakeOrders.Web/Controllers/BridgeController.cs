@@ -154,6 +154,47 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
         });
     }
 
+
+    /// <summary>
+    /// Returns a payment already claimed by this bridge installation.
+    /// This is a recovery lookup only: the Bridge must not start the POS sale again.
+    /// </summary>
+    [HttpGet("payments/active")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> GetActivePayment(CancellationToken cancellationToken)
+    {
+        DisableCaching();
+
+        var identity = GetBridgeIdentity();
+        if (identity is null)
+            return Unauthorized(new { error = "invalid_bridge_identity" });
+
+        var payment = await db.PaymentTransactions
+            .AsNoTracking()
+            .Where(x =>
+                x.CashRegisterId == identity.Value.CashRegisterId &&
+                x.BridgeInstallationId == identity.Value.InstallationId &&
+                x.Status == PaymentTransactionStatus.Processing)
+            .OrderBy(x => x.ProcessingAtUtc)
+            .ThenBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (payment is null)
+            return NoContent();
+
+        return Ok(new
+        {
+            paymentId = payment.Id,
+            merchantReference = payment.MerchantReference,
+            amount = decimal.ToInt64(payment.Amount),
+            currency = "IRR",
+            purpose = payment.Purpose.ToString(),
+            orderId = payment.OrderId,
+            createdAtUtc = payment.CreatedAtUtc
+        });
+    }
+
     /// <summary>
     /// Reports the terminal result. Only the Bridge installation that claimed
     /// the payment may report it. Repeated reports are idempotent.
