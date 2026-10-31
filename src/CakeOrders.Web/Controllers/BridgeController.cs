@@ -248,7 +248,6 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
             {
                 payment.Status = PaymentTransactionStatus.Succeeded;
                 payment.Order.DepositAmount += payment.Amount;
-                payment.Order.UpdatedByUserId = null;
             }
         }
         else if (isDefinitiveFailure)
