@@ -13,6 +13,10 @@
     </div>
     <a class="btn btn-light" href="@ViewBag.OrderDetailsUrl">بازگشت به سفارش</a>
 </div>
+@if (TempData["Error"] is string errorMessage)
+{
+    <div class="alert-danger">@errorMessage</div>
+}
 
 <section class="form-panel" id="paymentStatusPanel"
          data-status-url="@ViewBag.StatusUrl">
@@ -128,6 +132,7 @@
                 stopped = true;
                 spinner.style.display = 'none';
                 actions.hidden = false;
+                retryPayment.hidden = !(data.status === 'Failed' || data.status === 'Cancelled');
                 return;
             }
 
