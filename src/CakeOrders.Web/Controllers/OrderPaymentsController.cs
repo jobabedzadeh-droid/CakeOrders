@@ -348,7 +348,7 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
             PaymentTransactionStatus.Processing => "درخواست به کارت‌خوان ارسال شده است؛ منتظر پاسخ مشتری و دستگاه هستیم.",
             PaymentTransactionStatus.Succeeded => "پرداخت با موفقیت تأیید شد.",
             PaymentTransactionStatus.Failed => "پرداخت ناموفق بود.",
-            PaymentTransactionStatus.Cancelled => "تراکنش توسط کاربر کارت‌خوان لغو شد.",
+            PaymentTransactionStatus.Cancelled => "تراکنش لغو شده است.",
             PaymentTransactionStatus.Unknown => "هنوز نتیجه قطعی دریافت نشده است. تا روشن شدن نتیجه، درخواست پرداخت دیگری ثبت نکنید.",
             PaymentTransactionStatus.ReconciliationRequired => "این تراکنش نیازمند بررسی و تطبیق دستی است.",
             _ => "وضعیت تراکنش قابل تشخیص نیست."
