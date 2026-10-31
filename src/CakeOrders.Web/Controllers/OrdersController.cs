@@ -282,6 +282,13 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (order is null)
             return NotFound();
 
+        if (model.NewStatus == OrderStatus.Confirmed &&
+            order.RequestedDepositAmount > order.DepositAmount)
+        {
+            TempData["Error"] = "تا زمانی که بیعانه به‌طور کامل پرداخت و توسط کارت‌خوان تأیید نشده باشد، سفارش قابل تأیید نیست.";
+            return RedirectToAction(nameof(Details), new { id = order.Id });
+        }
+
         var allowedTransitions = order.Status switch
         {
             OrderStatus.PendingReview => new[]
