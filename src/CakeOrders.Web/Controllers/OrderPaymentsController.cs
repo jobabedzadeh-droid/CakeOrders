@@ -109,17 +109,25 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
                 "برای این سفارش یک تراکنش در انتظار یا با نتیجه نامشخص وجود دارد. ابتدا آن را تعیین تکلیف کنید.");
         }
 
+        var depositRemaining = Math.Max(0, order.RequestedDepositAmount - order.DepositAmount);
         var amount = model.Purpose == PaymentPurpose.Settlement
             ? order.RemainingAmount
             : model.Amount;
+
+        if (model.Purpose == PaymentPurpose.Deposit && depositRemaining <= 0)
+            ModelState.AddModelError(nameof(model.Purpose), "بیعانه درخواستی قبلاً به‌طور کامل پرداخت شده است.");
+
+        var purposeLimit = model.Purpose == PaymentPurpose.Deposit
+            ? depositRemaining
+            : order.RemainingAmount;
 
         // For full settlement, the server determines the exact remaining balance.
         // The posted amount is ignored.
         if (model.Purpose == PaymentPurpose.Settlement)
             ModelState.Remove(nameof(model.Amount));
 
-        if (amount <= 0 || amount > order.RemainingAmount)
-            ModelState.AddModelError(nameof(model.Amount), "مبلغ پرداخت باید بیشتر از صفر و حداکثر برابر مانده سفارش باشد.");
+        if (amount <= 0 || amount > purposeLimit)
+            ModelState.AddModelError(nameof(model.Amount), "مبلغ پرداخت باید بیشتر از صفر و حداکثر برابر مانده مجاز این نوع پرداخت باشد.");
 
         if (decimal.Truncate(amount) != amount)
             ModelState.AddModelError(nameof(model.Amount), "مبلغ کارت‌خوان باید عدد صحیح و برحسب ریال باشد.");
