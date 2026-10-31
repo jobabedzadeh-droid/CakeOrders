@@ -275,6 +275,7 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
             else
             {
                 payment.Status = PaymentTransactionStatus.Succeeded;
+                payment.Order.PaidAmount += payment.Amount;
                 if (payment.Purpose == PaymentPurpose.Deposit)
                     payment.Order.DepositAmount += payment.Amount;
             }
