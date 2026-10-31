@@ -1,6 +1,7 @@
 ﻿using CakeOrders.Infrastructure.Data;
 using CakeOrders.Infrastructure.Identity;
 using CakeOrders.Web.Identity;
+using CakeOrders.Web.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -31,6 +32,14 @@ builder.Services
     .AddEntityFrameworkStores<CakeOrdersDbContext>()
     .AddDefaultTokenProviders();
 
+// SadadBridge uses a separate header-based scheme. The Identity cookie remains
+// the default scheme for the MVC administration area.
+builder.Services
+    .AddAuthentication()
+    .AddScheme<AuthenticationSchemeOptions, BridgeAuthenticationHandler>(
+        BridgeAuthenticationDefaults.Scheme,
+        _ => { });
+
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "CakeOrders.Admin";
@@ -48,6 +57,12 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+
+    options.AddPolicy(BridgeAuthenticationDefaults.Policy, policy =>
+    {
+        policy.AddAuthenticationSchemes(BridgeAuthenticationDefaults.Scheme);
+        policy.RequireAuthenticatedUser();
+    });
 });
 
 builder.Services.ConfigureApplicationCookie(options =>
@@ -87,6 +102,9 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Attribute-routed API controllers (SadadBridge).
+app.MapControllers();
 
 app.MapControllerRoute(
     name: "default",
