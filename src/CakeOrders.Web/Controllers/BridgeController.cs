@@ -244,6 +244,15 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
             string.Equals(responseCode, "00", StringComparison.Ordinal) &&
             successTextReceived;
 
+        // PcPosStatusCode=3 is the terminal's explicit "cancelled by POS user"
+        // result. It is a definitive cancellation, not an ambiguous outcome.
+        var isDefinitiveCancellation =
+            request.ResultReceived &&
+            string.Equals(
+                request.PcPosStatusCode?.Trim(),
+                "3",
+                StringComparison.Ordinal);
+
         var isDefinitiveFailure =
             request.ResultReceived &&
             !string.IsNullOrWhiteSpace(responseCode) &&
@@ -264,6 +273,10 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
                 payment.Status = PaymentTransactionStatus.Succeeded;
                 payment.Order.DepositAmount += payment.Amount;
             }
+        }
+        else if (isDefinitiveCancellation)
+        {
+            payment.Status = PaymentTransactionStatus.Cancelled;
         }
         else if (isDefinitiveFailure)
         {
@@ -288,6 +301,7 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
             {
                 PaymentTransactionStatus.Succeeded => "پرداخت تأیید و به بیعانه سفارش اضافه شد.",
                 PaymentTransactionStatus.Failed => "پایانه پرداخت را ناموفق اعلام کرد.",
+                PaymentTransactionStatus.Cancelled => "تراکنش توسط کاربر کارت‌خوان لغو شد؛ امکان ثبت درخواست پرداخت جدید وجود دارد.",
                 PaymentTransactionStatus.Unknown => "نتیجه پرداخت نامشخص است؛ پیش از تلاش مجدد باید بررسی شود.",
                 PaymentTransactionStatus.ReconciliationRequired => "پرداخت نیازمند بررسی و تطبیق دستی است.",
                 _ => "نتیجه ثبت شد."
