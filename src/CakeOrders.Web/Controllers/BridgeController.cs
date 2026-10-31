@@ -193,7 +193,8 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
             return Forbid();
         }
 
-        if (payment.Status != PaymentTransactionStatus.Processing)
+        if (payment.Status != PaymentTransactionStatus.Processing &&
+            !(payment.Status == PaymentTransactionStatus.Unknown && request.ResultReceived))
         {
             // The Bridge may retry after a lost HTTP response. Do not apply the
             // same successful payment to the order a second time.
