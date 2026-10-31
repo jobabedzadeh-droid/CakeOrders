@@ -113,6 +113,9 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
         }
 
         var depositRemaining = Math.Max(0, order.RequestedDepositAmount - order.DepositAmount);
+        if (model.Purpose == PaymentPurpose.Settlement && depositRemaining > 0)
+            ModelState.AddModelError(nameof(model.Purpose), "تا زمان پرداخت کامل بیعانه، امکان تسویه سفارش وجود ندارد.");
+
         var amount = model.Purpose == PaymentPurpose.Settlement
             ? order.RemainingAmount
             : model.Amount;
