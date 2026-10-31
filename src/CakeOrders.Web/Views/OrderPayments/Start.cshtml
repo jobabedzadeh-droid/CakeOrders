@@ -1,0 +1,112 @@
+@model CakeOrders.Web.ViewModels.OrderPaymentStartViewModel
+@using CakeOrders.Domain.Entities
+
+@{
+    ViewData["Title"] = "درخواست پرداخت کارت‌خوان";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>درخواست پرداخت کارت‌خوان</h1>
+        <p>سفارش: <strong>@Model.OrderNumber</strong></p>
+    </div>
+    <a class="btn btn-light"
+       asp-controller="Orders"
+       asp-action="Details"
+       asp-route-id="@Model.OrderId">بازگشت به سفارش</a>
+</div>
+
+<section class="form-panel">
+    <div class="detail-grid">
+        <div>
+            <small>مانده قابل پرداخت</small>
+            <b>@Model.RemainingAmount.ToString("N0") ریال</b>
+        </div>
+        <div>
+            <small>واحد پول</small>
+            <b>ریال (IRR)</b>
+        </div>
+    </div>
+</section>
+
+<section class="form-panel">
+    <form asp-action="Start" method="post">
+        @Html.AntiForgeryToken()
+        <input asp-for="OrderId" type="hidden" />
+        <input asp-for="OrderNumber" type="hidden" />
+        <input asp-for="RemainingAmount" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly" class="alert-danger"></div>
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="CashRegisterId">صندوق دریافت‌کننده</label>
+                <select asp-for="CashRegisterId" asp-items="Model.CashRegisters" required>
+                    <option value="">انتخاب صندوق</option>
+                </select>
+                <span asp-validation-for="CashRegisterId"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Purpose">نوع پرداخت</label>
+                <select asp-for="Purpose" id="paymentPurpose">
+                    <option value="@((int)PaymentPurpose.Deposit)">دریافت بیعانه</option>
+                    <option value="@((int)PaymentPurpose.Settlement)">تسویه کامل</option>
+                </select>
+                <span asp-validation-for="Purpose"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Amount">مبلغ پرداخت (ریال)</label>
+                <input asp-for="Amount"
+                       id="paymentAmount"
+                       type="number"
+                       min="1"
+                       max="@Model.RemainingAmount"
+                       step="1"
+                       required />
+                <span asp-validation-for="Amount"></span>
+                <small>مبلغ باید عدد صحیح و برحسب ریال باشد.</small>
+            </div>
+        </div>
+
+        <div class="alert-danger">
+            پس از ثبت درخواست، پرداخت در صف صندوق انتخاب‌شده قرار می‌گیرد.
+            تا تعیین تکلیف نتیجه تراکنش، درخواست پرداخت دیگری برای این سفارش ایجاد نکنید.
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn-light"
+               asp-controller="Orders"
+               asp-action="Details"
+               asp-route-id="@Model.OrderId">انصراف</a>
+            <button type="submit" class="btn btn-primary">ثبت درخواست پرداخت</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <script>
+        (function () {
+            const purpose = document.getElementById('paymentPurpose');
+            const amount = document.getElementById('paymentAmount');
+            const remaining = Number('@Model.RemainingAmount.ToString(System.Globalization.CultureInfo.InvariantCulture)');
+
+            function syncPaymentAmount() {
+                const isSettlement = purpose.value === '@((int)PaymentPurpose.Settlement)';
+                if (isSettlement) {
+                    amount.value = String(remaining);
+                    amount.readOnly = true;
+                } else {
+                    amount.readOnly = false;
+                    if (!amount.value || Number(amount.value) > remaining) {
+                        amount.value = String(remaining);
+                    }
+                }
+            }
+
+            purpose.addEventListener('change', syncPaymentAmount);
+            syncPaymentAmount();
+        })();
+    </script>
+}
