@@ -153,8 +153,69 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        TempData["Success"] = $"درخواست پرداخت {amount:N0} ریال ثبت شد و در صف صندوق قرار گرفت.";
-        return RedirectToAction("Details", "Orders", new { id = order.Id });
+        return RedirectToAction(nameof(Wait), new { paymentId = payment.Id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Wait(long paymentId, CancellationToken cancellationToken)
+    {
+        var payment = await db.PaymentTransactions
+            .AsNoTracking()
+            .Include(x => x.Order)
+            .FirstOrDefaultAsync(x => x.Id == paymentId, cancellationToken);
+
+        if (payment is null)
+            return NotFound();
+
+        ViewBag.StatusUrl = Url.Action(nameof(Status), new { paymentId });
+        ViewBag.OrderDetailsUrl = Url.Action("Details", "Orders", new { id = payment.OrderId });
+        return View(payment);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Status(long paymentId, CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        Response.Headers.Pragma = "no-cache";
+
+        var payment = await db.PaymentTransactions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == paymentId, cancellationToken);
+
+        if (payment is null)
+            return NotFound();
+
+        var isFinal = payment.Status is
+            PaymentTransactionStatus.Succeeded or
+            PaymentTransactionStatus.Failed or
+            PaymentTransactionStatus.Cancelled or
+            PaymentTransactionStatus.ReconciliationRequired;
+
+        var message = payment.Status switch
+        {
+            PaymentTransactionStatus.Created => "درخواست ثبت شده و در انتظار دریافت توسط برنامه صندوق است.",
+            PaymentTransactionStatus.Processing => "درخواست به کارت‌خوان ارسال شده است؛ منتظر پاسخ مشتری و دستگاه هستیم.",
+            PaymentTransactionStatus.Succeeded => "پرداخت با موفقیت تأیید شد.",
+            PaymentTransactionStatus.Failed => "پرداخت ناموفق بود.",
+            PaymentTransactionStatus.Cancelled => "تراکنش توسط کاربر کارت‌خوان لغو شد.",
+            PaymentTransactionStatus.Unknown => "هنوز نتیجه قطعی دریافت نشده است. تا روشن شدن نتیجه، درخواست پرداخت دیگری ثبت نکنید.",
+            PaymentTransactionStatus.ReconciliationRequired => "این تراکنش نیازمند بررسی و تطبیق دستی است.",
+            _ => "وضعیت تراکنش قابل تشخیص نیست."
+        };
+
+        return Ok(new
+        {
+            paymentId = payment.Id,
+            status = payment.Status.ToString(),
+            message,
+            responseMessage = payment.ResponseMessage,
+            amount = payment.Amount,
+            purpose = payment.Purpose.ToString(),
+            rrn = payment.Rrn,
+            traceNumber = payment.TraceNumber,
+            completedAtUtc = payment.CompletedAtUtc,
+            isFinal
+        });
     }
 
     [HttpGet]
