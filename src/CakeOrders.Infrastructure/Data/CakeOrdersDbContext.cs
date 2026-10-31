@@ -15,6 +15,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<CashRegister> CashRegisters => Set<CashRegister>();
     public DbSet<PosTerminal> PosTerminals => Set<PosTerminal>();
     public DbSet<OrderChangeLog> OrderChangeLogs => Set<OrderChangeLog>();
+    public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -127,6 +128,69 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(x => new { x.OrderId, x.ChangedAtUtc });
+        });
+
+        modelBuilder.Entity<PaymentTransaction>(entity =>
+        {
+            entity.ToTable("PaymentTransactions");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Amount)
+                .HasPrecision(18, 2);
+
+            entity.Property(x => x.IdempotencyKey)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(x => x.MerchantReference)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(x => x.Rrn)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.TraceNumber)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.ResponseCode)
+                .HasMaxLength(50);
+
+            entity.Property(x => x.ResponseMessage)
+                .HasMaxLength(1000);
+
+            entity.Property(x => x.BridgeInstallationId)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.CreatedByUserId)
+                .HasMaxLength(450);
+
+            entity.HasIndex(x => x.IdempotencyKey)
+                .IsUnique();
+
+            entity.HasIndex(x => x.MerchantReference)
+                .IsUnique();
+
+            entity.HasIndex(x => new
+            {
+                x.OrderId,
+                x.CreatedAtUtc
+            });
+
+            entity.HasOne(x => x.Order)
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.CashRegister)
+                .WithMany()
+                .HasForeignKey(x => x.CashRegisterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.PosTerminal)
+                .WithMany()
+                .HasForeignKey(x => x.PosTerminalId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
