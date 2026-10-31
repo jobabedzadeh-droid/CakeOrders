@@ -16,17 +16,35 @@
         <a class="nav-link" asp-controller="Orders" asp-action="Create">＋ <span>ثبت سفارش جدید</span></a>
         @if (User.IsInRole("Admin"))
         {
-            <div class="nav-caption">تنظیمات</div>
-            <a class="nav-link" asp-controller="PosTerminals" asp-action="Index">▣ <span>دستگاه‌های کارت‌خوان</span></a>
-            <form asp-controller="AdminAuth" asp-action="Logout" method="post" style="padding:0 18px">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="nav-link" style="width:100%;border:0;background:transparent;text-align:right;cursor:pointer">↪ <span>خروج مدیر</span></button>
-            </form>
+            <div class="nav-caption">تنظیمات مدیریت</div>
+
+            <a asp-controller="UserManagement"
+                asp-action="Index"
+                class="nav-link">
+                <span>♙</span>
+                <span>مدیریت کاربران</span>
+            </a>
+
+            <a class="nav-link"
+               asp-controller="Branches"
+               asp-action="Index">
+                <icon name="building-2" />
+                <span>مدیریت شعب</span>
+            </a>
+
+            <a class="nav-link" asp-controller="CashRegisters" asp-action="Index">
+                <icon name="calculator" />
+                <span>مدیریت صندوق‌ها</span>
+            </a>
+
+            <a class="nav-link"
+               asp-controller="PosTerminals"
+               asp-action="Index">
+                <icon name="credit-card" />
+                <span>دستگاه‌های کارت‌خوان</span>
+            </a>
         }
-        else
-        {
-            <a class="nav-link" asp-controller="AdminAuth" asp-action="Login">♙ <span>ورود مدیر</span></a>
-        }
+        
         <div class="nav-caption">در حال توسعه</div>
         <a class="nav-link" href="#" aria-disabled="true">◷ <span>سفارش‌های آنلاین</span></a>
         <a class="nav-link" href="#" aria-disabled="true">▧ <span>برنامه تولید و تحویل</span></a>
@@ -34,7 +52,51 @@
         <div class="sidebar-bottom">نسخه توسعه<br />تنظیمات حساس فقط برای مدیر واردشده قابل دسترسی است.</div>
     </aside>
     <main class="main">
-        <header class="topbar"><span>پنل مدیریت / <b>@ViewData["Title"]</b></span><span class="operator"><i>م</i> @(User.Identity?.IsAuthenticated == true ? User.Identity.Name : "کاربر سامانه")</span></header>
+        <header class="topbar">
+            <span>
+                پنل مدیریت / <b>@ViewData["Title"]</b>
+            </span>
+
+            <details class="account-menu">
+                <summary class="operator">
+                    <i>
+                        @(User.Identity?.Name?.FirstOrDefault().ToString() ?? "ک")
+                    </i>
+
+                    <span>@User.Identity?.Name</span>
+                    <icon name="chevron-down" size="xs" />
+                </summary>
+
+                <div class="account-dropdown">
+                    <div class="account-info">
+                        <strong>@User.Identity?.Name</strong>
+                        <small>
+                            @(User.IsInRole("Admin") ? "مدیر سیستم" : "کاربر عملیاتی")
+                        </small>
+                    </div>
+
+                    <a asp-controller="AdminAuth" asp-action="Profile">
+                        <icon name="user-round" size="sm" />
+                        پروفایل من
+                    </a>
+
+                    <a asp-controller="AdminAuth" asp-action="ChangePassword">
+                        تغییر رمز عبور
+                    </a>
+
+                    <form asp-controller="AdminAuth"
+                          asp-action="Logout"
+                          method="post">
+                        @Html.AntiForgeryToken()
+
+                        <button type="submit">
+                            <icon name="log-out" size="sm" />
+                            خروج از سامانه
+                        </button>
+                    </form>
+                </div>
+            </details>
+        </header>
         <div class="content">@RenderBody()</div>
         <footer>CakeOrders · سامانه مدیریت سفارش قنادی</footer>
     </main>

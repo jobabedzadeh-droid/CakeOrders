@@ -1,0 +1,82 @@
+﻿@model IReadOnlyList<CakeOrders.Domain.Entities.Branch>
+
+@{
+    ViewData["Title"] = "مدیریت شعب";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>مدیریت شعب</h1>
+        <p>تعریف و مدیریت شعب مجموعه</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">＋ افزودن شعبه</a>
+</div>
+
+@if (TempData["Success"] is string successMessage)
+{
+    <div class="alert-success">@successMessage</div>
+}
+
+@if (TempData["Error"] is string errorMessage)
+{
+    <div class="alert-danger">@errorMessage</div>
+}
+
+<section class="table-panel">
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state">
+            <span>▣</span>
+            <h2>هنوز شعبه‌ای تعریف نشده است</h2>
+            <p>برای شروع، اولین شعبه مجموعه را ثبت کنید.</p>
+            <a class="btn btn-primary" asp-action="Create">افزودن شعبه</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>نام شعبه</th>
+                        <th>آدرس</th>
+                        <th>تعداد صندوق‌ها</th>
+                        <th>صندوق‌های فعال</th>
+                        <th>وضعیت</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td><b>@item.Name</b></td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Address) ? "—" : item.Address)</td>
+                            <td>@item.CashRegisters.Count</td>
+                            <td>@item.CashRegisters.Count(x => x.IsActive)</td>
+                            <td>
+                                <span class="status">
+                                    @(item.IsActive ? "فعال" : "غیرفعال")
+                                </span>
+                            </td>
+                            <td>
+                                <a asp-action="Edit" asp-route-id="@item.Id">ویرایش</a>
+
+                                <form asp-action="ToggleActive"
+                                      asp-route-id="@item.Id"
+                                      method="post"
+                                      style="display:inline">
+                                    @Html.AntiForgeryToken()
+
+                                    <button type="submit" class="btn btn-secondary">
+                                        @(item.IsActive ? "غیرفعال‌سازی" : "فعال‌سازی")
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

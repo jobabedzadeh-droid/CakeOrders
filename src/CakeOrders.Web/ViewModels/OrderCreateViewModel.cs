@@ -1,11 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using CakeOrders.Domain.Entities;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace CakeOrders.Web.ViewModels;
 
-public sealed class OrderCreateViewModel
+public class OrderCreateViewModel
 {
     [Display(Name = "نام مشتری")]
     [StringLength(200)]

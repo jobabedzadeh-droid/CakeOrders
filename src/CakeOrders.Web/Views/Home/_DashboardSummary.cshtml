@@ -1,0 +1,158 @@
+﻿@model CakeOrders.Web.ViewModels.DashboardViewModel
+@using CakeOrders.Domain.Entities
+@using CakeOrders.Web.Helpers
+
+<div class="dashboard-metrics">
+    <article class="metric">
+        <span>کل سفارش‌ها</span>
+        <strong>@Model.TotalOrders.ToString("N0")</strong>
+        <small>تمام سفارش‌های ثبت‌شده</small>
+    </article>
+
+    <article class="metric">
+        <span>در انتظار بررسی</span>
+        <strong>@Model.PendingOrders.ToString("N0")</strong>
+        <small>نیازمند بررسی و تعیین تکلیف</small>
+    </article>
+
+    <article class="metric">
+        <span>در حال تولید</span>
+        <strong>@Model.InProductionOrders.ToString("N0")</strong>
+        <small>سفارش‌های واردشده به تولید</small>
+    </article>
+
+    <article class="metric">
+        <span>آماده تحویل</span>
+        <strong>@Model.ReadyForDeliveryOrders.ToString("N0")</strong>
+        <small>منتظر تحویل به مشتری</small>
+    </article>
+
+    <article class="metric">
+        <span>تحویل‌شده</span>
+        <strong>@Model.DeliveredOrders.ToString("N0")</strong>
+        <small>سفارش‌های تکمیل‌شده</small>
+    </article>
+
+    <article class="metric">
+        <span>تحویل امروز</span>
+        <strong>@Model.TodayDeliveries.ToString("N0")</strong>
+        <small>بر اساس زمان تحویل</small>
+    </article>
+</div>
+
+<section class="dashboard-financial">
+    <div class="dashboard-section-heading">
+        <div>
+            <h2>خلاصه مالی سفارش‌ها</h2>
+            <p>مبالغ سفارش‌های لغو یا ردنشده</p>
+        </div>
+    </div>
+
+    <div class="financial-grid">
+        <div class="financial-item">
+            <span>مجموع فروش</span>
+            <strong>@Model.TotalSales.ToString("N0") <small>تومان</small></strong>
+        </div>
+
+        <div class="financial-item">
+            <span>مجموع بیعانه دریافتی</span>
+            <strong>@Model.TotalDeposits.ToString("N0") <small>تومان</small></strong>
+        </div>
+
+        <div class="financial-item">
+            <span>مانده قابل دریافت</span>
+            <strong>@Model.RemainingPayments.ToString("N0") <small>تومان</small></strong>
+        </div>
+    </div>
+</section>
+
+<section class="dashboard-delivery">
+    <div class="dashboard-section-heading">
+        <div>
+            <h2>برنامه تحویل</h2>
+            <p>سفارش‌های دارای موعد تحویل در هفت روز آینده</p>
+        </div>
+        <strong>@Model.UpcomingDeliveries.ToString("N0") سفارش</strong>
+    </div>
+</section>
+
+<section class="table-panel dashboard-recent">
+    <div class="dashboard-section-heading">
+        <div>
+            <h2>آخرین سفارش‌ها</h2>
+            <p>هشت سفارش ثبت‌شده اخیر</p>
+        </div>
+        <a asp-controller="Orders" asp-action="Index">مشاهده همه سفارش‌ها</a>
+    </div>
+
+    @if (Model.RecentOrders.Count == 0)
+    {
+        <div class="empty-state">
+            <h2>هنوز سفارشی ثبت نشده است</h2>
+            <p>برای شروع، اولین سفارش را ثبت کنید.</p>
+            <a class="btn btn-primary"
+               asp-controller="Orders"
+               asp-action="Create">ثبت سفارش جدید</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>شماره سفارش</th>
+                        <th>نام مشتری</th>
+                        <th>نوع کیک</th>
+                        <th>زمان تحویل</th>
+                        <th>مبلغ نهایی</th>
+                        <th>وضعیت</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model.RecentOrders)
+                    {
+                        <tr>
+                            <td><b>@order.OrderNumber</b></td>
+                            <td>
+                                @(string.IsNullOrWhiteSpace(order.CustomerName)
+                                        ? "—" : order.CustomerName)
+                            </td>
+                            <td>
+                                @(order.CakeType switch
+                                {
+                                    CakeType.Cream => "خامه‌ای",
+                                    CakeType.SemiFondant => "نیمه فوندانت",
+                                    _ => "تمام فوندانت"
+                                })
+                            </td>
+                            <td>@PersianDateTime.Format(order.DeliveryAt)</td>
+                            <td>@order.FinalAmount.ToString("N0")</td>
+                            <td>
+                                <span class="status">
+                                    @(order.Status switch
+                                    {
+                                        OrderStatus.PendingReview => "در انتظار بررسی",
+                                        OrderStatus.Confirmed => "تأیید شده",
+                                        OrderStatus.Rejected => "رد شده",
+                                        OrderStatus.InProduction => "در حال تولید",
+                                        OrderStatus.ReadyForDelivery => "آماده تحویل",
+                                        OrderStatus.Delivered => "تحویل شده",
+                                        OrderStatus.Cancelled => "لغو شده",
+                                        _ => "نامشخص"
+                                    })
+                                </span>
+                            </td>
+                            <td>
+                                <a asp-controller="Orders"
+                                   asp-action="Details"
+                                   asp-route-id="@order.Id">جزئیات</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

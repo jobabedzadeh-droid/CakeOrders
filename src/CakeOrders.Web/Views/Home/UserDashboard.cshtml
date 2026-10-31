@@ -1,0 +1,45 @@
+﻿@model CakeOrders.Web.ViewModels.DashboardViewModel
+
+@{
+    ViewData["Title"] = "داشبورد اپراتور";
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">OPERATIONAL PANEL</span>
+        <h1>داشبورد اپراتور</h1>
+        <p>ثبت سفارش‌ها و پیگیری وضعیت سفارش‌های مشتریان</p>
+    </div>
+
+    <a class="btn btn-primary"
+       asp-controller="Orders"
+       asp-action="Create">
+        + ثبت سفارش جدید
+    </a>
+</div>
+
+<section class="dashboard-welcome">
+    <div>
+        <h2>خوش آمدید، @User.Identity?.Name</h2>
+        <p>در این بخش می‌توانید سفارش‌های مجموعه را مشاهده و پیگیری کنید.</p>
+    </div>
+    <span class="dashboard-role">کاربر عملیاتی</span>
+</section>
+
+<partial name="_DashboardSummary" model="Model" />
+
+<section class="dashboard-shortcuts">
+    <h2>دسترسی سریع</h2>
+
+    <div class="shortcut-grid">
+        <a asp-controller="Orders" asp-action="Create">
+            <strong>ثبت سفارش جدید</strong>
+            <span>ثبت سفارش مشتری جدید</span>
+        </a>
+
+        <a asp-controller="Orders" asp-action="Index">
+            <strong>مشاهده سفارش‌ها</strong>
+            <span>مشاهده و پیگیری تمام سفارش‌های مجموعه</span>
+        </a>
+    </div>
+</section>

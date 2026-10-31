@@ -5,8 +5,22 @@
     ViewData["Title"] = "جزئیات سفارش";
     var cake = Model.CakeType switch { CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت", _ => "تمام فوندانت" };
 }
-<div class="page-heading"><div><h1>جزئیات سفارش</h1><p>شماره سفارش: <b>@Model.OrderNumber</b></p></div><a class="btn btn-light" asp-action="Index">بازگشت به سفارش‌ها</a></div>
-@if (TempData["Success"] is string message) { <div class="alert-success">@message</div> }
+<div class="page-heading">
+    <div>
+        <h1>جزئیات سفارش</h1>
+        <p>شماره سفارش: <b>@Model.OrderNumber</b></p>
+    </div>
+    <a class="btn btn-light" asp-action="Index">بازگشت به سفارش‌ها</a>
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">ویرایش سفارش</a>
+</div>
+@if (TempData["Success"] is string message)
+{
+    <div class="alert-success">@message</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert-danger">@error</div>
+}
 <section class="form-panel">
     <div class="detail-grid">
         <div><small>مشتری</small><b>@(Model.CustomerName ?? "—")</b></div>
@@ -25,11 +39,245 @@
         <div><small>محل نوشته</small><b>@(Model.WritingLocation ?? "—")</b></div>
         <div><small>متن روی کیک</small><b>@(Model.CakeText ?? "—")</b></div>
     </div>
-    @if (!string.IsNullOrWhiteSpace(Model.SampleImagePath) || !string.IsNullOrWhiteSpace(Model.PrintImagePath)) {
+    @if (!string.IsNullOrWhiteSpace(Model.SampleImagePath) || !string.IsNullOrWhiteSpace(Model.PrintImagePath))
+    {
         <hr /><h3>تصاویر سفارش</h3><div class="order-image-grid">
-        @if (!string.IsNullOrWhiteSpace(Model.SampleImagePath)) { <div><b>تصویر نمونه کیک</b><img src="@Model.SampleImagePath" alt="تصویر نمونه کیک" /></div> }
-        @if (!string.IsNullOrWhiteSpace(Model.PrintImagePath)) { <div><b>تصویر چاپی</b><img src="@Model.PrintImagePath" alt="تصویر موردنظر برای چاپ" /></div> }
+        @if (!string.IsNullOrWhiteSpace(Model.SampleImagePath))
+        {
+            <div><b>تصویر نمونه کیک</b><img src="@Model.SampleImagePath" alt="تصویر نمونه کیک" /></div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.PrintImagePath))
+        {
+            <div><b>تصویر چاپی</b><img src="@Model.PrintImagePath" alt="تصویر موردنظر برای چاپ" /></div>
+        }
+    </div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.DesignNotes))
+{
+    <hr />
+    <h3>توضیحات</h3>
+    <p>@Model.DesignNotes</p>
+}
+</section>
+
+@{
+    var allowedTransitions = Model.Status switch
+    {
+        OrderStatus.PendingReview => new[]
+        {
+            OrderStatus.Confirmed,
+            OrderStatus.Rejected,
+            OrderStatus.Cancelled
+        },
+        OrderStatus.Confirmed => new[]
+        {
+            OrderStatus.InProduction,
+            OrderStatus.Cancelled
+        },
+        OrderStatus.InProduction => new[]
+        {
+            OrderStatus.ReadyForDelivery,
+            OrderStatus.Cancelled
+        },
+        OrderStatus.ReadyForDelivery => new[]
+        {
+            OrderStatus.Delivered
+        },
+        _ => Array.Empty<OrderStatus>()
+    };
+}
+
+<section class="form-panel">
+    <h3>تغییر وضعیت سفارش</h3>
+
+    @if (allowedTransitions.Length > 0)
+    {
+        <form asp-action="UpdateStatus" method="post">
+            @Html.AntiForgeryToken()
+
+            <input type="hidden" name="OrderId" value="@Model.Id" />
+
+            <div class="form-group">
+                <label for="NewStatus">وضعیت جدید</label>
+                <select name="NewStatus" id="NewStatus" class="form-control" required>
+                    @foreach (var status in allowedTransitions)
+                    {
+                        <option value="@((int)status)">
+                            @GetStatusName(status)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="Note">توضیحات / دلیل تغییر وضعیت</label>
+                <textarea name="Note"
+                          id="Note"
+                          class="form-control"
+                          rows="3"
+                          maxlength="1000"
+                          placeholder="در صورت نیاز توضیحات را وارد کنید..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                ثبت تغییر وضعیت
+            </button>
+        </form>
+    }
+    else
+    {
+        <p class="text-muted">
+            این سفارش در وضعیت نهایی قرار دارد و امکان تغییر وضعیت آن وجود ندارد.
+        </p>
+    }
+</section>
+@{
+    var historyUserNames =
+        ViewBag.StatusHistoryUserNames
+        as Dictionary<string, string>
+        ?? new Dictionary<string, string>();
+}
+<section class="form-panel">
+    <h3>تاریخچه تغییرات وضعیت</h3>
+
+    @if (Model.StatusHistory.Any())
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>وضعیت قبلی</th>
+                        <th>وضعیت جدید</th>
+                        <th>تاریخ و زمان</th>
+                        <th>تغییر‌دهنده</th>
+                        <th>توضیحات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var history in Model.StatusHistory
+                        .OrderByDescending(x => x.ChangedAtUtc))
+                    {
+                        var changedByName =
+                            history.ChangedByUserId != null &&
+                            historyUserNames.TryGetValue(
+                                history.ChangedByUserId,
+                                out var displayName)
+                                ? displayName
+                                : "نامشخص";
+
+                        <tr>
+                            <td>@GetStatusName(history.PreviousStatus)</td>
+                            <td>@GetStatusName(history.NewStatus)</td>
+                            <td>@PersianDateTime.Format(history.ChangedAtUtc)</td>
+                            <td>@changedByName</td>
+                            <td>@(history.Note ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     }
-    @if (!string.IsNullOrWhiteSpace(Model.DesignNotes)) { <hr /><h3>توضیحات</h3><p>@Model.DesignNotes</p> }
+    else
+    {
+        <p class="text-muted">
+            تاریخچه‌ای برای این سفارش ثبت نشده است.
+        </p>
+    }
 </section>
+
+@{
+    var orderChangeLogs =
+        ViewBag.OrderChangeLogs as List<OrderChangeLog>
+        ?? new List<OrderChangeLog>();
+
+    var changeLogUserNames =
+        ViewBag.OrderChangeLogUserNames
+        as Dictionary<string, string>
+        ?? new Dictionary<string, string>();
+}
+
+<section class="form-panel">
+    <h2>تاریخچه تغییرات سفارش</h2>
+
+    @if (orderChangeLogs.Any())
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>تاریخ و ساعت</th>
+                        <th>فیلد تغییرکرده</th>
+                        <th>مقدار قبلی</th>
+                        <th>مقدار جدید</th>
+                        <th>تغییر‌دهنده</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (var log in orderChangeLogs)
+                    {
+                        <tr>
+                            <td>
+                                @{
+                                    var changedAtLocal = DateTime.SpecifyKind(
+                                        log.ChangedAtUtc,
+                                        DateTimeKind.Utc
+                                    ).ToLocalTime();
+                                }
+
+                                @CakeOrders.Web.Helpers.PersianDateTime.Format(changedAtLocal)
+                            </td>
+
+                            <td>
+                                <strong>@log.FieldName</strong>
+                            </td>
+
+                            <td>
+                                @(log.OldValue ?? "—")
+                            </td>
+
+                            <td>
+                                @(log.NewValue ?? "—")
+                            </td>
+
+                            <td>
+                                @if (!string.IsNullOrEmpty(log.ChangedByUserId)
+                                    && changeLogUserNames.TryGetValue(
+                                        log.ChangedByUserId,
+                                        out var displayName))
+                                {
+                                    @displayName
+                                }
+                                else
+                                {
+                                    <span>نامشخص</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p>هنوز تغییری برای این سفارش ثبت نشده است.</p>
+    }
+</section>
+
+@functions {
+    public static string GetStatusName(OrderStatus status)
+    {
+        return status switch
+        {
+            OrderStatus.PendingReview => "در انتظار بررسی",
+            OrderStatus.Confirmed => "تأیید شده",
+            OrderStatus.Rejected => "رد شده",
+            OrderStatus.InProduction => "در حال تولید",
+            OrderStatus.ReadyForDelivery => "آماده تحویل",
+            OrderStatus.Delivered => "تحویل شده",
+            OrderStatus.Cancelled => "لغو شده",
+            _ => status.ToString()
+        };
+    }
+}
