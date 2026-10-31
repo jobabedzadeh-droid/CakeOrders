@@ -468,11 +468,11 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
                 "تخفیف نمی‌تواند از جمع هزینه‌ها بیشتر باشد.");
         }
 
-        if (model.DepositAmount > Math.Max(0, model.CalculatedTotal))
+        if (model.RequestedDepositAmount > Math.Max(0, model.CalculatedTotal) || model.RequestedDepositAmount < order.DepositAmount)
         {
             ModelState.AddModelError(
-                nameof(model.DepositAmount),
-                "بیعانه نمی‌تواند از مبلغ نهایی بیشتر باشد.");
+                nameof(model.RequestedDepositAmount),
+                "بیعانه درخواستی نمی‌تواند از مبلغ نهایی کمتر از مبلغ پرداخت‌شده یا بیشتر از مبلغ نهایی باشد.");
         }
 
         // اعتبارسنجی تصاویر جدید
@@ -591,7 +591,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         AddChangeLog("سایر هزینه‌ها", order.OtherCost, model.OtherCost);
         AddChangeLog("تخفیف", order.Discount, model.Discount);
         AddChangeLog("مبلغ نهایی", order.FinalAmount, model.CalculatedTotal);
-        AddChangeLog("بیعانه", order.DepositAmount, model.DepositAmount);
+        AddChangeLog("بیعانه درخواستی", order.RequestedDepositAmount, model.RequestedDepositAmount);
         AddChangeLog("کد معرف", order.ReferrerCode, model.ReferrerCode?.Trim());
 
         // به‌روزرسانی اطلاعات قابل ویرایش
@@ -633,7 +633,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         order.Discount = model.Discount;
         order.FinalAmount = model.CalculatedTotal;
-        order.DepositAmount = model.DepositAmount;
+        order.RequestedDepositAmount = model.RequestedDepositAmount;
 
         order.ReferrerCode = model.ReferrerCode?.Trim();
 
