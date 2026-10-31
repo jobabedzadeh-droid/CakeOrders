@@ -145,7 +145,7 @@
                         <th>کانال</th>
                         <th>زمان تحویل</th>
                         <th>مبلغ نهایی</th>
-                        <th>بیعانه</th>
+                        <th>وضعیت / مبلغ بیعانه</th>
                         <th>مانده</th>
                         <th>وضعیت</th>
                         <th></th>
@@ -175,13 +175,33 @@
 
                             <td>@order.FinalAmount.ToString("N0")</td>
 
-                            <td>@order.DepositAmount.ToString("N0")</td>
+                            <td>
+                                @if (order.RequestedDepositAmount <= 0)
+                                {
+                                    <span>بدون بیعانه</span>
+                                }
+                                else if (order.DepositAmount >= order.RequestedDepositAmount)
+                                {
+                                    <strong>@order.DepositAmount.ToString("N0") ریال</strong>
+                                    <small>پرداخت شده</small>
+                                }
+                                else if (order.DepositAmount > 0)
+                                {
+                                    <strong>@order.DepositAmount.ToString("N0") ریال</strong>
+                                    <small>پرداخت ناقص از @order.RequestedDepositAmount.ToString("N0")</small>
+                                }
+                                else
+                                {
+                                    <span class="status">پرداخت نشده</span>
+                                    <small>در انتظار @order.RequestedDepositAmount.ToString("N0") ریال</small>
+                                }
+                            </td>
 
                             <td>@order.RemainingAmount.ToString("N0")</td>
 
                             <td>
                                 <span class="status">
-                                    @StatusText(order.Status)
+                                    @(order.RequestedDepositAmount > order.DepositAmount && order.Status == OrderStatus.PendingReview ? "در انتظار پرداخت بیعانه" : StatusText(order.Status))
                                 </span>
                             </td>
 
