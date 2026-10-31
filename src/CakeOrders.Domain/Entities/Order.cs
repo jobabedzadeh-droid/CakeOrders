@@ -40,6 +40,9 @@ public sealed class Order
     public decimal OtherCost { get; set; }
     public decimal Discount { get; set; }
     public decimal FinalAmount { get; set; }
+    // مبلغ بیعانه‌ای که هنگام ثبت سفارش درخواست می‌شود؛ پرداخت‌شده محسوب نمی‌شود.
+    public decimal RequestedDepositAmount { get; set; }
+    // فقط مجموع بیعانه‌هایی که پرداخت موفق آن‌ها از کارت‌خوان تأیید شده است.
     public decimal DepositAmount { get; set; }
     public string? ReferrerCode { get; set; }
     public string? RejectionReason { get; set; }
