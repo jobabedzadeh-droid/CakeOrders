@@ -13,6 +13,7 @@
     <a class="btn btn-light" asp-action="Index">بازگشت به سفارش‌ها</a>
     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">ویرایش سفارش</a>
     <a asp-controller="OrderPayments" asp-action="Start" asp-route-orderId="@Model.Id" class="btn btn-primary">درخواست پرداخت کارت‌خوان</a>
+    <a asp-controller="OrderPayments" asp-action="History" asp-route-orderId="@Model.Id" class="btn btn-secondary">سوابق پرداخت</a>
 </div>
 @if (TempData["Success"] is string message)
 {
