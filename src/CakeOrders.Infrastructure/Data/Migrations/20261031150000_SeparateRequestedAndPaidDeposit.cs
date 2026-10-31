@@ -14,6 +14,15 @@ public partial class SeparateRequestedAndPaidDeposit : Migration
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.AddColumn<decimal>(
+            name: "PaidAmount",
+            table: "Orders",
+            type: "decimal(18,2)",
+            precision: 18,
+            scale: 2,
+            nullable: false,
+            defaultValue: 0m);
+
+        migrationBuilder.AddColumn<decimal>(
             name: "RequestedDepositAmount",
             table: "Orders",
             type: "decimal(18,2)",
@@ -36,6 +45,12 @@ SET [DepositAmount] = COALESCE((
     WHERE p.[OrderId] = o.[Id]
       AND p.[Purpose] = 1
       AND p.[Status] = 3
+), 0),
+[PaidAmount] = COALESCE((
+    SELECT SUM(p.[Amount])
+    FROM [PaymentTransactions] p
+    WHERE p.[OrderId] = o.[Id]
+      AND p.[Status] = 3
 ), 0)
 FROM [Orders] o;
 
@@ -48,8 +63,7 @@ WHERE [Status] = 2
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropColumn(
-            name: "RequestedDepositAmount",
-            table: "Orders");
+        migrationBuilder.DropColumn(name: "RequestedDepositAmount", table: "Orders");
+        migrationBuilder.DropColumn(name: "PaidAmount", table: "Orders");
     }
 }
