@@ -36,12 +36,15 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
             return RedirectToAction("Details", "Orders", new { id = orderId });
         }
 
+        var depositRemaining = Math.Max(0, order.RequestedDepositAmount - order.DepositAmount);
+        var defaultPurpose = depositRemaining > 0 ? PaymentPurpose.Deposit : PaymentPurpose.Settlement;
         var model = new OrderPaymentStartViewModel
         {
             OrderId = order.Id,
             OrderNumber = order.OrderNumber,
             RemainingAmount = order.RemainingAmount,
-            Amount = Math.Max(0, order.RequestedDepositAmount - order.DepositAmount),
+            Purpose = defaultPurpose,
+            Amount = defaultPurpose == PaymentPurpose.Deposit ? depositRemaining : order.RemainingAmount,
             CashRegisterId = registers[0].Value is string value && long.TryParse(value, out var id) ? id : 0,
             CashRegisters = registers
         };
