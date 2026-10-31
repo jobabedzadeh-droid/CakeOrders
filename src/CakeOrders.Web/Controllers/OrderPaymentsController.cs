@@ -113,14 +113,11 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
             ? order.RemainingAmount
             : model.Amount;
 
-        if (model.Purpose == PaymentPurpose.Deposit)
-        {
-            if (amount <= 0 || amount > order.RemainingAmount)
-                ModelState.AddModelError(nameof(model.Amount), "مبلغ بیعانه باید بیشتر از صفر و حداکثر برابر مانده سفارش باشد.");
+        if (amount <= 0 || amount > order.RemainingAmount)
+            ModelState.AddModelError(nameof(model.Amount), "مبلغ پرداخت باید بیشتر از صفر و حداکثر برابر مانده سفارش باشد.");
 
-            if (decimal.Truncate(amount) != amount)
-                ModelState.AddModelError(nameof(model.Amount), "مبلغ کارت‌خوان باید عدد صحیح و برحسب ریال باشد.");
-        }
+        if (decimal.Truncate(amount) != amount)
+            ModelState.AddModelError(nameof(model.Amount), "مبلغ کارت‌خوان باید عدد صحیح و برحسب ریال باشد.");
 
         if (!ModelState.IsValid)
         {
