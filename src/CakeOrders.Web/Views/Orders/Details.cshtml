@@ -67,12 +67,9 @@
 @{
     var allowedTransitions = Model.Status switch
     {
-        OrderStatus.PendingReview => new[]
-        {
-            OrderStatus.Confirmed,
-            OrderStatus.Rejected,
-            OrderStatus.Cancelled
-        },
+        OrderStatus.PendingReview => Model.RequestedDepositAmount > Model.DepositAmount
+            ? new[] { OrderStatus.Rejected, OrderStatus.Cancelled }
+            : new[] { OrderStatus.Confirmed, OrderStatus.Rejected, OrderStatus.Cancelled },
         OrderStatus.Confirmed => new[]
         {
             OrderStatus.InProduction,
