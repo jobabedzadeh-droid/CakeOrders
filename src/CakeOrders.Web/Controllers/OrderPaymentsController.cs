@@ -249,6 +249,64 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
         return RedirectToAction(nameof(Wait), new { paymentId = retry.Id });
     }
 
+    /// <summary>
+    /// Manually closes an ambiguous payment in CakeOrders. This does not send
+    /// a cancellation command to the POS terminal or confirm a bank refund.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelUnknown(long paymentId, CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
+
+        var payment = await db.PaymentTransactions
+            .FromSqlInterpolated($"SELECT * FROM [PaymentTransactions] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {paymentId}")
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (payment is null)
+            return NotFound();
+
+        if (payment.Status != PaymentTransactionStatus.Unknown)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            TempData["Error"] = "فقط تراکنش‌های با وضعیت «نامشخص - نیازمند بررسی» قابل لغو دستی هستند.";
+            return RedirectToAction(nameof(History), new { orderId = payment.OrderId });
+        }
+
+        var now = DateTime.UtcNow;
+        var actor = User.Identity?.Name
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? "کاربر نامشخص";
+        var auditMessage = $"لغو دستی در CakeOrders توسط {actor} در {now:O}. این عملیات صرفاً وضعیت نرم‌افزار را لغو می‌کند و برگشت وجه بانکی را تأیید نمی‌کند.";
+
+        var previousMessage = payment.ResponseMessage?.Trim();
+        if (!string.IsNullOrWhiteSpace(previousMessage))
+        {
+            var availableLength = Math.Max(0, 1000 - auditMessage.Length - 3);
+            if (previousMessage.Length > availableLength)
+                previousMessage = previousMessage[^availableLength..];
+
+            payment.ResponseMessage = string.IsNullOrEmpty(previousMessage)
+                ? auditMessage
+                : $"{previousMessage} | {auditMessage}";
+        }
+        else
+        {
+            payment.ResponseMessage = auditMessage;
+        }
+
+        payment.Status = PaymentTransactionStatus.Cancelled;
+        payment.CompletedAtUtc = now;
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        TempData["Success"] = "تراکنش در CakeOrders لغو شد. در صورت کسر وجه، برگشت وجه بانکی باید جداگانه پیگیری شود.";
+        return RedirectToAction(nameof(History), new { orderId = payment.OrderId });
+    }
+
     [HttpGet]
     public async Task<IActionResult> Wait(long paymentId, CancellationToken cancellationToken)
     {
