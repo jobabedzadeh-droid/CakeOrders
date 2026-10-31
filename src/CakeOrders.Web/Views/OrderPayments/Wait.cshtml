@@ -47,6 +47,17 @@
         </div>
     </div>
 
+    <div id="retryPayment" class="form-actions" hidden>
+        <form asp-action="Retry" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="paymentId" value="@Model.Id" />
+            <button type="submit" class="btn btn-primary"
+                    onclick="return confirm('مطمئن هستید درخواست پرداخت مجدد به کارت‌خوان ارسال شود؟');">
+                ارسال مجدد مبلغ به کارت‌خوان
+            </button>
+        </form>
+        <p class="text-muted">این گزینه فقط برای تراکنش ناموفق قطعی یا لغوشده فعال است.</p>
+    </div>
     <div id="paymentActions" class="form-actions" hidden>
         <a class="btn btn-primary" href="@ViewBag.OrderDetailsUrl">بازگشت به جزئیات سفارش</a>
         <a class="btn btn-light" asp-action="History" asp-route-orderId="@Model.OrderId">تاریخچه پرداخت‌ها</a>
@@ -72,6 +83,7 @@
     const response = document.getElementById('paymentResponseMessage');
     const references = document.getElementById('paymentReferences');
     const actions = document.getElementById('paymentActions');
+    const retryPayment = document.getElementById('retryPayment');
     let stopped = false;
     let timer = null;
 
