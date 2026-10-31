@@ -157,6 +157,28 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
         return RedirectToAction("Details", "Orders", new { id = order.Id });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> History(long orderId, CancellationToken cancellationToken)
+    {
+        var order = await db.Orders.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == orderId, cancellationToken);
+
+        if (order is null)
+            return NotFound();
+
+        var payments = await db.PaymentTransactions
+            .AsNoTracking()
+            .Where(x => x.OrderId == orderId)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        ViewBag.OrderId = order.Id;
+        ViewBag.OrderNumber = order.OrderNumber;
+
+        return View(payments);
+    }
+
     private async Task<List<SelectListItem>> GetAvailableRegisters(
         CancellationToken cancellationToken)
     {
