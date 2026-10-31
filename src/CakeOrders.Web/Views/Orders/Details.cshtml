@@ -28,13 +28,15 @@
         <div><small>مشتری</small><b>@(Model.CustomerName ?? "—")</b></div>
         <div><small>شماره تماس</small><b>@(Model.CustomerPhone ?? "—")</b></div>
         <div><small>نوع کیک</small><b>@cake</b></div>
-        <div><small>وضعیت</small><b>@Model.Status</b></div>
+        <div><small>وضعیت</small><b>@(Model.RequestedDepositAmount > Model.DepositAmount && Model.Status == OrderStatus.PendingReview ? "در انتظار پرداخت بیعانه" : Model.Status.ToString())</b></div>
         <div><small>وزن</small><b>@Model.RequestedWeightKg.ToString("N1") کیلوگرم</b></div>
         <div><small>قیمت هر کیلو</small><b>@Model.PricePerKg.ToString("N0")</b></div>
         <div><small>زمان ثبت</small><b>@PersianDateTime.Format(Model.CreatedAtUtc)</b></div>
         <div><small>زمان تحویل</small><b>@PersianDateTime.Format(Model.DeliveryAt)</b></div>
         <div><small>مبلغ نهایی</small><b>@Model.FinalAmount.ToString("N0")</b></div>
-        <div><small>بیعانه</small><b>@Model.DepositAmount.ToString("N0")</b></div>
+        <div><small>بیعانه پرداخت‌شده</small><b>@Model.DepositAmount.ToString("N0")</b></div>
+        <div><small>بیعانه درخواستی</small><b>@Model.RequestedDepositAmount.ToString("N0")</b></div>
+        <div><small>وضعیت بیعانه</small><b>@(Model.RequestedDepositAmount <= 0 ? "بدون بیعانه" : Model.DepositAmount >= Model.RequestedDepositAmount ? "پرداخت کامل" : Model.DepositAmount > 0 ? "پرداخت ناقص" : "در انتظار پرداخت")</b></div>
         <div><small>مانده</small><b>@Model.RemainingAmount.ToString("N0")</b></div>
         <div><small>کانال</small><b>@(Model.Channel == OrderChannel.Online ? "آنلاین" : "حضوری")</b></div>
         <div><small>قالب کیک</small><b>@(Model.MoldType ?? "—")</b></div>
