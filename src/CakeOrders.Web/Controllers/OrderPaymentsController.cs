@@ -41,7 +41,7 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
             OrderId = order.Id,
             OrderNumber = order.OrderNumber,
             RemainingAmount = order.RemainingAmount,
-            Amount = order.RemainingAmount,
+            Amount = Math.Max(0, order.RequestedDepositAmount - order.DepositAmount),
             CashRegisterId = registers[0].Value is string value && long.TryParse(value, out var id) ? id : 0,
             CashRegisters = registers
         };
