@@ -90,12 +90,26 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
             IsolationLevel.ReadCommitted,
             cancellationToken);
 
+        var currentTerminalId = await db.CashRegisters
+            .Where(x => x.Id == identity.Value.CashRegisterId)
+            .Select(x => x.PosTerminalId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (!currentTerminalId.HasValue)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return Unauthorized(new { error = "cash_register_has_no_terminal" });
+        }
+
         // UPDLOCK + READPAST prevents two Bridge instances from claiming the same row.
+        // The terminal ID check prevents a queued request from being sent to a
+        // different terminal after an administrator reassigns the cash register.
         var payment = await db.PaymentTransactions
             .FromSqlInterpolated($@"
                 SELECT TOP (1) *
-                FROM [PaymentTransactions] WITH (UPDLOCK, READPAST, ROWLOCK)
+                FROM [PaymentTransactions] WITH (UPDLOCK, READPAST, READCOMMITTEDLOCK, ROWLOCK)
                 WHERE [CashRegisterId] = {identity.Value.CashRegisterId}
+                  AND [PosTerminalId] = {currentTerminalId.Value}
                   AND [Status] = {(int)PaymentTransactionStatus.Created}
                 ORDER BY [CreatedAtUtc], [Id]")
             .FirstOrDefaultAsync(cancellationToken);
