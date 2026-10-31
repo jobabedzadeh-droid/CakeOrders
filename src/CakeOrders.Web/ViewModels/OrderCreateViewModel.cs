@@ -92,9 +92,9 @@ public class OrderCreateViewModel
     [Range(typeof(decimal), "0", "1000000000")]
     public decimal Discount { get; set; }
 
-    [Display(Name = "بیعانه")]
+    [Display(Name = "مبلغ بیعانه درخواستی")]
     [Range(typeof(decimal), "0", "1000000000")]
-    public decimal DepositAmount { get; set; }
+    public decimal RequestedDepositAmount { get; set; }
 
     [Display(Name = "کد معرف")]
     [StringLength(50)]
