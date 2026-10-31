@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace CakeOrders.Web.Controllers;
 
@@ -326,5 +328,56 @@ public sealed class CashRegistersController(CakeOrdersDbContext db) : Controller
                    (x.IsActive ? "" : " (غیرفعال)"),
             Selected = x.Id == model.PosTerminalId
         }).ToList();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateBridgeCredentials(
+    long id,
+    CancellationToken cancellationToken)
+    {
+        var register = await db.CashRegisters
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (register is null)
+            return NotFound();
+
+        if (!register.IsActive)
+        {
+            TempData["Error"] = "برای صندوق غیرفعال امکان ایجاد دسترسی وجود ندارد.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!register.PosTerminalId.HasValue)
+        {
+            TempData["Error"] = "ابتدا یک دستگاه کارت‌خوان به صندوق اختصاص دهید.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var installationId = Guid.NewGuid().ToString("N");
+
+        var secretBytes = RandomNumberGenerator.GetBytes(32);
+        var secret = Convert.ToBase64String(secretBytes)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+
+        var secretHash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(secret)));
+
+        register.BridgeInstallationId = installationId;
+        register.BridgeSecretHash = secretHash;
+        register.UpdatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Json(new
+        {
+            success = true,
+            cashRegisterId = register.Id,
+            installationId,
+            secret,
+            message = "این رمز فقط یک بار نمایش داده می‌شود. آن را در محل امن نگهداری کنید."
+        });
     }
 }
