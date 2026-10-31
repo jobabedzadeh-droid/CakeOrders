@@ -131,8 +131,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     {
         if (model.CalculatedTotal < 0)
             ModelState.AddModelError(nameof(model.Discount), "تخفیف نمی‌تواند از جمع هزینه‌ها بیشتر باشد.");
-        if (model.DepositAmount > Math.Max(0, model.CalculatedTotal))
-            ModelState.AddModelError(nameof(model.DepositAmount), "بیعانه نمی‌تواند از مبلغ نهایی بیشتر باشد.");
+        if (model.RequestedDepositAmount > Math.Max(0, model.CalculatedTotal))
+            ModelState.AddModelError(nameof(model.RequestedDepositAmount), "بیعانه درخواستی نمی‌تواند از مبلغ نهایی بیشتر باشد.");
 
         ValidateImage(model.SampleImage, nameof(model.SampleImage));
         ValidateImage(model.PrintImage, nameof(model.PrintImage));
@@ -158,7 +158,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             OrderNumber = $"CO-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}",
             // This screen is for manually entered, in-person orders.
             Channel = OrderChannel.InPerson,
-            Status = OrderStatus.Confirmed,
+            Status = model.RequestedDepositAmount > 0 ? OrderStatus.PendingReview : OrderStatus.Confirmed,
             CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
             UpdatedByUserId = null,
             CreatedAtUtc = DateTime.UtcNow,
@@ -187,7 +187,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             OtherCost = model.OtherCost,
             Discount = model.Discount,
             FinalAmount = model.CalculatedTotal,
-            DepositAmount = model.DepositAmount,
+            RequestedDepositAmount = model.RequestedDepositAmount,
+            DepositAmount = 0,
             ReferrerCode = model.ReferrerCode?.Trim()
         };
         order.StatusHistory.Add(new OrderStatusHistory
@@ -196,7 +197,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             NewStatus = order.Status,
             ChangedAtUtc = DateTime.UtcNow,
             ChangedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
-            Note = "ثبت اولیه سفارش حضوری"
+            Note = model.RequestedDepositAmount > 0 ? "ثبت سفارش؛ در انتظار پرداخت بیعانه" : "ثبت اولیه سفارش حضوری"
         });
 
         db.Orders.Add(order);
@@ -434,7 +435,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             ShippingCost = order.ShippingCost,
             OtherCost = order.OtherCost,
             Discount = order.Discount,
-            DepositAmount = order.DepositAmount,
+            RequestedDepositAmount = order.RequestedDepositAmount,
             ReferrerCode = order.ReferrerCode,
             DeliveryAt = DateTime.SpecifyKind(order.DeliveryAt, DateTimeKind.Utc).ToLocalTime()
         };
