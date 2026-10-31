@@ -260,18 +260,23 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
 
         if (isConfirmedSuccess)
         {
-            if (payment.Amount > payment.Order.RemainingAmount)
+            var availableAmount = payment.Purpose == PaymentPurpose.Deposit
+                ? Math.Max(0, payment.Order.RequestedDepositAmount - payment.Order.DepositAmount)
+                : payment.Order.RemainingAmount;
+
+            if (payment.Amount > availableAmount)
             {
                 payment.Status = PaymentTransactionStatus.ReconciliationRequired;
                 payment.ResponseMessage = Limit(
                     (payment.ResponseMessage ?? "") +
-                    " | کارت‌خوان موفقیت را اعلام کرده اما مانده سفارش برای ثبت این مبلغ کافی نیست؛ بررسی دستی الزامی است.",
+                    " | کارت‌خوان موفقیت را اعلام کرده اما مبلغ درخواستی از مانده مجاز این نوع پرداخت بیشتر است؛ بررسی دستی الزامی است.",
                     1000);
             }
             else
             {
                 payment.Status = PaymentTransactionStatus.Succeeded;
-                payment.Order.DepositAmount += payment.Amount;
+                if (payment.Purpose == PaymentPurpose.Deposit)
+                    payment.Order.DepositAmount += payment.Amount;
             }
         }
         else if (isDefinitiveCancellation)
@@ -299,7 +304,7 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
             appliedToOrder = payment.Status == PaymentTransactionStatus.Succeeded,
             message = payment.Status switch
             {
-                PaymentTransactionStatus.Succeeded => "پرداخت تأیید و به بیعانه سفارش اضافه شد.",
+                PaymentTransactionStatus.Succeeded => payment.Purpose == PaymentPurpose.Deposit ? "بیعانه با موفقیت تأیید و به سفارش اضافه شد." : "تسویه با موفقیت تأیید شد.",
                 PaymentTransactionStatus.Failed => "پایانه پرداخت را ناموفق اعلام کرد.",
                 PaymentTransactionStatus.Cancelled => "تراکنش توسط کاربر کارت‌خوان لغو شد؛ امکان ثبت درخواست پرداخت جدید وجود دارد.",
                 PaymentTransactionStatus.Unknown => "نتیجه پرداخت نامشخص است؛ پیش از تلاش مجدد باید بررسی شود.",
