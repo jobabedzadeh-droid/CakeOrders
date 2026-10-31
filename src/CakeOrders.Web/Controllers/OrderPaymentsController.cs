@@ -113,6 +113,11 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
             ? order.RemainingAmount
             : model.Amount;
 
+        // For full settlement, the server determines the exact remaining balance.
+        // The posted amount is ignored.
+        if (model.Purpose == PaymentPurpose.Settlement)
+            ModelState.Remove(nameof(model.Amount));
+
         if (amount <= 0 || amount > order.RemainingAmount)
             ModelState.AddModelError(nameof(model.Amount), "مبلغ پرداخت باید بیشتر از صفر و حداکثر برابر مانده سفارش باشد.");
 
