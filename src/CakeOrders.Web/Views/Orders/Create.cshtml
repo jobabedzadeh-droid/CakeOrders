@@ -34,7 +34,7 @@
         <div class="field"><label asp-for="ShippingCost"></label><input asp-for="ShippingCost" type="number" min="0" step="1000" /></div>
         <div class="field"><label asp-for="OtherCost"></label><input asp-for="OtherCost" type="number" min="0" step="1000" /></div>
         <div class="field"><label asp-for="Discount"></label><input asp-for="Discount" type="number" min="0" step="1000" /><span asp-validation-for="Discount"></span></div>
-        <div class="field"><label asp-for="DepositAmount"></label><input asp-for="DepositAmount" type="number" min="0" step="1000" /><span asp-validation-for="DepositAmount"></span></div>
+        <div class="field"><label asp-for="RequestedDepositAmount"></label><input asp-for="RequestedDepositAmount" type="number" min="0" step="1000" /><span asp-validation-for="RequestedDepositAmount"></span></div>
         <div class="field"><label asp-for="ReferrerCode"></label><input asp-for="ReferrerCode" placeholder="کد معرف" autocomplete="off" /><span id="referrerName" class="referrer-feedback" aria-live="polite"></span></div>
     </div><div class="calc-note">فرمول: وزن × قیمت هر کیلو + هزینه‌های جانبی − تخفیف. کانال این فرم «حضوری» است و مبلغ نهایی هنگام ذخیره سمت سرور محاسبه می‌شود.</div></section>
     <div class="form-actions"><a class="btn btn-light" asp-action="Index">انصراف</a><button class="btn btn-primary" type="submit">ثبت سفارش حضوری</button></div>
