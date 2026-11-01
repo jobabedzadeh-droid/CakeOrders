@@ -1099,3 +1099,16 @@ h1, h2, h3, h4, h5, h6, strong, b, th {
         color: var(--muted);
         font-size: 12px;
     }
+
+/* Rahkaran settings */
+.rahkaran-api-messages {
+    margin: 18px 0 0;
+    padding: 0 20px 0 0;
+    color: var(--muted);
+    line-height: 2;
+    font-size: 12px;
+}
+
+.rahkaran-api-messages li {
+    margin: 3px 0;
+}
