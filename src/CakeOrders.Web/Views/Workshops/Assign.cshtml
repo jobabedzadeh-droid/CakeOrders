@@ -1,0 +1,62 @@
+@model CakeOrders.Web.ViewModels.WorkshopManagement.AssignWorkshopMemberViewModel
+
+@{
+    ViewData["Title"] = "تخصیص عضو به کارگاه";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>تخصیص عضو به کارگاه</h1>
+        <p>@Model.BranchName / @Model.WorkshopName</p>
+    </div>
+    <a asp-action="Index" class="btn btn-secondary">بازگشت</a>
+</div>
+
+<section class="form-panel">
+    <form asp-action="Assign" method="post">
+        @Html.AntiForgeryToken()
+
+        <input asp-for="WorkshopId" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="UserId">کاربر</label>
+                <select asp-for="UserId" asp-items="Model.AvailableUsers">
+                    <option value="">انتخاب کاربر</option>
+                </select>
+                <span asp-validation-for="UserId" class="field-error"></span>
+                @if (Model.AvailableUsers.Count == 0)
+                {
+                    <small>کاربر فعالی که امکان تخصیص به این کارگاه را داشته باشد پیدا نشد.</small>
+                }
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Role">نقش در کارگاه</label>
+                <select asp-for="Role">
+                    <option value="2">کارمند</option>
+                    <option value="1">مسئول کارگاه</option>
+                </select>
+                <span asp-validation-for="Role" class="field-error"></span>
+            </div>
+        </div>
+
+        <p class="form-hint">
+            هر کاربر فقط می‌تواند عضو یک کارگاه باشد و هر کارگاه حداکثر یک مسئول دارد.
+            برای تغییر مسئول، ابتدا عضویت مسئول فعلی را حذف یا نقش او را تغییر دهید.
+        </p>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" disabled="@(Model.AvailableUsers.Count == 0)">
+                ثبت عضویت
+            </button>
+            <a asp-action="Index" class="btn btn-secondary">انصراف</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
