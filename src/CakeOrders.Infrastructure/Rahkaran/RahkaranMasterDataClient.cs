@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace CakeOrders.Infrastructure.Rahkaran;
@@ -17,6 +18,11 @@ public interface IRahkaranMasterDataClient
 
 public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranMasterDataClient
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new RahkaranDateTimeOffsetConverter() }
+    };
     private const string Treasury = "ReceiptAndPayment/TreasuryStructure/Services/TreasuryStructureService.svc/";
     private const string Financial = "ReceiptAndPayment/FinancialOperation/Services/FinancialOperationService.svc/";
     private const string Parties = "Sales/PartyManagement/Services/PartyManagementService.svc/";
@@ -58,6 +64,7 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
         using var response = await httpClient.PostAsJsonAsync(
             new Uri("Sales/PartyManagement/Services/PartyManagementService.svc/GetCustomerList", UriKind.Relative),
             request,
+            JsonOptions,
             cancellationToken);
         response.EnsureSuccessStatusCode();
 
