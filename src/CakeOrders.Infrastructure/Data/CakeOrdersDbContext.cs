@@ -103,6 +103,26 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
                 .HasForeignKey(x => x.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.ToTable("AspNetUsers", table =>
+                table.HasCheckConstraint(
+                    "CK_AspNetUsers_WorkshopAssignment",
+                    "([WorkshopId] IS NULL AND [WorkshopRole] IS NULL) OR ([WorkshopId] IS NOT NULL AND [WorkshopRole] IS NOT NULL)"));
+
+            entity.HasIndex(x => x.WorkshopId);
+
+            // Each workshop can have at most one manager; employees can be many.
+            entity.HasIndex(x => x.WorkshopId)
+                .IsUnique()
+                .HasDatabaseName("IX_AspNetUsers_WorkshopManager")
+                .HasFilter("[WorkshopId] IS NOT NULL AND [WorkshopRole] = 1");
+
+            entity.HasOne(x => x.Workshop)
+                .WithMany()
+                .HasForeignKey(x => x.WorkshopId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<CashRegister>(entity =>
         {
             entity.HasKey(x => x.Id);
