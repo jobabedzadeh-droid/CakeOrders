@@ -106,7 +106,29 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     }
 
     [HttpGet]
-    public IActionResult Create() => View(new OrderCreateViewModel());
+    public async Task<IActionResult> Create(CancellationToken cancellationToken)
+    {
+        var model = new OrderCreateViewModel();
+        await PopulateProductionBranchesAsync(model, cancellationToken);
+        return View(model);
+    }
+
+    private async Task PopulateProductionBranchesAsync(
+        OrderCreateViewModel model,
+        CancellationToken cancellationToken)
+    {
+        model.ProductionBranches = await db.Branches
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+            {
+                Value = x.Id.ToString(),
+                Text = x.Name,
+                Selected = x.Id == model.ProductionBranchId
+            })
+            .ToListAsync(cancellationToken);
+    }
 
     [HttpGet]
     public async Task<IActionResult> LookupReferrer(string? code, CancellationToken cancellationToken)
@@ -129,6 +151,12 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     [RequestSizeLimit(11 * 1024 * 1024)]
     public async Task<IActionResult> Create(OrderCreateViewModel model, CancellationToken cancellationToken)
     {
+        var selectedBranchExists = await db.Branches.AnyAsync(
+            x => x.Id == model.ProductionBranchId && x.IsActive,
+            cancellationToken);
+        if (!selectedBranchExists)
+            ModelState.AddModelError(nameof(model.ProductionBranchId), "شعبه انتخاب‌شده معتبر یا فعال نیست.");
+
         if (model.CalculatedTotal < 0)
             ModelState.AddModelError(nameof(model.Discount), "تخفیف نمی‌تواند از جمع هزینه‌ها بیشتر باشد.");
         if (model.RequestedDepositAmount > Math.Max(0, model.CalculatedTotal))
@@ -138,7 +166,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         ValidateImage(model.PrintImage, nameof(model.PrintImage));
 
         if (!ModelState.IsValid)
+        {
+            await PopulateProductionBranchesAsync(model, cancellationToken);
             return View(model);
+        }
 
         string? sampleImagePath = null;
         string? printImagePath = null;
@@ -150,6 +181,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         catch (InvalidDataException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
+            await PopulateProductionBranchesAsync(model, cancellationToken);
             return View(model);
         }
 
@@ -162,6 +194,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
             UpdatedByUserId = null,
             CreatedAtUtc = DateTime.UtcNow,
+            ProductionBranchId = model.ProductionBranchId,
             DeliveryAt = DateTime.SpecifyKind(model.DeliveryAt, DateTimeKind.Local).ToUniversalTime(),
             CustomerName = model.CustomerName?.Trim(),
             CustomerPhone = model.CustomerPhone?.Trim(),

@@ -9,6 +9,7 @@
     <section class="form-panel"><h2>اطلاعات پایه</h2><div class="form-grid">
         <div class="field"><label asp-for="CustomerName"></label><input asp-for="CustomerName" placeholder="نام و نام خانوادگی" /><span asp-validation-for="CustomerName"></span></div>
         <div class="field"><label asp-for="CustomerPhone"></label><input asp-for="CustomerPhone" placeholder="09xxxxxxxxx" dir="ltr" /><span asp-validation-for="CustomerPhone"></span></div>
+        <div class="field"><label asp-for="ProductionBranchId"></label><select asp-for="ProductionBranchId" asp-items="Model.ProductionBranches"><option value="0">انتخاب شعبه تولیدکننده</option></select><span asp-validation-for="ProductionBranchId"></span></div>
         <div class="field"><label asp-for="OrderType"></label><select asp-for="OrderType" asp-items="Model.OrderTypes"><option value="">انتخاب نوع سفارش</option></select><span asp-validation-for="OrderType"></span></div>
         <div class="field"><label asp-for="CakeType"></label><select asp-for="CakeType" asp-items="Html.GetEnumSelectList<CakeType>()"></select></div>
         <div class="field"><label for="DeliveryAtPersian">تاریخ و ساعت تحویل (شمسی)</label><input id="DeliveryAtPersian" type="text" value="@CakeOrders.Web.Helpers.PersianDateTime.Format(Model.DeliveryAt)" autocomplete="off" placeholder="انتخاب تاریخ و ساعت شمسی" required /><input asp-for="DeliveryAt" type="hidden" value="@Model.DeliveryAt.ToString("yyyy-MM-ddTHH:mm:ss")" /><span asp-validation-for="DeliveryAt"></span></div>

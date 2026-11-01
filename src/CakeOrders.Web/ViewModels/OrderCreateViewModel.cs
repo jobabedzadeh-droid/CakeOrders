@@ -6,6 +6,12 @@ namespace CakeOrders.Web.ViewModels;
 
 public class OrderCreateViewModel
 {
+    [Display(Name = "شعبه تولیدکننده")]
+    [Range(1, long.MaxValue, ErrorMessage = "شعبه تولیدکننده را انتخاب کنید.")]
+    public long ProductionBranchId { get; set; }
+
+    public IEnumerable<SelectListItem> ProductionBranches { get; set; } = Enumerable.Empty<SelectListItem>();
+
     [Display(Name = "نام مشتری")]
     [StringLength(200)]
     public string? CustomerName { get; set; }

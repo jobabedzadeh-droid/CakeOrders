@@ -15,6 +15,9 @@ public sealed class Order
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public string? CreatedByUserId { get; set; }
     public string? UpdatedByUserId { get; set; }
+    // Nullable for historical orders created before production-branch assignment was introduced.
+    public long? ProductionBranchId { get; set; }
+    public Branch? ProductionBranch { get; set; }
     public DateTime DeliveryAt { get; set; }
     public string? CustomerName { get; set; }
     public string? CustomerPhone { get; set; }

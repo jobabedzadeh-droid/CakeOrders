@@ -13,4 +13,8 @@ public sealed class Branch
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public ICollection<CashRegister> CashRegisters { get; set; } = new List<CashRegister>();
+
+    public ICollection<Workshop> Workshops { get; set; } = new List<Workshop>();
+
+    public ICollection<Order> ProductionOrders { get; set; } = new List<Order>();
 }

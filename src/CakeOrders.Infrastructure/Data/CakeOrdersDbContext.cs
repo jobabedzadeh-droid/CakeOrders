@@ -12,6 +12,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<OrderStatusHistory> OrderStatusHistory => Set<OrderStatusHistory>();
     public DbSet<Referrer> Referrers => Set<Referrer>();
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<Workshop> Workshops => Set<Workshop>();
     public DbSet<CashRegister> CashRegisters => Set<CashRegister>();
     public DbSet<PosTerminal> PosTerminals => Set<PosTerminal>();
     public DbSet<OrderChangeLog> OrderChangeLogs => Set<OrderChangeLog>();
@@ -35,6 +36,10 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.OrderNumber).HasMaxLength(32).IsRequired();
             entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
             entity.Property(x => x.UpdatedByUserId).HasMaxLength(450);
+            entity.HasOne(x => x.ProductionBranch)
+                .WithMany(x => x.ProductionOrders)
+                .HasForeignKey(x => x.ProductionBranchId)
+                .OnDelete(DeleteBehavior.Restrict);
             entity.Property(x => x.CustomerName).HasMaxLength(200);
             entity.Property(x => x.CustomerPhone).HasMaxLength(30);
             entity.Property(x => x.OrderType).HasMaxLength(100).IsRequired();
@@ -87,6 +92,16 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Address).HasMaxLength(300);
             entity.HasIndex(x => x.Name).IsUnique();
+        });
+        modelBuilder.Entity<Workshop>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => new { x.BranchId, x.Name }).IsUnique();
+            entity.HasOne(x => x.Branch)
+                .WithMany(x => x.Workshops)
+                .HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<CashRegister>(entity =>
         {
