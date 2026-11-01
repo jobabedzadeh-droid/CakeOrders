@@ -92,14 +92,31 @@ public sealed record RahkaranReceiptResult(
 
 public sealed class RahkaranCashReceiptRequest
 {
+    [JsonPropertyName("BranchID")]
     public long BranchID { get; init; }
+
+    [JsonPropertyName("CashID")]
     public long CashID { get; init; }
+
+    [JsonPropertyName("CounterPartDLCode")]
     public string CounterPartDLCode { get; init; } = string.Empty;
+
+    [JsonPropertyName("Date")]
     public DateTimeOffset Date { get; init; }
+
+    [JsonPropertyName("Description")]
     public string Description { get; init; } = string.Empty;
+
+    [JsonPropertyName("Description_En")]
     public string Description_En { get; init; } = string.Empty;
+
+    [JsonPropertyName("IsApproved")]
     public bool IsApproved { get; init; }
+
+    [JsonPropertyName("Number")]
     public string Number { get; init; } = string.Empty;
+
+    [JsonPropertyName("ReceiptCashMoneys")]
     public IReadOnlyCollection<RahkaranCashReceiptItem> ReceiptCashMoneys { get; init; }
         = Array.Empty<RahkaranCashReceiptItem>();
 
@@ -118,15 +135,34 @@ public sealed class RahkaranCashReceiptRequest
 
 public sealed class RahkaranCashReceiptItem
 {
+    [JsonPropertyName("AccountingOperationID")]
     public long AccountingOperationID { get; init; }
+
+    [JsonPropertyName("Amount")]
     public decimal Amount { get; init; }
+
+    [JsonPropertyName("BaseCurrencyAbbreviation")]
     public string? BaseCurrencyAbbreviation { get; init; }
+
+    [JsonPropertyName("BaseCurrencyExchangeRate")]
     public decimal BaseCurrencyExchangeRate { get; init; } = 1m;
+
+    [JsonPropertyName("CashFlowFactorID")]
     public long CashFlowFactorID { get; init; }
+
+    [JsonPropertyName("CounterPartDLCode")]
     public string CounterPartDLCode { get; init; } = string.Empty;
+
+    [JsonPropertyName("CurrencyAbbreviation")]
     public string? CurrencyAbbreviation { get; init; }
+
+    [JsonPropertyName("Description")]
     public string Description { get; init; } = string.Empty;
+
+    [JsonPropertyName("Description_En")]
     public string Description_En { get; init; } = string.Empty;
+
+    [JsonPropertyName("OperationalCurrencyExchangeRate")]
     public decimal OperationalCurrencyExchangeRate { get; init; } = 1m;
 
     public void Validate()
@@ -143,8 +179,13 @@ public sealed class RahkaranCashReceiptItem
 
 public sealed class RahkaranReceiptApiResponse
 {
+    [JsonPropertyName("ID")]
     public long ID { get; init; }
+
+    [JsonPropertyName("Number")]
     public string? Number { get; init; }
+
+    [JsonPropertyName("ValidationErrors")]
     public JsonElement ValidationErrors { get; init; }
 
     public string? GetValidationError()
