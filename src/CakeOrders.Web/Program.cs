@@ -26,6 +26,16 @@ builder.Services.AddHttpClient<IRahkaranReceiptClient, RahkaranReceiptClient>((s
 
 builder.Services.AddHttpClient<IRahkaranDepositReceiptClient, RahkaranDepositReceiptClient>();
 
+builder.Services.AddHttpClient<IRahkaranCustomerClient, RahkaranCustomerClient>((serviceProvider, client) =>
+{
+    var rahkaran = serviceProvider.GetRequiredService<IOptions<RahkaranOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(rahkaran.TimeoutSeconds, 5, 120));
+    if (Uri.TryCreate(rahkaran.ServiceBaseUrl, UriKind.Absolute, out var baseAddress))
+        client.BaseAddress = baseAddress.AbsoluteUri.EndsWith('/')
+            ? baseAddress
+            : new Uri(baseAddress.AbsoluteUri + "/");
+});
+
 builder.Services.AddHttpClient<IRahkaranMasterDataClient, RahkaranMasterDataClient>((serviceProvider, client) =>
 {
     var rahkaran = serviceProvider.GetRequiredService<IOptions<RahkaranOptions>>().Value;
