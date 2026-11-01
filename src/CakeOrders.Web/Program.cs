@@ -24,6 +24,8 @@ builder.Services.AddHttpClient<IRahkaranReceiptClient, RahkaranReceiptClient>((s
     client.Timeout = TimeSpan.FromSeconds(Math.Clamp(rahkaran.TimeoutSeconds, 5, 120));
 });
 
+builder.Services.AddHttpClient<IRahkaranDepositReceiptClient, RahkaranDepositReceiptClient>();
+
 builder.Services.AddHttpClient<IRahkaranMasterDataClient, RahkaranMasterDataClient>((serviceProvider, client) =>
 {
     var rahkaran = serviceProvider.GetRequiredService<IOptions<RahkaranOptions>>().Value;
