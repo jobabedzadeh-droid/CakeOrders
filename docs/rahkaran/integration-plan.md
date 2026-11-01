@@ -27,6 +27,30 @@
 - درخواست فروش: شماره سفارش داخلی، مشخصات مشتری، اقلام و مقادیر مالی موردنیاز راهکاران. نگاشت محصول، واحد فروش، انبار/مرکز فروش، سیاست‌های فروش و قیمت نهایی هنوز نیازمند تأیید کسب‌وکار و تنظیمات واقعی است.
 - اطلاعات تخصصی قنادی مانند نوع خامه/فوندانت، متن روی کیک، تصویر نمونه و جزئیات تزئین باید در CakeOrders باقی بماند؛ فقط خلاصه مناسب سفارش در شرح راهکاران ارسال شود، مگر آنکه قرارداد مورد توافق دیگری تعیین شود.
 
+## دریافت اطلاعات پایه از راهکاران
+
+این اطلاعات از وب‌سرویس دریافت می‌شوند و نباید به‌صورت شناسه‌های ثابت در کد نوشته شوند:
+
+| اطلاعات | مسیر سرویس | روش |
+|---|---|---|
+| فهرست شعب | `/General/BranchManagement/Services/BranchService.svc/GetBranches` | GET |
+| فهرست صندوق‌ها | `/ReceiptAndPayment/TreasuryStructure/Services/TreasuryStructureService.svc/GetAllCashes` | GET |
+| فهرست حساب‌های بانکی | `/ReceiptAndPayment/TreasuryStructure/Services/TreasuryStructureService.svc/GetAllBankAccounts` | GET |
+| عملیات حسابداری | `/ReceiptAndPayment/FinancialOperation/Services/FinancialOperationService.svc/GetAllAccountingOperations` | GET |
+| عوامل گردش نقدینگی | `/ReceiptAndPayment/FinancialOperation/Services/FinancialOperationService.svc/GetAllCashFlowFactors` | GET |
+
+شناسه‌های شعبه، صندوق، حساب بانکی، عملیات حسابداری و عامل گردش نقدینگی باید از خروجی این سرویس‌ها انتخاب شوند. مقادیر نمونه مستندات قابل استفاده در محیط پدیده نیستند.
+
+## مشتریان: جست‌وجو، همگام‌سازی و ایجاد
+
+| کاربرد | مسیر سرویس | روش |
+|---|---|---|
+| دریافت فهرست مشتریان | `/Sales/PartyManagement/Services/PartyManagementService.svc/GetCustomers` | GET |
+| دریافت صفحه‌ای مشتریان/تغییرات | `/Sales/PartyManagement/Services/PartyManagementService.svc/GetCustomerList` | POST |
+| ایجاد مشتری | `/Sales/PartyManagement/Services/PartyManagementService.svc/PlaceCustomer` | POST |
+
+در مستند SLS، `GetCustomers` پارامتر جست‌وجوی نام/موبایل ندارد؛ `GetCustomerList` ورودی صفحه‌بندی و بازه تاریخ/شناسه دارد. بنابراین راهبرد پیشنهادی، همگام‌سازی اولیه فهرست مشتریان از راهکاران و به‌روزرسانی دوره‌ای/افزایشی آن در دیتابیس CakeOrders است. جست‌وجوی autocomplete پس از سه حرف نام یا شماره موبایل روی نسخه محلی انجام می‌شود. ایجاد مشتری جدید از طریق `PlaceCustomer` است و شناسه `CustomerID` برگشتی باید روی مشتری داخلی و سفارش ذخیره شود.
+
 ## سرویس‌های شناسایی‌شده در مستند مالی (WebServiceFIN.pdf)
 
 | کاربرد | مسیر سرویس مستندشده | روش |
@@ -35,10 +59,10 @@
 | مشاهده درخواست دریافت با شناسه | `/ReceiptAndPayment/RequestManagement/Services/RequestService.svc/ViewReceiptRequest?id={ID}` | GET |
 | حذف درخواست دریافت موقت | `/ReceiptAndPayment/RequestManagement/Services/RequestService.svc/DeleteReceiptRequest?receiptRequestId={ID}` | POST |
 | ابطال درخواست دریافت تأییدشده | `/ReceiptAndPayment/RequestManagement/Services/RequestService.svc/CancelReceiptRequest?receiptRequestId={ID}` | POST |
-| ایجاد رسید دریافت نقدی | `/ReceiptAndPayment/ReceiptManagement/Services/ReceiptManagementService.svc/RegisterReceipt` | POST |
+| ایجاد رسید دریافت وجه نقد | `/ReceiptAndPayment/ReceiptManagement/Services/ReceiptManagementService.svc/RegisterReceipt` با `ReceiptCashMoneys` | POST |\n| ایجاد رسید دریافت واریز بانکی/کارت‌خوان | همان مسیر با `ReceiptDeposits` | POST |
 | ایجاد رسید دریافت چکی | `/ReceiptAndPayment/ReceiptManagement/Services/ReceiptManagementService.svc/RegisterReceipt` | POST |
 
-در سند، برای درخواست دریافت فیلدهایی مانند `BranchRef`، `CounterPartRef`، `CurrencyRef`، `FiscalYearRef` و مجموعه `ReceiptRequestOrdinaryItems` دیده می‌شود. برای رسید نقدی/چکی نیز فیلدهای متفاوتی در مجموعه‌های `ReceiptCashMoneys` یا `ReceiptReceivableCheques` وجود دارد. این شناسه‌ها و حساب‌های مالی باید از پیکربندی واقعی راهکاران گرفته شوند؛ نمونه‌های PDF مقادیر عمومی قابل استفاده در محیط عملیاتی نیستند.
+در سند، برای درخواست دریافت فیلدهایی مانند `BranchRef`، `CounterPartRef`، `CurrencyRef`، `FiscalYearRef` و مجموعه `ReceiptRequestOrdinaryItems` دیده می‌شود. برای رسید نقدی، واریز بانکی و چک، مجموعه‌های متفاوت `ReceiptCashMoneys`، `ReceiptDeposits` و `ReceiptReceivableCheques` وجود دارد. برای دریافت کارت‌خوانی که در حساب بانکی مقصد تسویه می‌شود، مسیر واریز بانکی باید با تأیید واحد مالی استفاده شود. این شناسه‌ها و حساب‌های مالی باید از پیکربندی واقعی راهکاران گرفته شوند؛ نمونه‌های PDF مقادیر عمومی قابل استفاده در محیط عملیاتی نیستند.
 
 ## تصمیم مهم درباره بیعانه
 
@@ -59,4 +83,4 @@
 
 ## خارج از محدوده این مرحله
 
-در حال حاضر هیچ درخواست HTTP به راهکاران ارسال نمی‌شود و هیچ مشتری، درخواست فروش، درخواست دریافت یا رسیدی در راهکاران ساخته نمی‌شود. این سند صرفاً مبنای طراحی و بررسی بعدی است.
+اتصال‌ها و کلاینت‌های HTTP در شاخه توسعه اضافه شده‌اند، اما هنوز از طریق UI یا جریان ثبت سفارش فراخوانی نمی‌شوند. تنظیم `Rahkaran:Enabled` خاموش است؛ هیچ مشتری، درخواست فروش یا رسید مالی در راهکاران به‌صورت خودکار ساخته نمی‌شود.
