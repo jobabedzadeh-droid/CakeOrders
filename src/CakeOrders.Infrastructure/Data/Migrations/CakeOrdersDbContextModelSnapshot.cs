@@ -896,6 +896,40 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                 {
                     b.Navigation("StatusHistory");
                 });
+            modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranIntegrationSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("BranchId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CashId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CashAccountingOperationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CashFlowFactorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PosBankAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PosCashFlowFactorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PosAccountingOperationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RahkaranIntegrationSettings");
+                });
+
 #pragma warning restore 612, 618
         }
     }
