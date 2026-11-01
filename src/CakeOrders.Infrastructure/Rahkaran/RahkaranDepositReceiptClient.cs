@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Globalization;
 
 namespace CakeOrders.Infrastructure.Rahkaran;
 
@@ -18,6 +19,12 @@ public interface IRahkaranDepositReceiptClient
 /// </summary>
 public sealed class RahkaranDepositReceiptClient(HttpClient httpClient) : IRahkaranDepositReceiptClient
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new RahkaranDateTimeOffsetConverter() }
+    };
+
     private const string Endpoint =
         "ReceiptAndPayment/ReceiptManagement/Services/ReceiptManagementService.svc/RegisterReceipt";
 
@@ -34,7 +41,7 @@ public sealed class RahkaranDepositReceiptClient(HttpClient httpClient) : IRahka
             serviceBaseUrl.EndsWith('/') ? serviceBaseUrl : serviceBaseUrl + '/',
             UriKind.Absolute);
 
-        using var content = JsonContent.Create(request);
+        using var content = JsonContent.Create(request, options: JsonOptions);
         using var response = await httpClient.PostAsync(
             new Uri(baseUri, Endpoint), content, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -46,7 +53,7 @@ public sealed class RahkaranDepositReceiptClient(HttpClient httpClient) : IRahka
         try
         {
             result = JsonSerializer.Deserialize<RahkaranReceiptApiResponse>(
-                body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                body, JsonOptions);
         }
         catch (JsonException)
         {
