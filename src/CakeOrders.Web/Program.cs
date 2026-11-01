@@ -1,17 +1,28 @@
 ﻿using CakeOrders.Infrastructure.Data;
 using CakeOrders.Infrastructure.Identity;
+using CakeOrders.Infrastructure.Rahkaran;
 using CakeOrders.Web.Identity;
 using CakeOrders.Web.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<CakeOrdersDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("CakeOrders")));
+
+builder.Services.Configure<RahkaranOptions>(
+    builder.Configuration.GetSection(RahkaranOptions.SectionName));
+
+builder.Services.AddHttpClient<IRahkaranReceiptClient, RahkaranReceiptClient>((serviceProvider, client) =>
+{
+    var rahkaran = serviceProvider.GetRequiredService<IOptions<RahkaranOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(rahkaran.TimeoutSeconds, 5, 120));
+});
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(options =>
