@@ -6,6 +6,7 @@ namespace CakeOrders.Infrastructure.Rahkaran;
 
 public interface IRahkaranMasterDataClient
 {
+    Task<IReadOnlyList<RahkaranBranchDto>> GetBranchesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranCashDto>> GetCashesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranAccountingOperationDto>> GetAccountingOperationsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranCashFlowFactorDto>> GetCashFlowFactorsAsync(CancellationToken cancellationToken = default);
@@ -25,7 +26,11 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
     };
     private const string Treasury = "ReceiptAndPayment/TreasuryStructure/Services/TreasuryStructureService.svc/";
     private const string Financial = "ReceiptAndPayment/FinancialOperation/Services/FinancialOperationService.svc/";
+    private const string Branches = "General/BranchManagement/Services/BranchService.svc/";
     private const string Parties = "Sales/PartyManagement/Services/PartyManagementService.svc/";
+
+    public Task<IReadOnlyList<RahkaranBranchDto>> GetBranchesAsync(CancellationToken ct = default) =>
+        GetListAsync<RahkaranBranchDto>(Branches + "GetBranches", ct);
 
     public Task<IReadOnlyList<RahkaranCashDto>> GetCashesAsync(CancellationToken ct = default) =>
         GetListAsync<RahkaranCashDto>(Treasury + "GetAllCashes", ct);
@@ -79,6 +84,15 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
         return await response.Content.ReadFromJsonAsync<List<T>>(
             cancellationToken: cancellationToken) ?? [];
     }
+}
+
+public sealed class RahkaranBranchDto
+{
+    [JsonPropertyName("ID")] public long Id { get; init; }
+    [JsonPropertyName("Code")] public string? Code { get; init; }
+    [JsonPropertyName("Title")] public string? Title { get; init; }
+    [JsonPropertyName("Title_En")] public string? TitleEn { get; init; }
+    [JsonPropertyName("companyName")] public string? CompanyName { get; init; }
 }
 
 public sealed class RahkaranCashDto
