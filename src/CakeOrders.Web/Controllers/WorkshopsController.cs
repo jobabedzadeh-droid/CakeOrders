@@ -121,11 +121,15 @@ public sealed class WorkshopsController(
         if (!Enum.IsDefined(model.Role))
             ModelState.AddModelError(nameof(model.Role), "نقش انتخاب‌شده معتبر نیست.");
 
-        var user = await userManager.FindByIdAsync(model.UserId);
+        ApplicationUser? user = null;
+
+        if (!string.IsNullOrWhiteSpace(model.UserId))
+            user = await userManager.FindByIdAsync(model.UserId);
 
         if (user is null)
         {
-            ModelState.AddModelError(nameof(model.UserId), "کاربر انتخاب‌شده پیدا نشد.");
+            if (!ModelState.ContainsKey(nameof(model.UserId)))
+                ModelState.AddModelError(nameof(model.UserId), "کاربر انتخاب‌شده پیدا نشد.");
         }
         else
         {
