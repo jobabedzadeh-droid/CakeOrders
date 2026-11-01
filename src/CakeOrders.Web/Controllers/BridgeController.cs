@@ -90,18 +90,40 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
             IsolationLevel.ReadCommitted,
             cancellationToken);
 
-        var currentTerminalId = await db.CashRegisters
-            .Where(x => x.Id == identity.Value.CashRegisterId)
-            .Select(x => x.PosTerminalId)
+        // Serialize claims for this cash register. This prevents concurrent Bridge
+        // polls from bypassing the reconciliation guard and claiming separate rows.
+        var cashRegister = await db.CashRegisters
+            .FromSqlInterpolated($@"
+                SELECT *
+                FROM [CashRegisters] WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+                WHERE [Id] = {identity.Value.CashRegisterId}")
             .SingleOrDefaultAsync(cancellationToken);
 
-        if (!currentTerminalId.HasValue)
+        if (cashRegister is null || !cashRegister.PosTerminalId.HasValue)
         {
             await transaction.CommitAsync(cancellationToken);
             return Unauthorized(new { error = "cash_register_has_no_terminal" });
         }
 
-        // UPDLOCK + READPAST prevents two Bridge instances from claiming the same row.
+        // Never claim another payment while this register has a payment whose
+        // outcome is still active or requires human reconciliation. A manually
+        // cancelled Unknown payment releases this guard because its status changes
+        // to Cancelled; this endpoint never sends a cancellation command to the POS.
+        var hasUnresolvedPayment = await db.PaymentTransactions
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.CashRegisterId == identity.Value.CashRegisterId &&
+                (x.Status == PaymentTransactionStatus.Processing ||
+                 x.Status == PaymentTransactionStatus.Unknown ||
+                 x.Status == PaymentTransactionStatus.ReconciliationRequired),
+                cancellationToken);
+
+        if (hasUnresolvedPayment)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return NoContent();
+        }
+
         // The terminal ID check prevents a queued request from being sent to a
         // different terminal after an administrator reassigns the cash register.
         var payment = await db.PaymentTransactions
@@ -109,7 +131,7 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
                 SELECT TOP (1) *
                 FROM [PaymentTransactions] WITH (UPDLOCK, READPAST, READCOMMITTEDLOCK, ROWLOCK)
                 WHERE [CashRegisterId] = {identity.Value.CashRegisterId}
-                  AND [PosTerminalId] = {currentTerminalId.Value}
+                  AND [PosTerminalId] = {cashRegister.PosTerminalId.Value}
                   AND [Status] = {(int)PaymentTransactionStatus.Created}
                 ORDER BY [CreatedAtUtc], [Id]")
             .FirstOrDefaultAsync(cancellationToken);
