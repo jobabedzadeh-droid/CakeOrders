@@ -1,0 +1,12 @@
+@model IReadOnlyList<CakeOrders.Web.ViewModels.ProductManagement.ProductCategoryEditViewModel>
+@{
+    ViewData["Title"] = "گروه‌های محصول";
+    var counts = ViewBag.ProductCounts as IDictionary<long, int> ?? new Dictionary<long, int>();
+}
+<div class="page-header"><div><h1>گروه‌های محصول</h1><p>مدیریت دسته‌بندی‌های کاتالوگ</p></div><a asp-action="Create" class="btn btn-primary">＋ گروه جدید</a></div>
+@if (TempData["Success"] is string success) { <div class="alert alert-success">@success</div> }
+<div class="card"><table class="table"><thead><tr><th>نام گروه</th><th>تعداد محصول</th><th>وضعیت</th><th></th></tr></thead><tbody>
+@foreach (var item in Model) { <tr><td>@item.Name</td><td>@counts.GetValueOrDefault(item.Id)</td><td>@(item.IsActive ? "فعال" : "غیرفعال")</td><td><a asp-action="Edit" asp-route-id="@item.Id">ویرایش</a></td></tr> }
+</tbody></table>
+@if (Model.Count == 0) { <p class="empty-state">هنوز گروهی ثبت نشده است.</p> }
+</div>
