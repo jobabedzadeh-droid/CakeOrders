@@ -13,6 +13,9 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<Referrer> Referrers => Set<Referrer>();
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<Workshop> Workshops => Set<Workshop>();
+    public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductWorkshopRouting> ProductWorkshopRoutings => Set<ProductWorkshopRouting>();
     public DbSet<CashRegister> CashRegisters => Set<CashRegister>();
     public DbSet<PosTerminal> PosTerminals => Set<PosTerminal>();
     public DbSet<OrderChangeLog> OrderChangeLogs => Set<OrderChangeLog>();
@@ -101,6 +104,42 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.HasOne(x => x.Branch)
                 .WithMany(x => x.Workshops)
                 .HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ProductCategory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+        modelBuilder.Entity<Product>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(500);
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => new { x.CategoryId, x.Name }).IsUnique();
+            entity.HasOne(x => x.Category)
+                .WithMany(x => x.Products)
+                .HasForeignKey(x => x.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ProductWorkshopRouting>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ProductId, x.BranchId }).IsUnique();
+            entity.HasOne(x => x.Product)
+                .WithMany(x => x.WorkshopRoutings)
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Branch)
+                .WithMany(x => x.ProductWorkshopRoutings)
+                .HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Workshop)
+                .WithMany(x => x.ProductWorkshopRoutings)
+                .HasForeignKey(x => x.WorkshopId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<ApplicationUser>(entity =>
