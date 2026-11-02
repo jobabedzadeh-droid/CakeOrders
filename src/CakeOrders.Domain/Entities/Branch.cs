@@ -17,4 +17,6 @@ public sealed class Branch
     public ICollection<Workshop> Workshops { get; set; } = new List<Workshop>();
 
     public ICollection<Order> ProductionOrders { get; set; } = new List<Order>();
+
+    public ICollection<ProductWorkshopRouting> ProductWorkshopRoutings { get; set; } = new List<ProductWorkshopRouting>();
 }
