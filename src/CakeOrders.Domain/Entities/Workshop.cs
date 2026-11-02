@@ -14,4 +14,6 @@ public sealed class Workshop
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public ICollection<ProductWorkshopRouting> ProductWorkshopRoutings { get; set; } = new List<ProductWorkshopRouting>();
 }
