@@ -1,0 +1,111 @@
+@model CakeOrders.Web.ViewModels.WorkshopManagement.WorkshopManagementIndexViewModel
+
+@{
+    ViewData["Title"] = "مدیریت کارگاه‌ها";
+}
+
+<div class="page-heading">
+    <div>
+        <h1>مدیریت کارگاه‌ها</h1>
+        <p>مشاهده مسئولان و کارکنان هر کارگاه و مدیریت عضویت آن‌ها</p>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<section class="form-panel">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>شعبه</th>
+                    <th>کارگاه</th>
+                    <th>مسئول کارگاه</th>
+                    <th>تعداد کارکنان</th>
+                    <th>اعضا</th>
+                    <th>وضعیت</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var workshop in Model.Workshops)
+                {
+                    <tr>
+                        <td>@workshop.BranchName</td>
+                        <td><strong>@workshop.Name</strong></td>
+                        <td>@workshop.ManagerName</td>
+                        <td>@workshop.EmployeeCount</td>
+                        <td>
+                            @if (workshop.Members.Count == 0)
+                            {
+                                <span>هنوز عضوی ثبت نشده است.</span>
+                            }
+                            else
+                            {
+                                <div class="workshop-member-list">
+                                    @foreach (var member in workshop.Members)
+                                    {
+                                        <div class="workshop-member-item">
+                                            <span>
+                                                <strong>@member.DisplayName</strong>
+                                                <small>
+                                                    @(member.Role == CakeOrders.Infrastructure.Identity.WorkshopMemberRole.Manager
+                                                        ? "مسئول"
+                                                        : "کارمند")
+                                                    · @(member.IsActive ? "فعال" : "غیرفعال")
+                                                </small>
+                                            </span>
+                                            <form asp-action="RemoveMember" method="post"
+                                                  onsubmit="return confirm('عضویت این کاربر از کارگاه حذف شود؟');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="userId" value="@member.UserId" />
+                                                <button type="submit" class="btn btn-danger btn-sm">حذف عضویت</button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            @if (workshop.IsActive)
+                            {
+                                <span class="status-badge status-success">فعال</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge status-danger">غیرفعال</span>
+                            }
+                        </td>
+                        <td>
+                            @if (workshop.IsActive)
+                            {
+                                <a asp-action="Assign"
+                                   asp-route-workshopId="@workshop.Id"
+                                   class="btn btn-primary btn-sm">
+                                    افزودن / تعیین مسئول
+                                </a>
+                            }
+                            else
+                            {
+                                <span>کارگاه غیرفعال است</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Workshops.Count == 0)
+    {
+        <p class="empty-state">هنوز کارگاهی تعریف نشده است.</p>
+    }
+</section>

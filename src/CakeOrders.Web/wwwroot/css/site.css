@@ -1112,3 +1112,41 @@ h1, h2, h3, h4, h5, h6, strong, b, th {
 .rahkaran-api-messages li {
     margin: 3px 0;
 }
+
+
+/* Workshop membership management */
+.workshop-member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 190px;
+}
+
+.workshop-member-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.workshop-member-item strong,
+.workshop-member-item small {
+    display: block;
+}
+
+.workshop-member-item small {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.form-hint {
+    margin: 18px 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 2;
+}
