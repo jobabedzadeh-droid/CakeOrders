@@ -1,0 +1,36 @@
+@model CakeOrders.Web.ViewModels.ProductManagement.ProductEditViewModel
+@using CakeOrders.Domain.Entities
+@{
+    ViewData["Title"] = Model.Id == 0 ? "ثبت محصول" : "ویرایش محصول";
+}
+<div class="page-header"><div><h1>@ViewData["Title"]</h1><p>اطلاعات پایه و کارگاه پیش‌فرض محصول در هر شعبه</p></div><a asp-action="Index" class="btn btn-secondary">بازگشت</a></div>
+<div class="card">
+<form asp-action="@(Model.Id == 0 ? "Create" : "Edit")" asp-route-id="@Model.Id" method="post">
+    @Html.AntiForgeryToken()
+    <input asp-for="Id" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+    <div class="form-grid">
+        <div class="form-group"><label asp-for="Code"></label><input asp-for="Code" /><span asp-validation-for="Code"></span></div>
+        <div class="form-group"><label asp-for="Name"></label><input asp-for="Name" /><span asp-validation-for="Name"></span></div>
+        <div class="form-group"><label asp-for="CategoryId"></label><select asp-for="CategoryId" asp-items="Model.Categories"><option value="">انتخاب گروه</option></select><span asp-validation-for="CategoryId"></span></div>
+        <div class="form-group"><label asp-for="Unit"></label><select asp-for="Unit"><option value="1">عدد</option><option value="2">کیلوگرم</option><option value="3">سینی</option><option value="4">جعبه</option></select><span asp-validation-for="Unit"></span></div>
+        <div class="form-group full-width"><label asp-for="Description"></label><textarea asp-for="Description"></textarea><span asp-validation-for="Description"></span></div>
+        <div class="form-group"><label><input asp-for="IsActive" /> فعال</label></div>
+    </div>
+    <hr />
+    <h3>کارگاه پیش‌فرض در هر شعبه</h3>
+    <p class="form-hint">در صورت انتخاب نکردن کارگاه، برای این محصول در آن شعبه تخصیص پیش‌فرض ثبت نمی‌شود.</p>
+    @for (var i = 0; i < Model.BranchRoutings.Count; i++)
+    {
+        <div class="form-group">
+            <input asp-for="BranchRoutings[i].BranchId" type="hidden" />
+            <strong>@Model.BranchRoutings[i].BranchName</strong>
+            <select asp-for="BranchRoutings[i].WorkshopId" asp-items="Model.BranchRoutings[i].Workshops">
+                <option value="">بدون کارگاه پیش‌فرض</option>
+            </select>
+        </div>
+    }
+    <div class="form-actions"><button type="submit" class="btn btn-primary">ذخیره محصول</button><a asp-action="Index" class="btn btn-secondary">انصراف</a></div>
+</form>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
