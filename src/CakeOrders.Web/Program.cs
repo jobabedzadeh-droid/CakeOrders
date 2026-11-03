@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<CakeOrders.Web.Services.IUserNotificationService, CakeOrders.Web.Services.UserNotificationService>();
+builder.Services.AddScoped<CakeOrders.Web.Services.IOrderProductionRoutingService, CakeOrders.Web.Services.OrderProductionRoutingService>();
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<CakeOrdersDbContext>(options =>
