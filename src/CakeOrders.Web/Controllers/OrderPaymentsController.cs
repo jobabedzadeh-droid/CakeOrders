@@ -118,7 +118,7 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
         if (order is null)
             return NotFound();
 
-        if (order.Status == OrderStatus.Cancelled || order.RemainingAmount <= 0)
+        if (order.Status is OrderStatus.Cancelled or OrderStatus.Rejected || order.RemainingAmount <= 0)
         {
             TempData["Error"] = "این سفارش امکان دریافت وجه بیشتری ندارد.";
             return RedirectToAction("Details", "Orders", new { id = orderId });
@@ -169,7 +169,7 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
         if (order is null)
             return NotFound();
 
-        if (order.Status == OrderStatus.Cancelled || order.RemainingAmount <= 0)
+        if (order.Status is OrderStatus.Cancelled or OrderStatus.Rejected || order.RemainingAmount <= 0)
         {
             TempData["Error"] = "این سفارش امکان دریافت وجه بیشتری ندارد.";
             return RedirectToAction("Details", "Orders", new { id = order.Id });
@@ -307,7 +307,7 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
             ? Math.Max(0, order.RequestedDepositAmount - order.DepositAmount)
             : order.RemainingAmount;
 
-        if (hasUnresolved || order.Status == OrderStatus.Cancelled || previous.Amount > available)
+        if (hasUnresolved || order.Status is OrderStatus.Cancelled or OrderStatus.Rejected || previous.Amount > available)
         {
             await transaction.RollbackAsync(cancellationToken);
             TempData["Error"] = "به دلیل وجود تراکنش باز یا تغییر مانده سفارش، امکان ارسال مجدد وجود ندارد.";
