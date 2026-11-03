@@ -4,6 +4,7 @@ using CakeOrders.Web.ViewModels.Dashboard;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CakeOrders.Web.Controllers;
 
@@ -11,8 +12,23 @@ namespace CakeOrders.Web.Controllers;
 public sealed class HomeController(CakeOrdersDbContext db) : Controller
 {
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            var isWorkshopMember = await db.Users
+                .AsNoTracking()
+                .AnyAsync(x => x.Id == userId &&
+                               x.IsActive &&
+                               x.WorkshopId != null &&
+                               x.WorkshopRole != null,
+                    cancellationToken);
+
+            if (isWorkshopMember)
+                return RedirectToAction("Index", "WorkshopPanel");
+        }
+
         if (User.IsInRole("Admin"))
             return RedirectToAction(nameof(AdminDashboard));
 
