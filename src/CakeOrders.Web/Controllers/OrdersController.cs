@@ -520,7 +520,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             OrderId = order.Id,
             BranchId = branchId,
             WorkshopId = workshopId.Value,
-            Status = ProductionTaskStatus.Pending,
+            Status = ProductionTaskStatus.AwaitingWorkshopReview,
             CreatedAtUtc = now,
             CreatedByUserId = actorUserId
         };
@@ -536,10 +536,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         task.History.Add(new ProductionTaskHistory
         {
             PreviousStatus = null,
-            NewStatus = ProductionTaskStatus.Pending,
+            NewStatus = ProductionTaskStatus.AwaitingWorkshopReview,
             ChangedAtUtc = now,
             ChangedByUserId = actorUserId,
-            Note = "وظیفه تولید پس از تأیید سفارش ایجاد شد."
+            Note = "وظیفه تولید ایجاد و برای بررسی به کارگاه ارجاع شد."
         });
 
         db.ProductionTasks.Add(task);
