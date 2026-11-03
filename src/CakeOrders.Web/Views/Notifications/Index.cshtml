@@ -1,0 +1,52 @@
+@model IReadOnlyList<CakeOrders.Domain.Entities.UserNotification>
+@{
+    ViewData["Title"] = "اعلان‌های من";
+    var unreadCount = Model.Count(x => x.ReadAtUtc is null);
+}
+
+<div class="page-header">
+    <div>
+        <h1>اعلان‌های من</h1>
+        <p>پیام‌های مربوط به سفارش‌ها و وظایف تولید</p>
+    </div>
+    <div class="status-badge">@unreadCount اعلان خوانده‌نشده</div>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="empty-state">
+        <h3>اعلانی وجود ندارد</h3>
+        <p>در صورت ثبت رویدادهای مرتبط، پیام‌ها در این بخش نمایش داده می‌شوند.</p>
+    </div>
+}
+else
+{
+    <div class="data-card">
+        @foreach (var item in Model)
+        {
+            <article class="notification-item @(item.ReadAtUtc is null ? "notification-unread" : "")">
+                <div class="notification-content">
+                    <div class="notification-heading">
+                        <strong>@item.Title</strong>
+                        @if (item.ReadAtUtc is null)
+                        {
+                            <span class="notification-dot" title="خوانده‌نشده"></span>
+                        }
+                    </div>
+                    <p>@item.Message</p>
+                    <small>@item.CreatedAtUtc.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</small>
+                </div>
+                @if (item.ReadAtUtc is null || !string.IsNullOrWhiteSpace(item.Link))
+                {
+                    <form asp-controller="Notifications" asp-action="MarkAsRead" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@item.Id" />
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            @(item.ReadAtUtc is null ? "خواندم و مشاهده" : "مشاهده")
+                        </button>
+                    </form>
+                }
+            </article>
+        }
+    </div>
+}
