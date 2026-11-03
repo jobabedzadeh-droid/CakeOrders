@@ -16,6 +16,9 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
     [HttpGet]
     public async Task<IActionResult> Start(long orderId, CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         var order = await db.Orders.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == orderId, cancellationToken);
 
@@ -58,6 +61,9 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
         OrderPaymentStartViewModel model,
         CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         await using var transaction = await db.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
@@ -174,6 +180,9 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Retry(long paymentId, CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         await using var transaction = await db.Database.BeginTransactionAsync(
             IsolationLevel.Serializable, cancellationToken);
 
@@ -252,6 +261,9 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
     [HttpGet]
     public async Task<IActionResult> Wait(long paymentId, CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         var payment = await db.PaymentTransactions
             .AsNoTracking()
             .Include(x => x.Order)
@@ -268,6 +280,9 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
     [HttpGet]
     public async Task<IActionResult> Status(long paymentId, CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         Response.Headers.CacheControl = "no-store";
         Response.Headers.Pragma = "no-cache";
 
@@ -314,6 +329,9 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
     [HttpGet]
     public async Task<IActionResult> History(long orderId, CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         var order = await db.Orders.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == orderId, cancellationToken);
 
@@ -331,6 +349,17 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
         ViewBag.OrderNumber = order.OrderNumber;
 
         return View(payments);
+    }
+
+    private async Task<bool> IsWorkshopMemberAsync(CancellationToken cancellationToken)
+    {
+        if (User.IsInRole("Admin"))
+            return false;
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return await db.Users.AsNoTracking()
+            .AnyAsync(x => x.Id == userId && x.IsActive && x.WorkshopId != null,
+                cancellationToken);
     }
 
     private async Task<List<SelectListItem>> GetAvailableRegisters(
