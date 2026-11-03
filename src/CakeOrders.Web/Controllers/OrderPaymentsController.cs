@@ -38,8 +38,8 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
             return RedirectToAction("Details", "Orders", new { id = orderId });
         }
 
-        if (order.Status == OrderStatus.Cancelled || order.RemainingAmount <= 0)
-            return BadRequest("این سفارش امکان دریافت وجه بیشتری ندارد.");
+        if (order.Status is OrderStatus.Cancelled or OrderStatus.Rejected || order.RemainingAmount <= 0)
+            return BadRequest("برای سفارش لغوشده یا ردشده، یا سفارشی که مانده ندارد، امکان دریافت وجه وجود ندارد.");
         if (!Enum.IsDefined(typeof(PaymentPurpose), purpose))
             return BadRequest("نوع دریافت وجه معتبر نیست.");
 
