@@ -238,7 +238,10 @@ public sealed class UserManagementController(
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
             Role = roles.FirstOrDefault() ?? "User",
-            IsActive = user.IsActive
+            IsActive = user.IsActive,
+            CanManuallyConfirmOrders = user.CanManuallyConfirmOrders,
+            CanConfigureManualOrderConfirmation =
+                roles.Contains("User") && !roles.Contains("Admin") && user.WorkshopId is null
         };
 
         return View(model);
