@@ -121,7 +121,7 @@
 </section>
 
 
-@if (!isWorkshopMember && Model.Status != OrderStatus.Cancelled && Model.RemainingAmount > 0)
+@if (!isWorkshopMember && Model.Status is not (OrderStatus.Cancelled or OrderStatus.Rejected) && Model.RemainingAmount > 0)
 {
     <section class="form-panel">
         <h3>ثبت دریافت نقدی</h3>
@@ -290,6 +290,50 @@
         <p class="text-muted">
             تاریخچه‌ای برای این سفارش ثبت نشده است.
         </p>
+    }
+</section>
+
+@{
+    var cashPayments = ViewBag.CashPayments as List<OrderCashPayment>
+        ?? new List<OrderCashPayment>();
+    var cashReceiverNames = ViewBag.CashReceiverNames as Dictionary<string, string>
+        ?? new Dictionary<string, string>();
+}
+<section class="form-panel">
+    <h3>سوابق دریافت نقدی</h3>
+    @if (cashPayments.Any())
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>تاریخ و زمان</th>
+                        <th>نوع دریافت</th>
+                        <th>مبلغ (ریال)</th>
+                        <th>ثبت‌کننده</th>
+                        <th>شماره رسید</th>
+                        <th>توضیحات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var cash in cashPayments)
+                    {
+                        <tr>
+                            <td>@PersianDateTime.Format(cash.ReceivedAtUtc)</td>
+                            <td>@(cash.Purpose == PaymentPurpose.Deposit ? "بیعانه" : "تسویه")</td>
+                            <td>@cash.Amount.ToString("N0")</td>
+                            <td>@(cashReceiverNames.TryGetValue(cash.ReceivedByUserId, out var receiverName) ? receiverName : "نامشخص")</td>
+                            <td>@(cash.ReceiptReference ?? "—")</td>
+                            <td>@(cash.Notes ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted">هنوز دریافت نقدی برای این سفارش ثبت نشده است.</p>
     }
 </section>
 
