@@ -203,14 +203,6 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("PaidAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("RequestedDepositAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("DesignNotes")
                         .HasColumnType("nvarchar(max)");
 
@@ -236,6 +228,9 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<bool>("HasWalnutFilling")
                         .HasColumnType("bit");
 
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("MacaronCost")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -257,6 +252,10 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("PaidAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("PricePerKg")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -272,6 +271,9 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<long?>("ProductionBranchId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("RahkaranCustomerId")
                         .HasColumnType("nvarchar(max)");
 
@@ -286,6 +288,10 @@ namespace CakeOrders.Infrastructure.Data.Migrations
 
                     b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("RequestedDepositAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("RequestedWeightKg")
                         .HasPrecision(8, 2)
@@ -313,6 +319,8 @@ namespace CakeOrders.Infrastructure.Data.Migrations
 
                     b.HasIndex("OrderNumber")
                         .IsUnique();
+
+                    b.HasIndex("ProductionBranchId");
 
                     b.ToTable("Orders");
                 });
@@ -353,6 +361,54 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.HasIndex("OrderId", "ChangedAtUtc");
 
                     b.ToTable("OrderChangeLogs", (string)null);
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.OrderItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProductId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("Unit")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<long>("WorkshopId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("WorkshopId");
+
+                    b.ToTable("OrderItems");
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.OrderStatusHistory", b =>
@@ -523,6 +579,267 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.ToTable("PosTerminals");
                 });
 
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Product", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CategoryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("Unit")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("CategoryId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductCategory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("ProductCategories");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductWorkshopRouting", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BranchId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("ProductId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("WorkshopId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("WorkshopId");
+
+                    b.HasIndex("ProductId", "BranchId")
+                        .IsUnique();
+
+                    b.ToTable("ProductWorkshopRoutings");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductionTask", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BranchId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<long>("WorkshopId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkshopId");
+
+                    b.HasIndex("OrderId", "WorkshopId")
+                        .IsUnique();
+
+                    b.HasIndex("BranchId", "WorkshopId", "Status");
+
+                    b.ToTable("ProductionTasks");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductionTaskHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("NewStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("PreviousStatus")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ProductionTaskId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductionTaskId", "ChangedAtUtc");
+
+                    b.ToTable("ProductionTaskHistory");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductionTaskItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<long?>("OrderItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<long>("ProductionTaskId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("Unit")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderItemId");
+
+                    b.HasIndex("ProductionTaskId");
+
+                    b.ToTable("ProductionTaskItems");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranIntegrationSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("BranchId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CashAccountingOperationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CashFlowFactorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CashId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PosAccountingOperationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PosBankAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PosCashFlowFactorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RahkaranIntegrationSettings", (string)null);
+                });
+
             modelBuilder.Entity("CakeOrders.Domain.Entities.Referrer", b =>
                 {
                     b.Property<long>("Id")
@@ -555,6 +872,36 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Referrers");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Workshop", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BranchId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Workshops");
                 });
 
             modelBuilder.Entity("CakeOrders.Infrastructure.Identity.ApplicationUser", b =>
@@ -623,6 +970,12 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<long?>("WorkshopId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("WorkshopRole")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")
@@ -633,7 +986,15 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
-                    b.ToTable("AspNetUsers", (string)null);
+                    b.HasIndex("WorkshopId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AspNetUsers_WorkshopManager")
+                        .HasFilter("[WorkshopId] IS NOT NULL AND [WorkshopRole] = 1");
+
+                    b.ToTable("AspNetUsers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AspNetUsers_WorkshopAssignment", "([WorkshopId] IS NULL AND [WorkshopRole] IS NULL) OR ([WorkshopId] IS NOT NULL AND [WorkshopRole] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -787,6 +1148,16 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Navigation("PosTerminal");
                 });
 
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Order", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Branch", "ProductionBranch")
+                        .WithMany("ProductionOrders")
+                        .HasForeignKey("ProductionBranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ProductionBranch");
+                });
+
             modelBuilder.Entity("CakeOrders.Domain.Entities.OrderChangeLog", b =>
                 {
                     b.HasOne("CakeOrders.Domain.Entities.Order", "Order")
@@ -796,6 +1167,33 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.OrderItem", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Order", "Order")
+                        .WithMany("Items")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CakeOrders.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CakeOrders.Domain.Entities.Workshop", "Workshop")
+                        .WithMany()
+                        .HasForeignKey("WorkshopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Workshop");
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.OrderStatusHistory", b =>
@@ -834,6 +1232,121 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("PosTerminal");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Product", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.ProductCategory", "Category")
+                        .WithMany("Products")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductWorkshopRouting", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Branch", "Branch")
+                        .WithMany("ProductWorkshopRoutings")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CakeOrders.Domain.Entities.Product", "Product")
+                        .WithMany("WorkshopRoutings")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CakeOrders.Domain.Entities.Workshop", "Workshop")
+                        .WithMany("ProductWorkshopRoutings")
+                        .HasForeignKey("WorkshopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Workshop");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductionTask", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Branch", "Branch")
+                        .WithMany("ProductionTasks")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CakeOrders.Domain.Entities.Order", "Order")
+                        .WithMany("ProductionTasks")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CakeOrders.Domain.Entities.Workshop", "Workshop")
+                        .WithMany("ProductionTasks")
+                        .HasForeignKey("WorkshopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Workshop");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductionTaskHistory", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.ProductionTask", "ProductionTask")
+                        .WithMany("History")
+                        .HasForeignKey("ProductionTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProductionTask");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductionTaskItem", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.OrderItem", "OrderItem")
+                        .WithMany()
+                        .HasForeignKey("OrderItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CakeOrders.Domain.Entities.ProductionTask", "ProductionTask")
+                        .WithMany("Items")
+                        .HasForeignKey("ProductionTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrderItem");
+
+                    b.Navigation("ProductionTask");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Workshop", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Branch", "Branch")
+                        .WithMany("Workshops")
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+                });
+
+            modelBuilder.Entity("CakeOrders.Infrastructure.Identity.ApplicationUser", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Workshop", "Workshop")
+                        .WithMany()
+                        .HasForeignKey("WorkshopId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Workshop");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -890,11 +1403,47 @@ namespace CakeOrders.Infrastructure.Data.Migrations
             modelBuilder.Entity("CakeOrders.Domain.Entities.Branch", b =>
                 {
                     b.Navigation("CashRegisters");
+
+                    b.Navigation("ProductWorkshopRoutings");
+
+                    b.Navigation("ProductionOrders");
+
+                    b.Navigation("ProductionTasks");
+
+                    b.Navigation("Workshops");
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.Order", b =>
                 {
+                    b.Navigation("Items");
+
+                    b.Navigation("ProductionTasks");
+
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Product", b =>
+                {
+                    b.Navigation("WorkshopRoutings");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductCategory", b =>
+                {
+                    b.Navigation("Products");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.ProductionTask", b =>
+                {
+                    b.Navigation("History");
+
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Workshop", b =>
+                {
+                    b.Navigation("ProductWorkshopRoutings");
+
+                    b.Navigation("ProductionTasks");
                 });
 #pragma warning restore 612, 618
         }
