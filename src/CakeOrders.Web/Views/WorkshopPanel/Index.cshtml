@@ -2,28 +2,52 @@
 @using CakeOrders.Domain.Entities
 @{
     ViewData["Title"] = "پنل کارگاه";
+    string StatusLabel(ProductionTaskStatus status) => status switch
+    {
+        ProductionTaskStatus.AwaitingWorkshopReview => "در انتظار بررسی کارگاه",
+        ProductionTaskStatus.Pending => "پذیرفته‌شده / آماده تولید",
+        ProductionTaskStatus.InProgress => "در حال تولید",
+        ProductionTaskStatus.Completed => "تکمیل‌شده",
+        ProductionTaskStatus.Rejected => "ردشده توسط کارگاه",
+        ProductionTaskStatus.Cancelled => "لغوشده",
+        _ => status.ToString()
+    };
+    string CakeTypeLabel(CakeType type) => type switch
+    {
+        CakeType.Cream => "خامه‌ای",
+        CakeType.SemiFondant => "نیمه فوندانت",
+        CakeType.FullFondant => "تمام فوندانت",
+        _ => type.ToString()
+    };
 }
 
-<div class="container py-4" dir="rtl">
-    <h1 class="h3 mb-4">پنل کارگاه</h1>
+<div class="page-heading">
+    <div>
+        <h1>پنل کارگاه</h1>
+        <p>بررسی سفارش‌ها و مدیریت وظایف تولید</p>
+    </div>
+</div>
 
-    @if (TempData["Success"] is string success)
-    {
-        <div class="alert alert-success" role="alert">@success</div>
-    }
-    @if (TempData["Error"] is string error)
-    {
-        <div class="alert alert-danger" role="alert">@error</div>
-    }
+@if (TempData["Success"] is string success)
+{
+    <div class="alert-success" role="alert">@success</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert-danger" role="alert">@error</div>
+}
 
-    @if (Model.Count == 0)
-    {
-        <div class="alert alert-info">در حال حاضر وظیفه تولیدی برای نمایش وجود ندارد.</div>
-    }
-    else
-    {
+@if (Model.Count == 0)
+{
+    <section class="form-panel">
+        <p>در حال حاضر وظیفه تولیدی برای نمایش وجود ندارد.</p>
+    </section>
+}
+else
+{
+    <section class="form-panel">
         <div class="table-responsive">
-            <table class="table table-striped align-middle">
+            <table class="table">
                 <thead>
                     <tr>
                         <th>شماره سفارش</th>
@@ -38,11 +62,15 @@
                 @foreach (var task in Model)
                 {
                     <tr>
-                        <td>@task.Order.OrderNumber</td>
+                        <td>
+                            <a asp-controller="Orders" asp-action="Details" asp-route-id="@task.OrderId">
+                                @task.Order.OrderNumber
+                            </a>
+                        </td>
                         <td>@task.Workshop.Branch.Name / @task.Workshop.Name</td>
-                        <td>@task.Order.CustomerName</td>
+                        <td>@(task.Order.CustomerName ?? "—")</td>
                         <td>@task.Order.DeliveryAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</td>
-                        <td>@task.Status</td>
+                        <td>@StatusLabel(task.Status)</td>
                         <td>
                             @if (task.Status == ProductionTaskStatus.AwaitingWorkshopReview)
                             {
@@ -50,21 +78,102 @@
                                     <form asp-controller="WorkshopPanel" asp-action="Accept" method="post">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="taskId" value="@task.Id" />
-                                        <button type="submit" class="btn btn-sm btn-success">پذیرش</button>
+                                        <button type="submit" class="btn btn-sm btn-primary">پذیرش وظیفه</button>
                                     </form>
                                     <form asp-controller="WorkshopPanel" asp-action="Reject" method="post" class="d-flex flex-wrap gap-1">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="taskId" value="@task.Id" />
-                                        <input type="text" name="reason" class="form-control form-control-sm" maxlength="1000" required placeholder="دلیل رد" />
+                                        <input type="text" name="reason" class="form-control form-control-sm" maxlength="1000" required placeholder="دلیل رد وظیفه" />
                                         <button type="submit" class="btn btn-sm btn-danger">رد وظیفه</button>
                                     </form>
                                 </div>
                             }
                         </td>
                     </tr>
+                    <tr>
+                        <td colspan="6">
+                            <details>
+                                <summary>مشاهده برگه تولید و جزئیات سفارش</summary>
+                                <div class="detail-grid mt-3">
+                                    <div><small>نوع سفارش</small><b>@(task.Order.Kind == OrderKind.BirthdayCake ? "کیک تولد" : "شیرینی")</b></div>
+                                    <div><small>نوع کیک</small><b>@CakeTypeLabel(task.Order.CakeType)</b></div>
+                                    <div><small>نوع سفارش کیک</small><b>@task.Order.OrderType</b></div>
+                                    <div><small>وزن درخواستی</small><b>@task.Order.RequestedWeightKg.ToString("N2") کیلوگرم</b></div>
+                                    <div><small>قیمت هر کیلو</small><b>@task.Order.PricePerKg.ToString("N0")</b></div>
+                                    <div><small>رنگ زمینه</small><b>@(task.Order.BackgroundColor ?? "—")</b></div>
+                                    <div><small>قالب</small><b>@(task.Order.MoldType ?? "—")</b></div>
+                                    <div><small>نوع چاپ</small><b>@(task.Order.PrintType ?? "—")</b></div>
+                                    <div><small>محل نوشته</small><b>@(task.Order.WritingLocation ?? "—")</b></div>
+                                    <div><small>متن روی کیک</small><b>@(task.Order.CakeText ?? "—")</b></div>
+                                    <div><small>موز</small><b>@(task.Order.HasBananaFilling ? "دارد" : "ندارد")</b></div>
+                                    <div><small>گردو</small><b>@(task.Order.HasWalnutFilling ? "دارد" : "ندارد")</b></div>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(task.Order.DesignNotes))
+                                {
+                                    <h4 class="mt-3">توضیحات طراحی</h4>
+                                    <p>@task.Order.DesignNotes</p>
+                                }
+
+                                @if (task.Items.Count > 0)
+                                {
+                                    <h4 class="mt-3">اقلام وظیفه تولید</h4>
+                                    <div class="table-responsive">
+                                        <table class="table">
+                                            <thead><tr><th>عنوان</th><th>مقدار</th><th>توضیحات</th></tr></thead>
+                                            <tbody>
+                                            @foreach (var item in task.Items)
+                                            {
+                                                <tr>
+                                                    <td>@item.ProductName</td>
+                                                    <td>@item.Quantity.ToString("N3") @item.Unit</td>
+                                                    <td>@(item.Notes ?? "—")</td>
+                                                </tr>
+                                            }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(task.Order.SampleImagePath) ||
+                                     !string.IsNullOrWhiteSpace(task.Order.PrintImagePath))
+                                {
+                                    <h4 class="mt-3">تصاویر سفارش</h4>
+                                    <div class="order-image-grid">
+                                        @if (!string.IsNullOrWhiteSpace(task.Order.SampleImagePath))
+                                        {
+                                            <div><b>تصویر نمونه</b><a href="@task.Order.SampleImagePath" target="_blank" rel="noopener"><img src="@task.Order.SampleImagePath" alt="تصویر نمونه کیک" /></a></div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(task.Order.PrintImagePath))
+                                        {
+                                            <div><b>تصویر چاپ</b><a href="@task.Order.PrintImagePath" target="_blank" rel="noopener"><img src="@task.Order.PrintImagePath" alt="تصویر چاپی سفارش" /></a></div>
+                                        }
+                                    </div>
+                                }
+
+                                @if (task.History.Count > 0)
+                                {
+                                    <h4 class="mt-3">سوابق وظیفه</h4>
+                                    <ul>
+                                    @foreach (var history in task.History.OrderByDescending(x => x.ChangedAtUtc))
+                                    {
+                                        <li>
+                                            @StatusLabel(history.PreviousStatus) ← @StatusLabel(history.NewStatus)
+                                            — @history.ChangedAtUtc.ToLocalTime().ToString("yyyy/MM/dd HH:mm")
+                                            @if (!string.IsNullOrWhiteSpace(history.Note))
+                                            {
+                                                <span> — @history.Note</span>
+                                            }
+                                        </li>
+                                    }
+                                    </ul>
+                                }
+                            </details>
+                        </td>
+                    </tr>
                 }
                 </tbody>
             </table>
         </div>
-    }
-</div>
+    </section>
+}
