@@ -141,10 +141,37 @@ public sealed class WorkshopPanelController(
     }
 
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        // The list and its view are added in the next implementation step.
-        return View();
+        var actorId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var query = db.ProductionTasks
+            .AsNoTracking()
+            .Include(x => x.Order)
+            .Include(x => x.Workshop)
+                .ThenInclude(x => x.Branch)
+            .AsQueryable();
+
+        if (!User.IsInRole("Admin"))
+        {
+            var membership = await db.Users
+                .AsNoTracking()
+                .Where(x => x.Id == actorId && x.IsActive)
+                .Select(x => new { x.WorkshopId, x.WorkshopRole })
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (membership?.WorkshopId is not long workshopId ||
+                membership.WorkshopRole is null)
+                return Forbid();
+
+            query = query.Where(x => x.WorkshopId == workshopId);
+        }
+
+        var tasks = await query
+            .OrderBy(x => x.Status)
+            .ThenBy(x => x.Order.DeliveryAt)
+            .ToListAsync(cancellationToken);
+
+        return View(tasks);
     }
 
     private async Task<bool> CanManageWorkshopAsync(
