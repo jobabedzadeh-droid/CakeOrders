@@ -249,7 +249,12 @@ public sealed class UserManagementController(
     public async Task<IActionResult> Edit(EditUserViewModel model)
     {
         if (!ModelState.IsValid)
+        {
+            var existingForForm = await userManager.FindByIdAsync(model.Id);
+            model.CanConfigureManualOrderConfirmation = existingForForm is not null &&
+                model.Role == "User" && existingForForm.WorkshopId is null;
             return View(model);
+        }
 
         if (model.Role != "Admin" && model.Role != "User")
         {
@@ -305,6 +310,9 @@ public sealed class UserManagementController(
             : model.PhoneNumber.Trim();
 
         user.IsActive = model.IsActive;
+        // Never trust the posted eligibility flag: derive permission from the persisted account.
+        user.CanManuallyConfirmOrders =
+            model.Role == "User" && user.WorkshopId is null && model.CanManuallyConfirmOrders;
         user.UpdatedAtUtc = DateTime.UtcNow;
 
         var updateResult = await userManager.UpdateAsync(user);
