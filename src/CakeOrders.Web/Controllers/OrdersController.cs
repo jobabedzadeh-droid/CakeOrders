@@ -4,6 +4,7 @@ using CakeOrders.Web.ViewModels.Orders;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
@@ -172,6 +173,19 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (!selectedBranchExists)
             ModelState.AddModelError(nameof(model.ProductionBranchId), "شعبه انتخاب‌شده معتبر یا فعال نیست.");
 
+        var cakeWorkshopExists = await db.Workshops.AnyAsync(
+            x => x.BranchId == model.ProductionBranchId &&
+                 x.IsActive &&
+                 x.Name == "کیک‌سازی",
+            cancellationToken);
+
+        if (!cakeWorkshopExists)
+        {
+            ModelState.AddModelError(
+                nameof(model.ProductionBranchId),
+                "برای شعبه انتخاب‌شده کارگاه فعال «کیک‌سازی» تعریف نشده است.");
+        }
+
         if (model.RequestedDepositAmount > Math.Max(0, model.CalculatedTotal))
             ModelState.AddModelError(nameof(model.RequestedDepositAmount), "بیعانه درخواستی نمی‌تواند از مبلغ نهایی بیشتر باشد.");
 
@@ -240,9 +254,35 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             Note = model.RequestedDepositAmount > 0 ? "ثبت سفارش؛ در انتظار پرداخت بیعانه" : "ثبت اولیه سفارش حضوری"
         });
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
         db.Orders.Add(order);
         await db.SaveChangesAsync(cancellationToken);
-        TempData["Success"] = $"سفارش {order.OrderNumber} ثبت شد.";
+
+        if (order.Status == OrderStatus.Confirmed &&
+            !await TryCreateBirthdayCakeProductionTaskAsync(
+                order,
+                User.FindFirstValue(ClaimTypes.NameIdentifier),
+                cancellationToken))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            DeleteOrderImage(sampleImagePath);
+            DeleteOrderImage(printImagePath);
+
+            ModelState.AddModelError(
+                nameof(model.ProductionBranchId),
+                "ایجاد وظیفه تولید ممکن نشد؛ کارگاه فعال کیک‌سازی شعبه را بررسی کنید.");
+
+            await PopulateProductionBranchesAsync(model, cancellationToken);
+            return View(model);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        TempData["Success"] = order.Status == OrderStatus.Confirmed
+            ? $"سفارش {order.OrderNumber} ثبت و به کارگاه کیک‌سازی ارجاع شد."
+            : $"سفارش {order.OrderNumber} ثبت شد و پس از تأیید به تولید ارجاع می‌شود.";
         return RedirectToAction(nameof(Details), new { id = order.Id });
     }
 
@@ -318,8 +358,15 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             return RedirectToAction(nameof(Details), new { id = model.OrderId });
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
+
+        // قفل سفارش از تأیید هم‌زمان و ایجاد وظیفه تولید تکراری جلوگیری می‌کند.
         var order = await db.Orders
-            .FirstOrDefaultAsync(x => x.Id == model.OrderId, cancellationToken);
+            .FromSqlInterpolated(
+                $"SELECT * FROM [Orders] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {model.OrderId}")
+            .SingleOrDefaultAsync(cancellationToken);
 
         if (order is null)
             return NotFound();
@@ -373,10 +420,19 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             return RedirectToAction(nameof(Details), new { id = order.Id });
         }
 
-        var previousStatus = order.Status;
         var now = DateTime.UtcNow;
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+        if (model.NewStatus == OrderStatus.Confirmed &&
+            order.Kind == OrderKind.BirthdayCake &&
+            !await TryCreateBirthdayCakeProductionTaskAsync(order, userId, cancellationToken))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            TempData["Error"] = "کارگاه فعال «کیک‌سازی» برای شعبه سفارش پیدا نشد؛ وضعیت سفارش تغییر نکرد.";
+            return RedirectToAction(nameof(Details), new { id = order.Id });
+        }
+
+        var previousStatus = order.Status;
         order.Status = model.NewStatus;
         order.UpdatedByUserId = userId;
 
@@ -394,10 +450,100 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         });
 
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
-        TempData["Success"] = "وضعیت سفارش با موفقیت تغییر کرد.";
+        TempData["Success"] = model.NewStatus == OrderStatus.Confirmed &&
+                              order.Kind == OrderKind.BirthdayCake
+            ? "سفارش تأیید و وظیفه تولید آن به کارگاه کیک‌سازی ارجاع شد."
+            : "وضعیت سفارش با موفقیت تغییر کرد.";
 
         return RedirectToAction(nameof(Details), new { id = order.Id });
+    }
+
+    private async Task<bool> TryCreateBirthdayCakeProductionTaskAsync(
+        Order order,
+        string? actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (order.Kind != OrderKind.BirthdayCake ||
+            order.ProductionBranchId is not long branchId)
+        {
+            return false;
+        }
+
+        // این بررسی علاوه بر قفل سفارش، از ایجاد وظیفه تکراری جلوگیری می‌کند.
+        var taskAlreadyExists = await db.ProductionTasks
+            .AnyAsync(x => x.OrderId == order.Id, cancellationToken);
+
+        if (taskAlreadyExists)
+            return true;
+
+        var workshopId = await db.Workshops
+            .Where(x =>
+                x.BranchId == branchId &&
+                x.IsActive &&
+                x.Name == "کیک‌سازی")
+            .Select(x => (long?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (!workshopId.HasValue)
+            return false;
+
+        var now = DateTime.UtcNow;
+
+        var cakeTypeText = order.CakeType switch
+        {
+            CakeType.Cream => "خامه‌ای",
+            CakeType.SemiFondant => "نیمه فوندانت",
+            CakeType.FullFondant => "تمام فوندانت",
+            _ => "نامشخص"
+        };
+
+        var notes = string.Join(
+            " | ",
+            new[]
+            {
+                $"نوع سفارش: {order.OrderType}",
+                $"نوع کیک: {cakeTypeText}",
+                $"وزن درخواستی: {order.RequestedWeightKg:0.##} کیلوگرم",
+                string.IsNullOrWhiteSpace(order.BackgroundColor) ? null : $"رنگ زمینه: {order.BackgroundColor}",
+                string.IsNullOrWhiteSpace(order.MoldType) ? null : $"قالب: {order.MoldType}",
+                string.IsNullOrWhiteSpace(order.PrintType) ? null : $"نوع چاپ: {order.PrintType}",
+                order.HasBananaFilling ? "فیلینگ موز" : null,
+                order.HasWalnutFilling ? "فیلینگ گردو" : null,
+                string.IsNullOrWhiteSpace(order.CakeText) ? null : $"متن روی کیک: {order.CakeText}",
+                string.IsNullOrWhiteSpace(order.DesignNotes) ? null : $"توضیحات طرح: {order.DesignNotes}"
+            }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        var task = new ProductionTask
+        {
+            OrderId = order.Id,
+            BranchId = branchId,
+            WorkshopId = workshopId.Value,
+            Status = ProductionTaskStatus.Pending,
+            CreatedAtUtc = now,
+            CreatedByUserId = actorUserId
+        };
+
+        task.Items.Add(new ProductionTaskItem
+        {
+            ProductName = "کیک تولد",
+            Unit = ProductUnit.Piece,
+            Quantity = 1,
+            Notes = notes
+        });
+
+        task.History.Add(new ProductionTaskHistory
+        {
+            PreviousStatus = null,
+            NewStatus = ProductionTaskStatus.Pending,
+            ChangedAtUtc = now,
+            ChangedByUserId = actorUserId,
+            Note = "وظیفه تولید پس از تأیید سفارش ایجاد شد."
+        });
+
+        db.ProductionTasks.Add(task);
+        return true;
     }
 
     private void ValidateImage(Microsoft.AspNetCore.Http.IFormFile? file, string key)
