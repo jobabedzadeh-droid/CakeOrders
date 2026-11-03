@@ -599,6 +599,84 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         return true;
     }
 
+    private async Task<bool> ResubmitRejectedProductionTaskAsync(
+        Order order,
+        string? actorUserId,
+        CancellationToken cancellationToken)
+    {
+        var task = await db.ProductionTasks
+            .Include(x => x.Items)
+            .Include(x => x.History)
+            .Where(x => x.OrderId == order.Id)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (task?.Status != ProductionTaskStatus.Rejected)
+            return true;
+
+        if (order.ProductionBranchId is not long branchId)
+            return false;
+
+        var workshopId = await db.Workshops
+            .Where(x => x.BranchId == branchId && x.IsActive && x.Name == "کیک‌سازی")
+            .Select(x => (long?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (!workshopId.HasValue)
+            return false;
+
+        var cakeTypeText = order.CakeType switch
+        {
+            CakeType.Cream => "خامه‌ای",
+            CakeType.SemiFondant => "نیمه فوندانت",
+            CakeType.FullFondant => "تمام فوندانت",
+            _ => "نامشخص"
+        };
+
+        var notes = string.Join(" | ", new[]
+        {
+            $"نوع سفارش: {order.OrderType}",
+            $"نوع کیک: {cakeTypeText}",
+            $"وزن درخواستی: {order.RequestedWeightKg:0.##} کیلوگرم",
+            string.IsNullOrWhiteSpace(order.BackgroundColor) ? null : $"رنگ زمینه: {order.BackgroundColor}",
+            string.IsNullOrWhiteSpace(order.MoldType) ? null : $"قالب: {order.MoldType}",
+            string.IsNullOrWhiteSpace(order.PrintType) ? null : $"نوع چاپ: {order.PrintType}",
+            order.HasBananaFilling ? "فیلینگ موز" : null,
+            order.HasWalnutFilling ? "فیلینگ گردو" : null,
+            string.IsNullOrWhiteSpace(order.CakeText) ? null : $"متن روی کیک: {order.CakeText}",
+            string.IsNullOrWhiteSpace(order.DesignNotes) ? null : $"توضیحات طرح: {order.DesignNotes}"
+        }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        var now = DateTime.UtcNow;
+        var previousStatus = task.Status;
+        task.Status = ProductionTaskStatus.AwaitingWorkshopReview;
+        task.WorkshopId = workshopId.Value;
+        task.BranchId = branchId;
+        task.UpdatedAtUtc = now;
+        task.UpdatedByUserId = actorUserId;
+
+        task.Items.Clear();
+        task.Items.Add(new ProductionTaskItem
+        {
+            ProductName = "کیک تولد",
+            Unit = ProductUnit.Piece,
+            Quantity = 1,
+            Notes = notes
+        });
+
+        task.History.Add(new ProductionTaskHistory
+        {
+            PreviousStatus = previousStatus,
+            NewStatus = ProductionTaskStatus.AwaitingWorkshopReview,
+            ChangedAtUtc = now,
+            ChangedByUserId = actorUserId,
+            Note = "سفارش پس از اصلاح توسط اپراتور، مجدداً برای بررسی به کارگاه ارجاع شد."
+        });
+
+        return true;
+    }
+
     private void ValidateImage(Microsoft.AspNetCore.Http.IFormFile? file, string key)
     {
         if (file is null || file.Length == 0)
@@ -884,6 +962,14 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         try
         {
+            if (!await ResubmitRejectedProductionTaskAsync(order, changedByUserId, cancellationToken))
+            {
+                DeleteOrderImage(newSampleImagePath);
+                DeleteOrderImage(newPrintImagePath);
+                ModelState.AddModelError(string.Empty, "کارگاه فعال کیک‌سازی برای ارجاع مجدد سفارش پیدا نشد.");
+                return View(model);
+            }
+
             await db.SaveChangesAsync(cancellationToken);
         }
         catch
