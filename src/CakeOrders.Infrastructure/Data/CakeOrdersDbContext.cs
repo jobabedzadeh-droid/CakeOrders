@@ -22,6 +22,9 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<RahkaranIntegrationSettings> RahkaranIntegrationSettings => Set<RahkaranIntegrationSettings>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<ProductionTask> ProductionTasks => Set<ProductionTask>();
+    public DbSet<ProductionTaskItem> ProductionTaskItems => Set<ProductionTaskItem>();
+    public DbSet<ProductionTaskHistory> ProductionTaskHistory => Set<ProductionTaskHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -277,6 +280,61 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
                 .WithMany()
                 .HasForeignKey(x => x.PosTerminalId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductionTask>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
+            entity.Property(x => x.UpdatedByUserId).HasMaxLength(450);
+            entity.HasIndex(x => new { x.OrderId, x.WorkshopId }).IsUnique();
+            entity.HasIndex(x => new { x.BranchId, x.WorkshopId, x.Status });
+
+            entity.HasOne(x => x.Order)
+                .WithMany(x => x.ProductionTasks)
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Branch)
+                .WithMany(x => x.ProductionTasks)
+                .HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Workshop)
+                .WithMany(x => x.ProductionTasks)
+                .HasForeignKey(x => x.WorkshopId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductionTaskItem>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ProductName).HasMaxLength(150).IsRequired();
+            entity.Property(x => x.Quantity).HasPrecision(18, 3);
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+
+            entity.HasOne(x => x.ProductionTask)
+                .WithMany(x => x.Items)
+                .HasForeignKey(x => x.ProductionTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.OrderItem)
+                .WithMany()
+                .HasForeignKey(x => x.OrderItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductionTaskHistory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ChangedByUserId).HasMaxLength(450);
+            entity.Property(x => x.Note).HasMaxLength(1000);
+            entity.HasIndex(x => new { x.ProductionTaskId, x.ChangedAtUtc });
+
+            entity.HasOne(x => x.ProductionTask)
+                .WithMany(x => x.History)
+                .HasForeignKey(x => x.ProductionTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<OrderItem>(entity =>

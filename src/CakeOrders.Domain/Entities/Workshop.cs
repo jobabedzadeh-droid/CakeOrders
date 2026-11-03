@@ -16,4 +16,6 @@ public sealed class Workshop
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public ICollection<ProductWorkshopRouting> ProductWorkshopRoutings { get; set; } = new List<ProductWorkshopRouting>();
+
+    public ICollection<ProductionTask> ProductionTasks { get; set; } = new List<ProductionTask>();
 }

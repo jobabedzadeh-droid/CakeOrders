@@ -58,5 +58,6 @@ public sealed class Order
     public string? RahkaranReceiptId { get; set; }
     public ICollection<OrderStatusHistory> StatusHistory { get; set; } = new List<OrderStatusHistory>();
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+    public ICollection<ProductionTask> ProductionTasks { get; set; } = new List<ProductionTask>();
     public decimal RemainingAmount => Math.Max(0, FinalAmount - PaidAmount);
 }
