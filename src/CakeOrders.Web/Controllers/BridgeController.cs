@@ -338,77 +338,32 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
                         payment.Order.RequestedDepositAmount > 0 &&
                         payment.Order.DepositAmount >= payment.Order.RequestedDepositAmount)
                     {
-                        var previousOrderStatus = payment.Order.Status;
                         var now = DateTime.UtcNow;
-                        payment.Order.Status = OrderStatus.Confirmed;
-                        payment.Order.UpdatedByUserId = null;
-                        payment.Order.StatusHistory.Add(new OrderStatusHistory
-                        {
-                            PreviousStatus = previousOrderStatus,
-                            NewStatus = OrderStatus.Confirmed,
-                            ChangedAtUtc = now,
-                            ChangedByUserId = null,
-                            Note = "تأیید خودکار سیستمی: بیعانه درخواستی به‌طور کامل پرداخت و پاسخ موفق قطعی کارت‌خوان دریافت شد."
-                        });
+                        var canConfirm = payment.Order.Kind != OrderKind.BirthdayCake ||
+                            await EnsureProductionTaskAsync(payment.Order, now, cancellationToken);
 
-                        if (payment.Order.Kind == OrderKind.BirthdayCake &&
-                            payment.Order.ProductionBranchId is long branchId &&
-                            !await db.ProductionTasks.AnyAsync(x => x.OrderId == payment.OrderId, cancellationToken))
+                        if (canConfirm)
                         {
-                            var workshopId = await db.Workshops
-                                .Where(x => x.BranchId == branchId && x.IsActive && x.Name == "کیک‌سازی")
-                                .Select(x => (long?)x.Id)
-                                .SingleOrDefaultAsync(cancellationToken);
-
-                            if (workshopId.HasValue)
+                            var previousOrderStatus = payment.Order.Status;
+                            payment.Order.Status = OrderStatus.Confirmed;
+                            payment.Order.UpdatedByUserId = null;
+                            payment.Order.StatusHistory.Add(new OrderStatusHistory
                             {
-                                var cakeTypeText = payment.Order.CakeType switch
-                                {
-                                    CakeType.Cream => "خامه‌ای",
-                                    CakeType.SemiFondant => "نیمه فوندانت",
-                                    CakeType.FullFondant => "تمام فوندانت",
-                                    _ => "نامشخص"
-                                };
-                                var notes = string.Join(" | ", new[]
-                                {
-                                    $"نوع سفارش: {payment.Order.OrderType}",
-                                    $"نوع کیک: {cakeTypeText}",
-                                    $"وزن درخواستی: {payment.Order.RequestedWeightKg:0.##} کیلوگرم",
-                                    string.IsNullOrWhiteSpace(payment.Order.BackgroundColor) ? null : $"رنگ زمینه: {payment.Order.BackgroundColor}",
-                                    string.IsNullOrWhiteSpace(payment.Order.MoldType) ? null : $"قالب: {payment.Order.MoldType}",
-                                    string.IsNullOrWhiteSpace(payment.Order.PrintType) ? null : $"نوع چاپ: {payment.Order.PrintType}",
-                                    payment.Order.HasBananaFilling ? "فیلینگ موز" : null,
-                                    payment.Order.HasWalnutFilling ? "فیلینگ گردو" : null,
-                                    string.IsNullOrWhiteSpace(payment.Order.CakeText) ? null : $"متن روی کیک: {payment.Order.CakeText}",
-                                    string.IsNullOrWhiteSpace(payment.Order.DesignNotes) ? null : $"توضیحات طرح: {payment.Order.DesignNotes}"
-                                }.Where(x => !string.IsNullOrWhiteSpace(x)));
-
-                                var task = new ProductionTask
-                                {
-                                    OrderId = payment.OrderId,
-                                    BranchId = branchId,
-                                    WorkshopId = workshopId.Value,
-                                    Status = ProductionTaskStatus.AwaitingWorkshopReview,
-                                    CreatedAtUtc = now,
-                                    CreatedByUserId = null
-                                };
-                                task.Items.Add(new ProductionTaskItem
-                                {
-                                    ProductName = "کیک تولد",
-                                    Unit = ProductUnit.Piece,
-                                    Quantity = 1,
-                                    Notes = notes
-                                });
-                                task.History.Add(new ProductionTaskHistory
-                                {
-                                    PreviousStatus = null,
-                                    NewStatus = ProductionTaskStatus.AwaitingWorkshopReview,
-                                    ChangedAtUtc = now,
-                                    ChangedByUserId = null,
-                                    Note = "وظیفه تولید پس از تکمیل بیعانه به‌صورت خودکار ایجاد و برای بررسی به کارگاه ارجاع شد."
-                                });
-                                db.ProductionTasks.Add(task);
-                            }
+                                PreviousStatus = previousOrderStatus,
+                                NewStatus = OrderStatus.Confirmed,
+                                ChangedAtUtc = now,
+                                ChangedByUserId = null,
+                                Note = "تأیید خودکار سیستمی: بیعانه درخواستی به‌طور کامل پرداخت و پاسخ موفق قطعی کارت‌خوان دریافت شد."
+                            });
+                        }
+                        else
+                        {
+                            // The POS charge is real and remains credited, but the order must
+                            // stay pending until its production task can be safely routed.
+                            payment.ResponseMessage = Limit(
+                                (payment.ResponseMessage ?? "") +
+                                " | مبلغ با موفقیت دریافت شد اما کارگاه فعال کیک‌سازی پیدا نشد؛ سفارش برای بررسی دستی در انتظار تأیید باقی ماند.",
+                                1000);
                         }
                     }
                 }
@@ -447,6 +402,96 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
                 _ => "نتیجه ثبت شد."
             }
         });
+    }
+
+    private async Task<bool> EnsureProductionTaskAsync(
+        Order order,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (order.ProductionBranchId is not long branchId)
+            return false;
+
+        var workshopId = await db.Workshops
+            .Where(x => x.BranchId == branchId && x.IsActive && x.Name == "کیک‌سازی")
+            .Select(x => (long?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (!workshopId.HasValue)
+            return false;
+
+        var task = await db.ProductionTasks
+            .Include(x => x.Items)
+            .Include(x => x.History)
+            .Where(x => x.OrderId == order.Id)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (task is not null && task.Status != ProductionTaskStatus.Rejected)
+            return true;
+
+        var cakeTypeText = order.CakeType switch
+        {
+            CakeType.Cream => "خامه‌ای",
+            CakeType.SemiFondant => "نیمه فوندانت",
+            CakeType.FullFondant => "تمام فوندانت",
+            _ => "نامشخص"
+        };
+        var notes = string.Join(" | ", new[]
+        {
+            $"نوع سفارش: {order.OrderType}",
+            $"نوع کیک: {cakeTypeText}",
+            $"وزن درخواستی: {order.RequestedWeightKg:0.##} کیلوگرم",
+            string.IsNullOrWhiteSpace(order.BackgroundColor) ? null : $"رنگ زمینه: {order.BackgroundColor}",
+            string.IsNullOrWhiteSpace(order.MoldType) ? null : $"قالب: {order.MoldType}",
+            string.IsNullOrWhiteSpace(order.PrintType) ? null : $"نوع چاپ: {order.PrintType}",
+            order.HasBananaFilling ? "فیلینگ موز" : null,
+            order.HasWalnutFilling ? "فیلینگ گردو" : null,
+            string.IsNullOrWhiteSpace(order.CakeText) ? null : $"متن روی کیک: {order.CakeText}",
+            string.IsNullOrWhiteSpace(order.DesignNotes) ? null : $"توضیحات طرح: {order.DesignNotes}"
+        }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        var isNew = task is null;
+        if (isNew)
+        {
+            task = new ProductionTask
+            {
+                OrderId = order.Id,
+                BranchId = branchId,
+                WorkshopId = workshopId.Value,
+                Status = ProductionTaskStatus.AwaitingWorkshopReview,
+                CreatedAtUtc = now
+            };
+            db.ProductionTasks.Add(task);
+        }
+        else
+        {
+            task!.Status = ProductionTaskStatus.AwaitingWorkshopReview;
+            task.BranchId = branchId;
+            task.WorkshopId = workshopId.Value;
+            task.UpdatedAtUtc = now;
+            task.Items.Clear();
+        }
+
+        task!.Items.Add(new ProductionTaskItem
+        {
+            ProductName = "کیک تولد",
+            Unit = ProductUnit.Piece,
+            Quantity = 1,
+            Notes = notes
+        });
+        task.History.Add(new ProductionTaskHistory
+        {
+            PreviousStatus = isNew ? null : ProductionTaskStatus.Rejected,
+            NewStatus = ProductionTaskStatus.AwaitingWorkshopReview,
+            ChangedAtUtc = now,
+            Note = isNew
+                ? "وظیفه تولید پس از تکمیل بیعانه کارت‌خوان ایجاد و برای بررسی ارجاع شد."
+                : "وظیفه تولید ردشده پس از تکمیل بیعانه کارت‌خوان مجدداً برای بررسی ارجاع شد."
+        });
+
+        return true;
     }
 
     private (long CashRegisterId, string InstallationId)? GetBridgeIdentity()
