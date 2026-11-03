@@ -1,0 +1,70 @@
+@model IReadOnlyList<CakeOrders.Domain.Entities.ProductionTask>
+@using CakeOrders.Domain.Entities
+@{
+    ViewData["Title"] = "پنل کارگاه";
+}
+
+<div class="container py-4" dir="rtl">
+    <h1 class="h3 mb-4">پنل کارگاه</h1>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success" role="alert">@success</div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    @if (Model.Count == 0)
+    {
+        <div class="alert alert-info">در حال حاضر وظیفه تولیدی برای نمایش وجود ندارد.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>شماره سفارش</th>
+                        <th>کارگاه</th>
+                        <th>مشتری</th>
+                        <th>زمان تحویل</th>
+                        <th>وضعیت وظیفه</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var task in Model)
+                {
+                    <tr>
+                        <td>@task.Order.OrderNumber</td>
+                        <td>@task.Workshop.Branch.Name / @task.Workshop.Name</td>
+                        <td>@task.Order.CustomerName</td>
+                        <td>@task.Order.DeliveryAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</td>
+                        <td>@task.Status</td>
+                        <td>
+                            @if (task.Status == ProductionTaskStatus.AwaitingWorkshopReview)
+                            {
+                                <div class="d-flex flex-wrap gap-2">
+                                    <form asp-controller="WorkshopPanel" asp-action="Accept" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="taskId" value="@task.Id" />
+                                        <button type="submit" class="btn btn-sm btn-success">پذیرش</button>
+                                    </form>
+                                    <form asp-controller="WorkshopPanel" asp-action="Reject" method="post" class="d-flex flex-wrap gap-1">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="taskId" value="@task.Id" />
+                                        <input type="text" name="reason" class="form-control form-control-sm" maxlength="1000" required placeholder="دلیل رد" />
+                                        <button type="submit" class="btn btn-sm btn-danger">رد وظیفه</button>
+                                    </form>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
