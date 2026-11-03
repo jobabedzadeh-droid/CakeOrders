@@ -324,6 +324,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (order is null)
             return NotFound();
 
+        ViewBag.IsWorkshopMember = !User.IsInRole("Admin") && workshopIdForDetails.HasValue;
+
         // دریافت شناسه کاربران ثبت‌شده در تاریخچه
         var userIds = order.StatusHistory
             .Where(x => !string.IsNullOrWhiteSpace(x.ChangedByUserId))
