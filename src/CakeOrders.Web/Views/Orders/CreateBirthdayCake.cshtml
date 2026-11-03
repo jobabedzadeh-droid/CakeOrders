@@ -27,17 +27,10 @@
         <div class="field"><label asp-for="PrintImage"></label><input asp-for="PrintImage" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" data-preview-target="printPreview" /><span asp-validation-for="PrintImage"></span><small>تصویری که باید روی کیک چاپ شود</small><div class="image-preview" id="printPreview"><span>پیش‌نمایش تصویر چاپی</span></div></div>
         <div class="field full"><label asp-for="DesignNotes"></label><textarea asp-for="DesignNotes" rows="3" placeholder="توضیحات تکمیلی سفارش و جزئیات طرح"></textarea><span asp-validation-for="DesignNotes"></span></div>
     </div></section>
-    <section class="form-panel"><h2>هزینه‌ها و پرداخت</h2><div class="form-grid">
-        <div class="field"><label asp-for="MacaronCost"></label><input asp-for="MacaronCost" type="number" min="0" step="1000" /></div>
-        <div class="field"><label asp-for="FlowerCost"></label><input asp-for="FlowerCost" type="number" min="0" step="1000" /></div>
-        <div class="field"><label asp-for="DummyCost"></label><input asp-for="DummyCost" type="number" min="0" step="1000" /></div>
-        <div class="field"><label asp-for="PrintingCost"></label><input asp-for="PrintingCost" type="number" min="0" step="1000" /></div>
-        <div class="field"><label asp-for="ShippingCost"></label><input asp-for="ShippingCost" type="number" min="0" step="1000" /></div>
-        <div class="field"><label asp-for="OtherCost"></label><input asp-for="OtherCost" type="number" min="0" step="1000" /></div>
-        <div class="field"><label asp-for="Discount"></label><input asp-for="Discount" type="number" min="0" step="1000" /><span asp-validation-for="Discount"></span></div>
+    <section class="form-panel"><h2>پرداخت</h2><div class="form-grid">
         <div class="field"><label asp-for="RequestedDepositAmount"></label><input asp-for="RequestedDepositAmount" type="number" min="0" step="1000" /><span asp-validation-for="RequestedDepositAmount"></span></div>
         <div class="field"><label asp-for="ReferrerCode"></label><input asp-for="ReferrerCode" placeholder="کد معرف" autocomplete="off" /><span id="referrerName" class="referrer-feedback" aria-live="polite"></span></div>
-    </div><div class="calc-note">فرمول: وزن × قیمت هر کیلو + هزینه‌های جانبی − تخفیف. کانال این فرم «حضوری» است و مبلغ نهایی هنگام ذخیره سمت سرور محاسبه می‌شود.</div></section>
+    </div><div class="calc-note">مبلغ کل سفارش از حاصل‌ضرب وزن درخواستی در قیمت هر کیلو محاسبه می‌شود. مبلغ نهایی هنگام ذخیره در سمت سرور محاسبه خواهد شد. کانال این فرم «حضوری» است.</div></section>
     <div class="form-actions"><a class="btn btn-light" asp-action="Index">انصراف</a><button class="btn btn-primary" type="submit">ثبت سفارش حضوری</button></div>
 </form>
 @section Scripts {

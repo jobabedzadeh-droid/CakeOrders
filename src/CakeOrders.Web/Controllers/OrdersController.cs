@@ -166,8 +166,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (!selectedBranchExists)
             ModelState.AddModelError(nameof(model.ProductionBranchId), "شعبه انتخاب‌شده معتبر یا فعال نیست.");
 
-        if (model.CalculatedTotal < 0)
-            ModelState.AddModelError(nameof(model.Discount), "تخفیف نمی‌تواند از جمع هزینه‌ها بیشتر باشد.");
         if (model.RequestedDepositAmount > Math.Max(0, model.CalculatedTotal))
             ModelState.AddModelError(nameof(model.RequestedDepositAmount), "بیعانه درخواستی نمی‌تواند از مبلغ نهایی بیشتر باشد.");
 
@@ -222,13 +220,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             DesignNotes = model.DesignNotes?.Trim(),
             SampleImagePath = sampleImagePath,
             PrintImagePath = printImagePath,
-            MacaronCost = model.MacaronCost,
-            FlowerCost = model.FlowerCost,
-            DummyCost = model.DummyCost,
-            PrintingCost = model.PrintingCost,
-            ShippingCost = model.ShippingCost,
-            OtherCost = model.OtherCost,
-            Discount = model.Discount,
             FinalAmount = model.CalculatedTotal,
             RequestedDepositAmount = model.RequestedDepositAmount,
             DepositAmount = 0,
@@ -483,13 +474,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             DesignNotes = order.DesignNotes,
             CurrentSampleImagePath = order.SampleImagePath,
             CurrentPrintImagePath = order.PrintImagePath,
-            MacaronCost = order.MacaronCost,
-            FlowerCost = order.FlowerCost,
-            DummyCost = order.DummyCost,
-            PrintingCost = order.PrintingCost,
-            ShippingCost = order.ShippingCost,
-            OtherCost = order.OtherCost,
-            Discount = order.Discount,
             RequestedDepositAmount = order.RequestedDepositAmount,
             ReferrerCode = order.ReferrerCode,
             DeliveryAt = DateTime.SpecifyKind(order.DeliveryAt, DateTimeKind.Utc).ToLocalTime()
@@ -515,19 +499,24 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (order is null)
             return NotFound();
 
-        // اعتبارسنجی مبالغ
-        if (model.CalculatedTotal < 0)
+        if (order.Kind != OrderKind.BirthdayCake)
+            return BadRequest("این سفارش از نوع کیک تولد نیست.");
+
+        // مبلغ نهایی باید حداقل برابر مجموع پرداخت‌های موفق باشد.
+        if (model.CalculatedTotal < order.PaidAmount)
         {
             ModelState.AddModelError(
-                nameof(model.Discount),
-                "تخفیف نمی‌تواند از جمع هزینه‌ها بیشتر باشد.");
+                nameof(model.PricePerKg),
+                "مبلغ نهایی نمی‌تواند از مجموع پرداخت‌های موفق سفارش کمتر باشد.");
         }
 
-        if (model.RequestedDepositAmount > Math.Max(0, model.CalculatedTotal) || model.RequestedDepositAmount < order.DepositAmount)
+        // بیعانه درخواستی باید حداقل برابر بیعانه پرداخت‌شده و حداکثر برابر مبلغ نهایی باشد.
+        if (model.RequestedDepositAmount < order.DepositAmount ||
+            model.RequestedDepositAmount > model.CalculatedTotal)
         {
             ModelState.AddModelError(
                 nameof(model.RequestedDepositAmount),
-                "بیعانه درخواستی نمی‌تواند از مبلغ نهایی کمتر از مبلغ پرداخت‌شده یا بیشتر از مبلغ نهایی باشد.");
+                "بیعانه درخواستی نمی‌تواند از بیعانه پرداخت‌شده کمتر یا از مبلغ نهایی بیشتر باشد.");
         }
 
         // اعتبارسنجی تصاویر جدید
@@ -638,13 +627,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         }
 
         // هزینه‌ها و پرداخت
-        AddChangeLog("هزینه ماکارون", order.MacaronCost, model.MacaronCost);
-        AddChangeLog("هزینه گل", order.FlowerCost, model.FlowerCost);
-        AddChangeLog("هزینه ماکت", order.DummyCost, model.DummyCost);
-        AddChangeLog("هزینه چاپ", order.PrintingCost, model.PrintingCost);
-        AddChangeLog("هزینه ارسال", order.ShippingCost, model.ShippingCost);
-        AddChangeLog("سایر هزینه‌ها", order.OtherCost, model.OtherCost);
-        AddChangeLog("تخفیف", order.Discount, model.Discount);
         AddChangeLog("مبلغ نهایی", order.FinalAmount, model.CalculatedTotal);
         AddChangeLog("بیعانه درخواستی", order.RequestedDepositAmount, model.RequestedDepositAmount);
         AddChangeLog("کد معرف", order.ReferrerCode, model.ReferrerCode?.Trim());
@@ -679,14 +661,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (newPrintImagePath is not null)
             order.PrintImagePath = newPrintImagePath;
 
-        order.MacaronCost = model.MacaronCost;
-        order.FlowerCost = model.FlowerCost;
-        order.DummyCost = model.DummyCost;
-        order.PrintingCost = model.PrintingCost;
-        order.ShippingCost = model.ShippingCost;
-        order.OtherCost = model.OtherCost;
-
-        order.Discount = model.Discount;
         order.FinalAmount = model.CalculatedTotal;
         order.RequestedDepositAmount = model.RequestedDepositAmount;
 
