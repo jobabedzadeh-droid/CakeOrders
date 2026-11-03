@@ -25,6 +25,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<ProductionTask> ProductionTasks => Set<ProductionTask>();
     public DbSet<ProductionTaskItem> ProductionTaskItems => Set<ProductionTaskItem>();
     public DbSet<ProductionTaskHistory> ProductionTaskHistory => Set<ProductionTaskHistory>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -368,6 +369,22 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
                 .WithMany()
                 .HasForeignKey(x => x.WorkshopId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<UserNotification>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.RecipientUserId).HasMaxLength(450).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.Link).HasMaxLength(500);
+
+            entity.HasIndex(x => new { x.RecipientUserId, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.RecipientUserId, x.ReadAtUtc });
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(x => x.RecipientUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
