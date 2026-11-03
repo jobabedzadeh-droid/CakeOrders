@@ -72,6 +72,22 @@ else
                         <td>@task.Order.DeliveryAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</td>
                         <td>@StatusLabel(task.Status)</td>
                         <td>
+                            @if (task.Status == ProductionTaskStatus.Pending)
+                            {
+                                <form asp-controller="WorkshopPanel" asp-action="StartProduction" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="taskId" value="@task.Id" />
+                                    <button type="submit" class="btn btn-sm btn-primary">شروع تولید</button>
+                                </form>
+                            }
+                            else if (task.Status == ProductionTaskStatus.InProgress)
+                            {
+                                <form asp-controller="WorkshopPanel" asp-action="CompleteProduction" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="taskId" value="@task.Id" />
+                                    <button type="submit" class="btn btn-sm btn-success">ثبت اتمام تولید</button>
+                                </form>
+                            }
                             @if (task.Status == ProductionTaskStatus.AwaitingWorkshopReview)
                             {
                                 <div class="d-flex flex-wrap gap-2">
