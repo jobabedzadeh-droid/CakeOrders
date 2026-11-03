@@ -24,4 +24,9 @@ public sealed class EditUserViewModel
     public string Role { get; set; } = "User";
 
     public bool IsActive { get; set; }
+
+    public bool CanManuallyConfirmOrders { get; set; }
+
+    // Controls whether the permission can be granted to this account.
+    public bool CanConfigureManualOrderConfirmation { get; set; }
 }
