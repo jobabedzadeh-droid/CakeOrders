@@ -13,6 +13,159 @@ namespace CakeOrders.Web.Controllers;
 [Authorize(Roles = "Admin,User")]
 public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
 {
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReceiveCash(long orderId, decimal amount, PaymentPurpose purpose,
+        string idempotencyKey, string? notes, string? receiptReference, CancellationToken cancellationToken)
+    {
+        if (await IsWorkshopMemberAsync(cancellationToken)) return Forbid();
+        if (string.IsNullOrWhiteSpace(idempotencyKey) || idempotencyKey.Length > 100)
+            return BadRequest("کلید ثبت دریافت وجه معتبر نیست.");
+
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var order = await db.Orders.FromSqlInterpolated(
+            $"SELECT * FROM [Orders] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {orderId}")
+            .SingleOrDefaultAsync(cancellationToken);
+        if (order is null) return NotFound();
+
+        var existing = await db.OrderCashPayments.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.IdempotencyKey == idempotencyKey, cancellationToken);
+        if (existing is not null)
+        {
+            if (existing.OrderId != orderId) return Conflict("کلید ثبت برای سفارش دیگری استفاده شده است.");
+            await transaction.CommitAsync(cancellationToken);
+            TempData["Success"] = "این دریافت وجه قبلاً ثبت شده است.";
+            return RedirectToAction("Details", "Orders", new { id = orderId });
+        }
+
+        if (order.Status == OrderStatus.Cancelled || order.RemainingAmount <= 0)
+            return BadRequest("این سفارش امکان دریافت وجه بیشتری ندارد.");
+        if (!Enum.IsDefined(typeof(PaymentPurpose), purpose))
+            return BadRequest("نوع دریافت وجه معتبر نیست.");
+
+        var unresolved = await db.PaymentTransactions.AnyAsync(x => x.OrderId == orderId &&
+            (x.Status == PaymentTransactionStatus.Created || x.Status == PaymentTransactionStatus.Processing ||
+             x.Status == PaymentTransactionStatus.Unknown || x.Status == PaymentTransactionStatus.ReconciliationRequired),
+            cancellationToken);
+        if (unresolved) return Conflict("تراکنش کارت‌خوان باز یا نامشخص وجود دارد؛ ابتدا آن را تعیین تکلیف کنید.");
+
+        var depositRemaining = Math.Max(0, order.RequestedDepositAmount - order.DepositAmount);
+        if (purpose == PaymentPurpose.Deposit && depositRemaining <= 0)
+            return BadRequest("بیعانه قبلاً کامل پرداخت شده است.");
+        if (purpose == PaymentPurpose.Settlement && depositRemaining > 0)
+            return BadRequest("تا پرداخت کامل بیعانه، تسویه مجاز نیست.");
+
+        var limit = purpose == PaymentPurpose.Deposit
+            ? Math.Min(depositRemaining, order.RemainingAmount) : order.RemainingAmount;
+        if (amount <= 0 || amount > limit)
+            return BadRequest("مبلغ باید بیشتر از صفر و حداکثر برابر مانده مجاز باشد.");
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Forbid();
+        var now = DateTime.UtcNow;
+
+        db.OrderCashPayments.Add(new OrderCashPayment
+        {
+            OrderId = orderId, Amount = amount, Purpose = purpose,
+            ReceivedByUserId = userId, ReceivedAtUtc = now,
+            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
+            ReceiptReference = string.IsNullOrWhiteSpace(receiptReference) ? null : receiptReference.Trim(),
+            IdempotencyKey = idempotencyKey
+        });
+        order.PaidAmount += amount;
+        if (purpose == PaymentPurpose.Deposit) order.DepositAmount += amount;
+
+        if (purpose == PaymentPurpose.Deposit && order.Status == OrderStatus.PendingReview &&
+            order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount)
+        {
+            if (order.Kind == OrderKind.BirthdayCake &&
+                !await EnsureCashProductionTaskAsync(order, userId, now, cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                TempData["Error"] = "کارگاه فعال کیک‌سازی پیدا نشد؛ دریافت وجه ثبت نشد تا سفارش بدون وظیفه تولید تأیید نشود.";
+                return RedirectToAction("Details", "Orders", new { id = orderId });
+            }
+
+            var previous = order.Status;
+            order.Status = OrderStatus.Confirmed;
+            order.UpdatedByUserId = userId;
+            order.StatusHistory.Add(new OrderStatusHistory
+            {
+                PreviousStatus = previous, NewStatus = OrderStatus.Confirmed,
+                ChangedAtUtc = now, ChangedByUserId = null,
+                Note = "تأیید خودکار سیستمی: بیعانه درخواستی به‌طور کامل به‌صورت نقدی دریافت و توسط اپراتور ثبت شد."
+            });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        TempData["Success"] = "دریافت نقدی با موفقیت ثبت شد.";
+        return RedirectToAction("Details", "Orders", new { id = orderId });
+    }
+
+    private async Task<bool> EnsureCashProductionTaskAsync(Order order, string actorUserId,
+        DateTime now, CancellationToken cancellationToken)
+    {
+        if (order.ProductionBranchId is not long branchId) return false;
+        var workshopId = await db.Workshops.Where(x => x.BranchId == branchId && x.IsActive && x.Name == "کیک‌سازی")
+            .Select(x => (long?)x.Id).SingleOrDefaultAsync(cancellationToken);
+        if (!workshopId.HasValue) return false;
+
+        var task = await db.ProductionTasks.Include(x => x.Items).Include(x => x.History)
+            .Where(x => x.OrderId == order.Id).OrderByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id).FirstOrDefaultAsync(cancellationToken);
+        if (task is not null && task.Status != ProductionTaskStatus.Rejected) return true;
+
+        var cakeType = order.CakeType switch
+        {
+            CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت",
+            CakeType.FullFondant => "تمام فوندانت", _ => "نامشخص"
+        };
+        var notes = string.Join(" | ", new[]
+        {
+            $"نوع سفارش: {order.OrderType}", $"نوع کیک: {cakeType}",
+            $"وزن درخواستی: {order.RequestedWeightKg:0.##} کیلوگرم",
+            string.IsNullOrWhiteSpace(order.BackgroundColor) ? null : $"رنگ زمینه: {order.BackgroundColor}",
+            string.IsNullOrWhiteSpace(order.MoldType) ? null : $"قالب: {order.MoldType}",
+            string.IsNullOrWhiteSpace(order.PrintType) ? null : $"نوع چاپ: {order.PrintType}",
+            order.HasBananaFilling ? "فیلینگ موز" : null, order.HasWalnutFilling ? "فیلینگ گردو" : null,
+            string.IsNullOrWhiteSpace(order.CakeText) ? null : $"متن روی کیک: {order.CakeText}",
+            string.IsNullOrWhiteSpace(order.DesignNotes) ? null : $"توضیحات طرح: {order.DesignNotes}"
+        }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        var isNew = task is null;
+        if (isNew)
+        {
+            task = new ProductionTask
+            {
+                OrderId = order.Id, BranchId = branchId, WorkshopId = workshopId.Value,
+                Status = ProductionTaskStatus.AwaitingWorkshopReview, CreatedAtUtc = now
+            };
+            db.ProductionTasks.Add(task);
+        }
+        else
+        {
+            task!.Status = ProductionTaskStatus.AwaitingWorkshopReview;
+            task.BranchId = branchId; task.WorkshopId = workshopId.Value;
+            task.UpdatedAtUtc = now; task.UpdatedByUserId = actorUserId;
+            task.Items.Clear();
+        }
+
+        task!.Items.Add(new ProductionTaskItem
+        {
+            ProductName = "کیک تولد", Unit = ProductUnit.Piece, Quantity = 1, Notes = notes
+        });
+        task.History.Add(new ProductionTaskHistory
+        {
+            PreviousStatus = isNew ? null : ProductionTaskStatus.Rejected,
+            NewStatus = ProductionTaskStatus.AwaitingWorkshopReview, ChangedAtUtc = now,
+            ChangedByUserId = isNew ? null : actorUserId,
+            Note = isNew ? "وظیفه تولید پس از تکمیل بیعانه نقدی ایجاد و ارجاع شد."
+                : "وظیفه تولید پس از تکمیل بیعانه نقدی مجدداً برای بررسی ارجاع شد."
+        });
+        return true;
+    }
+
     [HttpGet]
     public async Task<IActionResult> Start(long orderId, CancellationToken cancellationToken)
     {
