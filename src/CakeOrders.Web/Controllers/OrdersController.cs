@@ -33,6 +33,15 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         var query = db.Orders.AsNoTracking();
 
+        if (!User.IsInRole("Admin"))
+        {
+            var workshopId = await GetCurrentWorkshopIdAsync(cancellationToken);
+            if (workshopId.HasValue)
+                query = query.Where(x => x.ProductionTasks.Any(t => t.WorkshopId == workshopId.Value));
+            else
+                query = query.Where(x => false);
+        }
+
         // جست‌وجو بر اساس شماره سفارش، نام مشتری یا موبایل
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -113,8 +122,11 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         return View();
     }
 
@@ -122,6 +134,9 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     public async Task<IActionResult> CreateBirthdayCake(
     CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         var model = new OrderCreateViewModel();
 
         await PopulateProductionBranchesAsync(model, cancellationToken);
@@ -167,6 +182,9 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     [RequestSizeLimit(11 * 1024 * 1024)]
     public async Task<IActionResult> CreateBirthdayCake(OrderCreateViewModel model, CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         var selectedBranchExists = await db.Branches.AnyAsync(
             x => x.Id == model.ProductionBranchId && x.IsActive,
             cancellationToken);
@@ -291,12 +309,14 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     long id,
     CancellationToken cancellationToken)
     {
+        var workshopIdForDetails = User.IsInRole("Admin") ? null : await GetCurrentWorkshopIdAsync(cancellationToken);
         var order = await db.Orders
             .AsNoTracking()
             .Include(x => x.StatusHistory)
             .Include(x => x.Items)
                 .ThenInclude(x => x.Workshop)
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == id &&
+                (User.IsInRole("Admin") || (workshopIdForDetails.HasValue && x.ProductionTasks.Any(t => t.WorkshopId == workshopIdForDetails.Value))), cancellationToken);
 
         if (order is null)
             return NotFound();
@@ -371,11 +391,41 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (order is null)
             return NotFound();
 
-        if (model.NewStatus == OrderStatus.Confirmed &&
-            order.RequestedDepositAmount > order.DepositAmount)
+        var actorUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var actor = await db.Users.AsNoTracking()
+            .Where(x => x.Id == actorUserId)
+            .Select(x => new { x.CanManuallyConfirmOrders, x.WorkshopId })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (actor?.WorkshopId is not null)
+            return Forbid();
+
+        if ((model.NewStatus == OrderStatus.Confirmed || model.NewStatus == OrderStatus.Rejected) &&
+            string.IsNullOrWhiteSpace(model.Note))
         {
-            TempData["Error"] = "تا زمانی که بیعانه به‌طور کامل پرداخت و توسط کارت‌خوان تأیید نشده باشد، سفارش قابل تأیید نیست.";
+            TempData["Error"] = "برای تأیید یا رد سفارش، ثبت دلیل الزامی است.";
             return RedirectToAction(nameof(Details), new { id = order.Id });
+        }
+
+        if (model.NewStatus == OrderStatus.Confirmed && order.DepositAmount < order.RequestedDepositAmount)
+        {
+            var hasValidReferrer = !string.IsNullOrWhiteSpace(order.ReferrerCode) &&
+                await db.Referrers.AnyAsync(x => x.IsActive && x.Code == order.ReferrerCode.Trim(), cancellationToken);
+            var partiallyPaid = order.DepositAmount > 0;
+            var referralWithoutDeposit = order.DepositAmount == 0 && hasValidReferrer;
+
+            if (!User.IsInRole("Admin") &&
+                (actor?.CanManuallyConfirmOrders != true || (!partiallyPaid && !referralWithoutDeposit)))
+            {
+                TempData["Error"] = "تأیید دستی این سفارش مجاز نیست؛ پرداخت کامل بیعانه یا مجوز تأیید دستی همراه با شرایط معتبر لازم است.";
+                return RedirectToAction(nameof(Details), new { id = order.Id });
+            }
+
+            if (order.DepositAmount == 0 && !referralWithoutDeposit)
+            {
+                TempData["Error"] = "سفارش بدون بیعانه فقط در صورت داشتن معرف معتبر قابل تأیید دستی است.";
+                return RedirectToAction(nameof(Details), new { id = order.Id });
+            }
         }
 
         var allowedTransitions = order.Status switch
@@ -421,7 +471,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         }
 
         var now = DateTime.UtcNow;
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = actorUserId;
 
         if (model.NewStatus == OrderStatus.Confirmed &&
             order.Kind == OrderKind.BirthdayCake &&
@@ -597,6 +647,9 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     long id,
     CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         var order = await db.Orders
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -644,6 +697,9 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     OrderEditViewModel model,
     CancellationToken cancellationToken)
     {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
         if (id != model.Id)
             return BadRequest();
 
@@ -845,6 +901,26 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         TempData["Success"] = "اطلاعات سفارش با موفقیت ویرایش شد.";
 
         return RedirectToAction(nameof(Details), new { id = order.Id });
+    }
+
+    private async Task<long?> GetCurrentWorkshopIdAsync(CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return await db.Users.AsNoTracking()
+            .Where(x => x.Id == userId && x.IsActive)
+            .Select(x => x.WorkshopId)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<bool> IsWorkshopMemberAsync(CancellationToken cancellationToken)
+    {
+        if (User.IsInRole("Admin"))
+            return false;
+
+        return await db.Users.AsNoTracking()
+            .AnyAsync(x => x.Id == User.FindFirstValue(ClaimTypes.NameIdentifier) &&
+                           x.IsActive && x.WorkshopId != null,
+                cancellationToken);
     }
 
     private void DeleteOrderImage(string? imagePath)
