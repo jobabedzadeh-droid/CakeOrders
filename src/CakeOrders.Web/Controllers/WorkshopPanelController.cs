@@ -96,6 +96,8 @@ public sealed class WorkshopPanelController(
 
         var task = await db.ProductionTasks
             .Include(x => x.Order)
+            .Include(x => x.Items)
+            .Include(x => x.History)
             .Include(x => x.Workshop)
             .FirstOrDefaultAsync(x => x.Id == taskId, cancellationToken);
 
