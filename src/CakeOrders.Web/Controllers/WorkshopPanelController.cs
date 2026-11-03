@@ -69,6 +69,79 @@ public sealed class WorkshopPanelController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public Task<IActionResult> StartProduction(long taskId, CancellationToken cancellationToken) =>
+        ChangeTaskStatusAsync(
+            taskId,
+            ProductionTaskStatus.Pending,
+            ProductionTaskStatus.InProgress,
+            "شروع تولید توسط مسئول کارگاه ثبت شد.",
+            "وضعیت وظیفه به «در حال تولید» تغییر کرد.",
+            cancellationToken);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> CompleteProduction(long taskId, CancellationToken cancellationToken) =>
+        ChangeTaskStatusAsync(
+            taskId,
+            ProductionTaskStatus.InProgress,
+            ProductionTaskStatus.Completed,
+            "اتمام تولید توسط مسئول کارگاه ثبت شد.",
+            "تکمیل تولید با موفقیت ثبت شد.",
+            cancellationToken);
+
+    private async Task<IActionResult> ChangeTaskStatusAsync(
+        long taskId,
+        ProductionTaskStatus expectedStatus,
+        ProductionTaskStatus newStatus,
+        string historyNote,
+        string successMessage,
+        CancellationToken cancellationToken)
+    {
+        var actorId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(actorId))
+            return Challenge();
+
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable, cancellationToken);
+
+        var task = await db.ProductionTasks
+            .Include(x => x.History)
+            .FirstOrDefaultAsync(x => x.Id == taskId, cancellationToken);
+
+        if (task is null)
+            return NotFound();
+
+        if (!await CanManageWorkshopAsync(actorId, task.WorkshopId, cancellationToken))
+            return Forbid();
+
+        if (task.Status != expectedStatus)
+        {
+            TempData["Error"] = "وضعیت فعلی وظیفه با این عملیات سازگار نیست.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var now = DateTime.UtcNow;
+        task.Status = newStatus;
+        task.UpdatedAtUtc = now;
+        task.UpdatedByUserId = actorId;
+        task.History.Add(new ProductionTaskHistory
+        {
+            PreviousStatus = expectedStatus,
+            NewStatus = newStatus,
+            ChangedAtUtc = now,
+            ChangedByUserId = actorId,
+            Note = historyNote
+        });
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        TempData["Success"] = successMessage;
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Reject(
         long taskId,
         string? reason,
