@@ -1,6 +1,6 @@
 ﻿using CakeOrders.Domain.Entities;
 
-namespace CakeOrders.Web.ViewModels;
+namespace CakeOrders.Web.ViewModels.Orders;
 
 public sealed class OrderListViewModel
 {
@@ -9,6 +9,8 @@ public sealed class OrderListViewModel
     public OrderStatus? Status { get; set; }
 
     public OrderChannel? Channel { get; set; }
+
+    public OrderKind? Kind { get; set; }
 
     public DateTime? DeliveryFrom { get; set; }
 

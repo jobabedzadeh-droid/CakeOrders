@@ -1,4 +1,4 @@
-@model CakeOrders.Web.ViewModels.OrderListViewModel
+@model CakeOrders.Web.ViewModels.Orders.OrderListViewModel
 @using CakeOrders.Domain.Entities
 @using CakeOrders.Web.Helpers
 
@@ -46,6 +46,19 @@
                         <option value="@((int)item)"
                                 selected="@(Model.Status == item)">
                             @StatusText(item)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label>نوع سفارش</label>
+                <select name="kind">
+                    <option value="">همه سفارش‌ها</option>
+                    @foreach (var item in Enum.GetValues<OrderKind>())
+                    {
+                        <option value="@((int)item)" selected="@(Model.Kind == item)">
+                            @(item == OrderKind.BirthdayCake ? "کیک تولد" : "شیرینی")
                         </option>
                     }
                 </select>
@@ -141,7 +154,7 @@
                     <tr>
                         <th>شماره سفارش</th>
                         <th>مشتری</th>
-                        <th>نوع کیک</th>
+                        <th>نوع سفارش / محصول</th>
                         <th>کانال</th>
                         <th>زمان تحویل</th>
                         <th>مبلغ نهایی</th>
@@ -163,7 +176,17 @@
                                 <small>@order.CustomerPhone</small>
                             </td>
 
-                            <td>@CakeTypeText(order.CakeType)</td>
+                            <td>
+                                @if (order.Kind == OrderKind.BirthdayCake)
+                                {
+                                    <span>کیک تولد</span>
+                                    <small>@CakeTypeText(order.CakeType)</small>
+                                }
+                                else
+                                {
+                                    <span>شیرینی</span>
+                                }
+                            </td>
 
                             <td>
                                 @(order.Channel == OrderChannel.Online
@@ -227,6 +250,7 @@
                        asp-route-search="@Model.Search"
                        asp-route-status="@Model.Status"
                        asp-route-channel="@Model.Channel"
+                       asp-route-kind="@Model.Kind"
                        asp-route-deliveryFrom="@Model.DeliveryFrom?.ToString("yyyy-MM-dd")"
                        asp-route-deliveryTo="@Model.DeliveryTo?.ToString("yyyy-MM-dd")"
                        asp-route-page="@(Model.Page - 1)">
@@ -244,6 +268,7 @@
                        asp-route-search="@Model.Search"
                        asp-route-status="@Model.Status"
                        asp-route-channel="@Model.Channel"
+                       asp-route-kind="@Model.Kind"
                        asp-route-deliveryFrom="@Model.DeliveryFrom?.ToString("yyyy-MM-dd")"
                        asp-route-deliveryTo="@Model.DeliveryTo?.ToString("yyyy-MM-dd")"
                        asp-route-page="@(Model.Page + 1)">

@@ -1,7 +1,7 @@
 ﻿using CakeOrders.Domain.Entities;
 using System.ComponentModel.DataAnnotations;
 
-namespace CakeOrders.Web.ViewModels;
+namespace CakeOrders.Web.ViewModels.Orders;
 
 public sealed class OrderStatusUpdateViewModel
 {

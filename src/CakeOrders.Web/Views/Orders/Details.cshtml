@@ -3,6 +3,7 @@
 @using CakeOrders.Web.Helpers
 @{
     ViewData["Title"] = "جزئیات سفارش";
+    var isBirthdayCake = Model.Kind == OrderKind.BirthdayCake;
     var cake = Model.CakeType switch { CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت", _ => "تمام فوندانت" };
 }
 <div class="page-heading">
@@ -11,7 +12,10 @@
         <p>شماره سفارش: <b>@Model.OrderNumber</b></p>
     </div>
     <a class="btn btn-light" asp-action="Index">بازگشت به سفارش‌ها</a>
-    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">ویرایش سفارش</a>
+    @if (isBirthdayCake)
+    {
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">ویرایش سفارش</a>
+    }
     <a asp-controller="OrderPayments" asp-action="Start" asp-route-orderId="@Model.Id" class="btn btn-primary">درخواست پرداخت کارت‌خوان</a>
     <a asp-controller="OrderPayments" asp-action="History" asp-route-orderId="@Model.Id" class="btn btn-secondary">سوابق پرداخت</a>
 </div>
@@ -27,10 +31,17 @@
     <div class="detail-grid">
         <div><small>مشتری</small><b>@(Model.CustomerName ?? "—")</b></div>
         <div><small>شماره تماس</small><b>@(Model.CustomerPhone ?? "—")</b></div>
-        <div><small>نوع کیک</small><b>@cake</b></div>
+        <div><small>نوع سفارش</small><b>@(isBirthdayCake ? "کیک تولد" : "شیرینی")</b></div>
+        @if (isBirthdayCake)
+        {
+            <div><small>نوع کیک</small><b>@cake</b></div>
+        }
         <div><small>وضعیت</small><b>@(Model.RequestedDepositAmount > Model.DepositAmount && Model.Status == OrderStatus.PendingReview ? "در انتظار پرداخت بیعانه" : Model.Status.ToString())</b></div>
-        <div><small>وزن</small><b>@Model.RequestedWeightKg.ToString("N1") کیلوگرم</b></div>
-        <div><small>قیمت هر کیلو</small><b>@Model.PricePerKg.ToString("N0")</b></div>
+        @if (isBirthdayCake)
+        {
+            <div><small>وزن</small><b>@Model.RequestedWeightKg.ToString("N1") کیلوگرم</b></div>
+            <div><small>قیمت هر کیلو</small><b>@Model.PricePerKg.ToString("N0")</b></div>
+        }
         <div><small>زمان ثبت</small><b>@PersianDateTime.Format(Model.CreatedAtUtc)</b></div>
         <div><small>زمان تحویل</small><b>@PersianDateTime.Format(Model.DeliveryAt)</b></div>
         <div><small>مبلغ نهایی</small><b>@Model.FinalAmount.ToString("N0")</b></div>
@@ -39,11 +50,51 @@
         <div><small>وضعیت بیعانه</small><b>@(Model.RequestedDepositAmount <= 0 ? "بدون بیعانه" : Model.DepositAmount >= Model.RequestedDepositAmount ? "پرداخت کامل" : Model.DepositAmount > 0 ? "پرداخت ناقص" : "در انتظار پرداخت")</b></div>
         <div><small>مانده</small><b>@Model.RemainingAmount.ToString("N0")</b></div>
         <div><small>کانال</small><b>@(Model.Channel == OrderChannel.Online ? "آنلاین" : "حضوری")</b></div>
-        <div><small>قالب کیک</small><b>@(Model.MoldType ?? "—")</b></div>
-        <div><small>محل نوشته</small><b>@(Model.WritingLocation ?? "—")</b></div>
-        <div><small>متن روی کیک</small><b>@(Model.CakeText ?? "—")</b></div>
+        @if (isBirthdayCake)
+        {
+            <div><small>قالب کیک</small><b>@(Model.MoldType ?? "—")</b></div>
+            <div><small>محل نوشته</small><b>@(Model.WritingLocation ?? "—")</b></div>
+            <div><small>متن روی کیک</small><b>@(Model.CakeText ?? "—")</b></div>
+        }
     </div>
-    @if (!string.IsNullOrWhiteSpace(Model.SampleImagePath) || !string.IsNullOrWhiteSpace(Model.PrintImagePath))
+    @if (!isBirthdayCake)
+    {
+        <hr />
+        <h3>اقلام سفارش شیرینی</h3>
+        @if (Model.Items.Any())
+        {
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>محصول</th>
+                            <th>کارگاه</th>
+                            <th>مقدار</th>
+                            <th>قیمت واحد</th>
+                            <th>جمع</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td>@item.ProductName</td>
+                                <td>@item.Workshop.Name</td>
+                                <td>@item.Quantity.ToString("N3") @item.Unit</td>
+                                <td>@item.UnitPrice.ToString("N0")</td>
+                                <td>@item.LineTotal.ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">هنوز قلمی برای این سفارش ثبت نشده است.</p>
+        }
+    }
+    @if (isBirthdayCake && (!string.IsNullOrWhiteSpace(Model.SampleImagePath) || !string.IsNullOrWhiteSpace(Model.PrintImagePath)))
     {
         <hr /><h3>تصاویر سفارش</h3><div class="order-image-grid">
         @if (!string.IsNullOrWhiteSpace(Model.SampleImagePath))
@@ -56,7 +107,7 @@
         }
     </div>
 }
-@if (!string.IsNullOrWhiteSpace(Model.DesignNotes))
+@if (isBirthdayCake && !string.IsNullOrWhiteSpace(Model.DesignNotes))
 {
     <hr />
     <h3>توضیحات</h3>

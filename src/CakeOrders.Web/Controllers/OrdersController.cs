@@ -1,9 +1,10 @@
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
-using CakeOrders.Web.ViewModels;
+using CakeOrders.Web.ViewModels.Orders;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
@@ -20,6 +21,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
       string? search,
       OrderStatus? status,
       OrderChannel? channel,
+      OrderKind? kind,
       DateTime? deliveryFrom,
       DateTime? deliveryTo,
       int page = 1,
@@ -49,6 +51,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         // فیلتر کانال سفارش
         if (channel.HasValue)
             query = query.Where(x => x.Channel == channel.Value);
+
+        // فیلتر نوع سفارش
+        if (kind.HasValue)
+            query = query.Where(x => x.Kind == kind.Value);
 
         // فیلتر تاریخ تحویل از
         if (deliveryFrom.HasValue)
@@ -94,6 +100,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             Search = search,
             Status = status,
             Channel = channel,
+            Kind = kind,
             DeliveryFrom = deliveryFrom,
             DeliveryTo = deliveryTo,
             Orders = orders,
@@ -106,7 +113,38 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     }
 
     [HttpGet]
-    public IActionResult Create() => View(new OrderCreateViewModel());
+    public IActionResult Create()
+    {
+        return View();
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> CreateBirthdayCake(
+    CancellationToken cancellationToken)
+    {
+        var model = new OrderCreateViewModel();
+
+        await PopulateProductionBranchesAsync(model, cancellationToken);
+
+        return View(model);
+    }
+
+    private async Task PopulateProductionBranchesAsync(
+        OrderCreateViewModel model,
+        CancellationToken cancellationToken)
+    {
+        model.ProductionBranches = await db.Branches
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+            {
+                Value = x.Id.ToString(),
+                Text = x.Name,
+                Selected = x.Id == model.ProductionBranchId
+            })
+            .ToListAsync(cancellationToken);
+    }
 
     [HttpGet]
     public async Task<IActionResult> LookupReferrer(string? code, CancellationToken cancellationToken)
@@ -127,10 +165,27 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(11 * 1024 * 1024)]
-    public async Task<IActionResult> Create(OrderCreateViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateBirthdayCake(OrderCreateViewModel model, CancellationToken cancellationToken)
     {
-        if (model.CalculatedTotal < 0)
-            ModelState.AddModelError(nameof(model.Discount), "تخفیف نمی‌تواند از جمع هزینه‌ها بیشتر باشد.");
+        var selectedBranchExists = await db.Branches.AnyAsync(
+            x => x.Id == model.ProductionBranchId && x.IsActive,
+            cancellationToken);
+        if (!selectedBranchExists)
+            ModelState.AddModelError(nameof(model.ProductionBranchId), "شعبه انتخاب‌شده معتبر یا فعال نیست.");
+
+        var cakeWorkshopExists = await db.Workshops.AnyAsync(
+            x => x.BranchId == model.ProductionBranchId &&
+                 x.IsActive &&
+                 x.Name == "کیک‌سازی",
+            cancellationToken);
+
+        if (!cakeWorkshopExists)
+        {
+            ModelState.AddModelError(
+                nameof(model.ProductionBranchId),
+                "برای شعبه انتخاب‌شده کارگاه فعال «کیک‌سازی» تعریف نشده است.");
+        }
+
         if (model.RequestedDepositAmount > Math.Max(0, model.CalculatedTotal))
             ModelState.AddModelError(nameof(model.RequestedDepositAmount), "بیعانه درخواستی نمی‌تواند از مبلغ نهایی بیشتر باشد.");
 
@@ -138,7 +193,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         ValidateImage(model.PrintImage, nameof(model.PrintImage));
 
         if (!ModelState.IsValid)
+        {
+            await PopulateProductionBranchesAsync(model, cancellationToken);
             return View(model);
+        }
 
         string? sampleImagePath = null;
         string? printImagePath = null;
@@ -150,18 +208,21 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         catch (InvalidDataException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
+            await PopulateProductionBranchesAsync(model, cancellationToken);
             return View(model);
         }
 
         var order = new Order
         {
             OrderNumber = $"CO-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}",
+            Kind = OrderKind.BirthdayCake,
             // This screen is for manually entered, in-person orders.
             Channel = OrderChannel.InPerson,
             Status = model.RequestedDepositAmount > 0 ? OrderStatus.PendingReview : OrderStatus.Confirmed,
             CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
             UpdatedByUserId = null,
             CreatedAtUtc = DateTime.UtcNow,
+            ProductionBranchId = model.ProductionBranchId,
             DeliveryAt = DateTime.SpecifyKind(model.DeliveryAt, DateTimeKind.Local).ToUniversalTime(),
             CustomerName = model.CustomerName?.Trim(),
             CustomerPhone = model.CustomerPhone?.Trim(),
@@ -179,13 +240,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             DesignNotes = model.DesignNotes?.Trim(),
             SampleImagePath = sampleImagePath,
             PrintImagePath = printImagePath,
-            MacaronCost = model.MacaronCost,
-            FlowerCost = model.FlowerCost,
-            DummyCost = model.DummyCost,
-            PrintingCost = model.PrintingCost,
-            ShippingCost = model.ShippingCost,
-            OtherCost = model.OtherCost,
-            Discount = model.Discount,
             FinalAmount = model.CalculatedTotal,
             RequestedDepositAmount = model.RequestedDepositAmount,
             DepositAmount = 0,
@@ -200,9 +254,35 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             Note = model.RequestedDepositAmount > 0 ? "ثبت سفارش؛ در انتظار پرداخت بیعانه" : "ثبت اولیه سفارش حضوری"
         });
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
         db.Orders.Add(order);
         await db.SaveChangesAsync(cancellationToken);
-        TempData["Success"] = $"سفارش {order.OrderNumber} ثبت شد.";
+
+        if (order.Status == OrderStatus.Confirmed &&
+            !await TryCreateBirthdayCakeProductionTaskAsync(
+                order,
+                User.FindFirstValue(ClaimTypes.NameIdentifier),
+                cancellationToken))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            DeleteOrderImage(sampleImagePath);
+            DeleteOrderImage(printImagePath);
+
+            ModelState.AddModelError(
+                nameof(model.ProductionBranchId),
+                "ایجاد وظیفه تولید ممکن نشد؛ کارگاه فعال کیک‌سازی شعبه را بررسی کنید.");
+
+            await PopulateProductionBranchesAsync(model, cancellationToken);
+            return View(model);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        TempData["Success"] = order.Status == OrderStatus.Confirmed
+            ? $"سفارش {order.OrderNumber} ثبت و به کارگاه کیک‌سازی ارجاع شد."
+            : $"سفارش {order.OrderNumber} ثبت شد و پس از تأیید به تولید ارجاع می‌شود.";
         return RedirectToAction(nameof(Details), new { id = order.Id });
     }
 
@@ -214,6 +294,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         var order = await db.Orders
             .AsNoTracking()
             .Include(x => x.StatusHistory)
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Workshop)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (order is null)
@@ -276,8 +358,15 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             return RedirectToAction(nameof(Details), new { id = model.OrderId });
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
+
+        // قفل سفارش از تأیید هم‌زمان و ایجاد وظیفه تولید تکراری جلوگیری می‌کند.
         var order = await db.Orders
-            .FirstOrDefaultAsync(x => x.Id == model.OrderId, cancellationToken);
+            .FromSqlInterpolated(
+                $"SELECT * FROM [Orders] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {model.OrderId}")
+            .SingleOrDefaultAsync(cancellationToken);
 
         if (order is null)
             return NotFound();
@@ -331,10 +420,19 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             return RedirectToAction(nameof(Details), new { id = order.Id });
         }
 
-        var previousStatus = order.Status;
         var now = DateTime.UtcNow;
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+        if (model.NewStatus == OrderStatus.Confirmed &&
+            order.Kind == OrderKind.BirthdayCake &&
+            !await TryCreateBirthdayCakeProductionTaskAsync(order, userId, cancellationToken))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            TempData["Error"] = "کارگاه فعال «کیک‌سازی» برای شعبه سفارش پیدا نشد؛ وضعیت سفارش تغییر نکرد.";
+            return RedirectToAction(nameof(Details), new { id = order.Id });
+        }
+
+        var previousStatus = order.Status;
         order.Status = model.NewStatus;
         order.UpdatedByUserId = userId;
 
@@ -352,10 +450,100 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         });
 
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
-        TempData["Success"] = "وضعیت سفارش با موفقیت تغییر کرد.";
+        TempData["Success"] = model.NewStatus == OrderStatus.Confirmed &&
+                              order.Kind == OrderKind.BirthdayCake
+            ? "سفارش تأیید و وظیفه تولید آن به کارگاه کیک‌سازی ارجاع شد."
+            : "وضعیت سفارش با موفقیت تغییر کرد.";
 
         return RedirectToAction(nameof(Details), new { id = order.Id });
+    }
+
+    private async Task<bool> TryCreateBirthdayCakeProductionTaskAsync(
+        Order order,
+        string? actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (order.Kind != OrderKind.BirthdayCake ||
+            order.ProductionBranchId is not long branchId)
+        {
+            return false;
+        }
+
+        // این بررسی علاوه بر قفل سفارش، از ایجاد وظیفه تکراری جلوگیری می‌کند.
+        var taskAlreadyExists = await db.ProductionTasks
+            .AnyAsync(x => x.OrderId == order.Id, cancellationToken);
+
+        if (taskAlreadyExists)
+            return true;
+
+        var workshopId = await db.Workshops
+            .Where(x =>
+                x.BranchId == branchId &&
+                x.IsActive &&
+                x.Name == "کیک‌سازی")
+            .Select(x => (long?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (!workshopId.HasValue)
+            return false;
+
+        var now = DateTime.UtcNow;
+
+        var cakeTypeText = order.CakeType switch
+        {
+            CakeType.Cream => "خامه‌ای",
+            CakeType.SemiFondant => "نیمه فوندانت",
+            CakeType.FullFondant => "تمام فوندانت",
+            _ => "نامشخص"
+        };
+
+        var notes = string.Join(
+            " | ",
+            new[]
+            {
+                $"نوع سفارش: {order.OrderType}",
+                $"نوع کیک: {cakeTypeText}",
+                $"وزن درخواستی: {order.RequestedWeightKg:0.##} کیلوگرم",
+                string.IsNullOrWhiteSpace(order.BackgroundColor) ? null : $"رنگ زمینه: {order.BackgroundColor}",
+                string.IsNullOrWhiteSpace(order.MoldType) ? null : $"قالب: {order.MoldType}",
+                string.IsNullOrWhiteSpace(order.PrintType) ? null : $"نوع چاپ: {order.PrintType}",
+                order.HasBananaFilling ? "فیلینگ موز" : null,
+                order.HasWalnutFilling ? "فیلینگ گردو" : null,
+                string.IsNullOrWhiteSpace(order.CakeText) ? null : $"متن روی کیک: {order.CakeText}",
+                string.IsNullOrWhiteSpace(order.DesignNotes) ? null : $"توضیحات طرح: {order.DesignNotes}"
+            }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        var task = new ProductionTask
+        {
+            OrderId = order.Id,
+            BranchId = branchId,
+            WorkshopId = workshopId.Value,
+            Status = ProductionTaskStatus.Pending,
+            CreatedAtUtc = now,
+            CreatedByUserId = actorUserId
+        };
+
+        task.Items.Add(new ProductionTaskItem
+        {
+            ProductName = "کیک تولد",
+            Unit = ProductUnit.Piece,
+            Quantity = 1,
+            Notes = notes
+        });
+
+        task.History.Add(new ProductionTaskHistory
+        {
+            PreviousStatus = null,
+            NewStatus = ProductionTaskStatus.Pending,
+            ChangedAtUtc = now,
+            ChangedByUserId = actorUserId,
+            Note = "وظیفه تولید پس از تأیید سفارش ایجاد شد."
+        });
+
+        db.ProductionTasks.Add(task);
+        return true;
     }
 
     private void ValidateImage(Microsoft.AspNetCore.Http.IFormFile? file, string key)
@@ -416,6 +604,11 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (order is null)
             return NotFound();
 
+        if (order.Kind != OrderKind.BirthdayCake)
+        {
+            return BadRequest("این سفارش از نوع کیک تولد نیست.");
+        }
+
         var model = new OrderEditViewModel
         {
             Id = order.Id,
@@ -435,13 +628,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             DesignNotes = order.DesignNotes,
             CurrentSampleImagePath = order.SampleImagePath,
             CurrentPrintImagePath = order.PrintImagePath,
-            MacaronCost = order.MacaronCost,
-            FlowerCost = order.FlowerCost,
-            DummyCost = order.DummyCost,
-            PrintingCost = order.PrintingCost,
-            ShippingCost = order.ShippingCost,
-            OtherCost = order.OtherCost,
-            Discount = order.Discount,
             RequestedDepositAmount = order.RequestedDepositAmount,
             ReferrerCode = order.ReferrerCode,
             DeliveryAt = DateTime.SpecifyKind(order.DeliveryAt, DateTimeKind.Utc).ToLocalTime()
@@ -467,19 +653,24 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (order is null)
             return NotFound();
 
-        // اعتبارسنجی مبالغ
-        if (model.CalculatedTotal < 0)
+        if (order.Kind != OrderKind.BirthdayCake)
+            return BadRequest("این سفارش از نوع کیک تولد نیست.");
+
+        // مبلغ نهایی باید حداقل برابر مجموع پرداخت‌های موفق باشد.
+        if (model.CalculatedTotal < order.PaidAmount)
         {
             ModelState.AddModelError(
-                nameof(model.Discount),
-                "تخفیف نمی‌تواند از جمع هزینه‌ها بیشتر باشد.");
+                nameof(model.PricePerKg),
+                "مبلغ نهایی نمی‌تواند از مجموع پرداخت‌های موفق سفارش کمتر باشد.");
         }
 
-        if (model.RequestedDepositAmount > Math.Max(0, model.CalculatedTotal) || model.RequestedDepositAmount < order.DepositAmount)
+        // بیعانه درخواستی باید حداقل برابر بیعانه پرداخت‌شده و حداکثر برابر مبلغ نهایی باشد.
+        if (model.RequestedDepositAmount < order.DepositAmount ||
+            model.RequestedDepositAmount > model.CalculatedTotal)
         {
             ModelState.AddModelError(
                 nameof(model.RequestedDepositAmount),
-                "بیعانه درخواستی نمی‌تواند از مبلغ نهایی کمتر از مبلغ پرداخت‌شده یا بیشتر از مبلغ نهایی باشد.");
+                "بیعانه درخواستی نمی‌تواند از بیعانه پرداخت‌شده کمتر یا از مبلغ نهایی بیشتر باشد.");
         }
 
         // اعتبارسنجی تصاویر جدید
@@ -590,13 +781,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         }
 
         // هزینه‌ها و پرداخت
-        AddChangeLog("هزینه ماکارون", order.MacaronCost, model.MacaronCost);
-        AddChangeLog("هزینه گل", order.FlowerCost, model.FlowerCost);
-        AddChangeLog("هزینه ماکت", order.DummyCost, model.DummyCost);
-        AddChangeLog("هزینه چاپ", order.PrintingCost, model.PrintingCost);
-        AddChangeLog("هزینه ارسال", order.ShippingCost, model.ShippingCost);
-        AddChangeLog("سایر هزینه‌ها", order.OtherCost, model.OtherCost);
-        AddChangeLog("تخفیف", order.Discount, model.Discount);
         AddChangeLog("مبلغ نهایی", order.FinalAmount, model.CalculatedTotal);
         AddChangeLog("بیعانه درخواستی", order.RequestedDepositAmount, model.RequestedDepositAmount);
         AddChangeLog("کد معرف", order.ReferrerCode, model.ReferrerCode?.Trim());
@@ -631,14 +815,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (newPrintImagePath is not null)
             order.PrintImagePath = newPrintImagePath;
 
-        order.MacaronCost = model.MacaronCost;
-        order.FlowerCost = model.FlowerCost;
-        order.DummyCost = model.DummyCost;
-        order.PrintingCost = model.PrintingCost;
-        order.ShippingCost = model.ShippingCost;
-        order.OtherCost = model.OtherCost;
-
-        order.Discount = model.Discount;
         order.FinalAmount = model.CalculatedTotal;
         order.RequestedDepositAmount = model.RequestedDepositAmount;
 

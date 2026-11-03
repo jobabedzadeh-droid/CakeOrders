@@ -1,0 +1,13 @@
+@model CakeOrders.Web.ViewModels.ProductManagement.ProductCategoryEditViewModel
+@{
+    ViewData["Title"] = Model.Id == 0 ? "ثبت گروه محصول" : "ویرایش گروه محصول";
+}
+<div class="page-header"><div><h1>@ViewData["Title"]</h1></div><a asp-action="Index" class="btn btn-secondary">بازگشت</a></div>
+<div class="card"><form asp-action="@(Model.Id == 0 ? "Create" : "Edit")" asp-route-id="@Model.Id" method="post">
+@Html.AntiForgeryToken()<input asp-for="Id" type="hidden" />
+<div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+<div class="form-group"><label asp-for="Name"></label><input asp-for="Name" /><span asp-validation-for="Name"></span></div>
+<div class="form-group"><label><input asp-for="IsActive" /> فعال</label></div>
+<div class="form-actions"><button type="submit" class="btn btn-primary">ذخیره</button><a asp-action="Index" class="btn btn-secondary">انصراف</a></div>
+</form></div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

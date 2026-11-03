@@ -2,10 +2,16 @@ using System.ComponentModel.DataAnnotations;
 using CakeOrders.Domain.Entities;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
-namespace CakeOrders.Web.ViewModels;
+namespace CakeOrders.Web.ViewModels.Orders;
 
 public class OrderCreateViewModel
 {
+    [Display(Name = "شعبه تولیدکننده")]
+    [Range(1, long.MaxValue, ErrorMessage = "شعبه تولیدکننده را انتخاب کنید.")]
+    public long ProductionBranchId { get; set; }
+
+    public IEnumerable<SelectListItem> ProductionBranches { get; set; } = Enumerable.Empty<SelectListItem>();
+
     [Display(Name = "نام مشتری")]
     [StringLength(200)]
     public string? CustomerName { get; set; }
@@ -64,34 +70,6 @@ public class OrderCreateViewModel
     [Display(Name = "تصویر موردنظر برای چاپ")]
     public IFormFile? PrintImage { get; set; }
 
-    [Display(Name = "هزینه ماکارون")]
-    [Range(typeof(decimal), "0", "1000000000")]
-    public decimal MacaronCost { get; set; }
-
-    [Display(Name = "هزینه گل")]
-    [Range(typeof(decimal), "0", "1000000000")]
-    public decimal FlowerCost { get; set; }
-
-    [Display(Name = "هزینه ماکت")]
-    [Range(typeof(decimal), "0", "1000000000")]
-    public decimal DummyCost { get; set; }
-
-    [Display(Name = "هزینه چاپ")]
-    [Range(typeof(decimal), "0", "1000000000")]
-    public decimal PrintingCost { get; set; }
-
-    [Display(Name = "هزینه ارسال")]
-    [Range(typeof(decimal), "0", "1000000000")]
-    public decimal ShippingCost { get; set; }
-
-    [Display(Name = "سایر هزینه‌ها")]
-    [Range(typeof(decimal), "0", "1000000000")]
-    public decimal OtherCost { get; set; }
-
-    [Display(Name = "تخفیف")]
-    [Range(typeof(decimal), "0", "1000000000")]
-    public decimal Discount { get; set; }
-
     [Display(Name = "مبلغ بیعانه درخواستی")]
     [Range(typeof(decimal), "0", "1000000000")]
     public decimal RequestedDepositAmount { get; set; }
@@ -104,7 +82,7 @@ public class OrderCreateViewModel
     [Required(ErrorMessage = "زمان تحویل را وارد کنید.")]
     public DateTime DeliveryAt { get; set; } = DateTime.Now.AddHours(2);
 
-    public decimal CalculatedTotal => (RequestedWeightKg * PricePerKg) + MacaronCost + FlowerCost + DummyCost + PrintingCost + ShippingCost + OtherCost - Discount;
+    public decimal CalculatedTotal => RequestedWeightKg * PricePerKg;
 
     public IEnumerable<SelectListItem> OrderTypes => new[]
     {
@@ -131,4 +109,6 @@ public class OrderCreateViewModel
         new SelectListItem("سینی", "سینی"),
         new SelectListItem("روی کیک", "روی کیک")
     };
+
+    public List<OrderItemCreateViewModel> Items { get; set; } = new();
 }

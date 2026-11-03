@@ -12,14 +12,30 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<OrderStatusHistory> OrderStatusHistory => Set<OrderStatusHistory>();
     public DbSet<Referrer> Referrers => Set<Referrer>();
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<Workshop> Workshops => Set<Workshop>();
+    public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductWorkshopRouting> ProductWorkshopRoutings => Set<ProductWorkshopRouting>();
     public DbSet<CashRegister> CashRegisters => Set<CashRegister>();
     public DbSet<PosTerminal> PosTerminals => Set<PosTerminal>();
     public DbSet<OrderChangeLog> OrderChangeLogs => Set<OrderChangeLog>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+    public DbSet<RahkaranIntegrationSettings> RahkaranIntegrationSettings => Set<RahkaranIntegrationSettings>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<ProductionTask> ProductionTasks => Set<ProductionTask>();
+    public DbSet<ProductionTaskItem> ProductionTaskItems => Set<ProductionTaskItem>();
+    public DbSet<ProductionTaskHistory> ProductionTaskHistory => Set<ProductionTaskHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<RahkaranIntegrationSettings>(entity =>
+        {
+            entity.ToTable("RahkaranIntegrationSettings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+        });
+
         modelBuilder.Entity<Order>(entity =>
         {
             entity.HasKey(x => x.Id);
@@ -27,6 +43,10 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.OrderNumber).HasMaxLength(32).IsRequired();
             entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
             entity.Property(x => x.UpdatedByUserId).HasMaxLength(450);
+            entity.HasOne(x => x.ProductionBranch)
+                .WithMany(x => x.ProductionOrders)
+                .HasForeignKey(x => x.ProductionBranchId)
+                .OnDelete(DeleteBehavior.Restrict);
             entity.Property(x => x.CustomerName).HasMaxLength(200);
             entity.Property(x => x.CustomerPhone).HasMaxLength(30);
             entity.Property(x => x.OrderType).HasMaxLength(100).IsRequired();
@@ -79,6 +99,72 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Address).HasMaxLength(300);
             entity.HasIndex(x => x.Name).IsUnique();
+        });
+        modelBuilder.Entity<Workshop>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => new { x.BranchId, x.Name }).IsUnique();
+            entity.HasOne(x => x.Branch)
+                .WithMany(x => x.Workshops)
+                .HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ProductCategory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+        modelBuilder.Entity<Product>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(500);
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => new { x.CategoryId, x.Name }).IsUnique();
+            entity.HasOne(x => x.Category)
+                .WithMany(x => x.Products)
+                .HasForeignKey(x => x.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ProductWorkshopRouting>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ProductId, x.BranchId }).IsUnique();
+            entity.HasOne(x => x.Product)
+                .WithMany(x => x.WorkshopRoutings)
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Branch)
+                .WithMany(x => x.ProductWorkshopRoutings)
+                .HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Workshop)
+                .WithMany(x => x.ProductWorkshopRoutings)
+                .HasForeignKey(x => x.WorkshopId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.ToTable("AspNetUsers", table =>
+                table.HasCheckConstraint(
+                    "CK_AspNetUsers_WorkshopAssignment",
+                    "([WorkshopId] IS NULL AND [WorkshopRole] IS NULL) OR ([WorkshopId] IS NOT NULL AND [WorkshopRole] IS NOT NULL)"));
+
+            entity.HasIndex(x => x.WorkshopId);
+
+            // Each workshop can have at most one manager; employees can be many.
+            entity.HasIndex(x => x.WorkshopId)
+                .IsUnique()
+                .HasDatabaseName("IX_AspNetUsers_WorkshopManager")
+                .HasFilter("[WorkshopId] IS NOT NULL AND [WorkshopRole] = 1");
+
+            entity.HasOne(x => x.Workshop)
+                .WithMany()
+                .HasForeignKey(x => x.WorkshopId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<CashRegister>(entity =>
         {
@@ -193,6 +279,94 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.HasOne(x => x.PosTerminal)
                 .WithMany()
                 .HasForeignKey(x => x.PosTerminalId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductionTask>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
+            entity.Property(x => x.UpdatedByUserId).HasMaxLength(450);
+            entity.HasIndex(x => new { x.OrderId, x.WorkshopId }).IsUnique();
+            entity.HasIndex(x => new { x.BranchId, x.WorkshopId, x.Status });
+
+            entity.HasOne(x => x.Order)
+                .WithMany(x => x.ProductionTasks)
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Branch)
+                .WithMany(x => x.ProductionTasks)
+                .HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Workshop)
+                .WithMany(x => x.ProductionTasks)
+                .HasForeignKey(x => x.WorkshopId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductionTaskItem>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ProductName).HasMaxLength(150).IsRequired();
+            entity.Property(x => x.Quantity).HasPrecision(18, 3);
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+
+            entity.HasOne(x => x.ProductionTask)
+                .WithMany(x => x.Items)
+                .HasForeignKey(x => x.ProductionTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.OrderItem)
+                .WithMany()
+                .HasForeignKey(x => x.OrderItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductionTaskHistory>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ChangedByUserId).HasMaxLength(450);
+            entity.Property(x => x.Note).HasMaxLength(1000);
+            entity.HasIndex(x => new { x.ProductionTaskId, x.ChangedAtUtc });
+
+            entity.HasOne(x => x.ProductionTask)
+                .WithMany(x => x.History)
+                .HasForeignKey(x => x.ProductionTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OrderItem>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.ProductName)
+                .HasMaxLength(150)
+                .IsRequired();
+
+            entity.Property(x => x.Quantity)
+                .HasPrecision(18, 3);
+
+            entity.Property(x => x.UnitPrice)
+                .HasPrecision(18, 2);
+
+            entity.Property(x => x.LineTotal)
+                .HasPrecision(18, 2);
+
+            entity.HasOne(x => x.Order)
+                .WithMany(x => x.Items)
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Product)
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Workshop)
+                .WithMany()
+                .HasForeignKey(x => x.WorkshopId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

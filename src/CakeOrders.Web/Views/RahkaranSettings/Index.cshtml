@@ -1,0 +1,126 @@
+@model CakeOrders.Web.ViewModels.Integrations.Rahkaran.RahkaranSettingsViewModel
+
+@{
+    ViewData["Title"] = "تنظیمات راهکاران";
+    var messages = ViewData["RahkaranMessages"] as List<string> ?? new List<string>();
+    var successCount = ViewData["RahkaranSuccessCount"] as int? ?? 0;
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">RAHKARAN INTEGRATION</span>
+        <h1>تنظیمات اتصال راهکاران</h1>
+        <p>دریافت اطلاعات پایه و تعیین نگاشت مالی سامانه CakeOrders</p>
+    </div>
+    <form asp-action="TestConnection" method="post">
+        @Html.AntiForgeryToken()
+        <button class="btn btn-primary" type="submit">آزمایش ارتباط</button>
+    </form>
+</div>
+
+@if (TempData["Success"] is string successMessage)
+{
+    <div class="alert-success">@successMessage</div>
+}
+@if (TempData["Error"] is string errorMessage)
+{
+    <div class="alert-danger">@errorMessage</div>
+}
+
+<section class="form-panel">
+    <h2>وضعیت اتصال</h2>
+    <div class="detail-grid">
+        <div>
+            <small>نشانی سرویس</small>
+            <b dir="ltr">@Model.ServiceBaseUrl</b>
+        </div>
+        <div>
+            <small>وضعیت یکپارچه‌سازی عملیاتی</small>
+            <b>@(Model.IntegrationEnabled ? "فعال" : "غیرفعال")</b>
+        </div>
+        <div>
+            <small>وضعیت دریافت اطلاعات پایه</small>
+            <b>@successCount از ۵ سرویس</b>
+        </div>
+    </div>
+    @if (!Model.IntegrationEnabled)
+    {
+        <div class="calc-note">
+            یکپارچه‌سازی عملیاتی خاموش است. این صفحه فقط اطلاعات پایه را می‌خواند و نگاشت‌ها را ذخیره می‌کند؛
+            هیچ درخواست فروش یا سند مالی در راهکاران ثبت نمی‌شود.
+        </div>
+    }
+    <ul class="rahkaran-api-messages">
+        @foreach (var message in messages)
+        {
+            <li>@message</li>
+        }
+    </ul>
+</section>
+
+<form asp-action="Save" method="post">
+    @Html.AntiForgeryToken()
+
+    <section class="form-panel">
+        <h2>تنظیمات دریافت نقدی بیعانه</h2>
+        <p>این شناسه‌ها از فهرست‌های راهکاران انتخاب می‌شوند و مقدار نمونه یا ثابت در کد ندارند.</p>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="BranchId">شعبه راهکاران</label>
+                <select asp-for="BranchId" asp-items="Model.Branches">
+                    <option value="">انتخاب شعبه</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="CashId">صندوق دریافت</label>
+                <select asp-for="CashId" asp-items="Model.Cashes">
+                    <option value="">انتخاب صندوق</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="CashAccountingOperationId">عملیات حسابداری نقدی</label>
+                <select asp-for="CashAccountingOperationId" asp-items="Model.AccountingOperations">
+                    <option value="">انتخاب عملیات حسابداری</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="CashFlowFactorId">عامل گردش نقدینگی نقدی</label>
+                <select asp-for="CashFlowFactorId" asp-items="Model.CashFlowFactors">
+                    <option value="">انتخاب عامل گردش نقدینگی</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-panel">
+        <h2>تنظیمات دریافت بیعانه از طریق کارت‌خوان</h2>
+        <p>حساب بانکی مقصد تسویه کارت‌خوان و کدهای مالی متناظر باید با مسئول مالی مجموعه تأیید شوند.</p>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="PosBankAccountId">حساب بانکی مقصد تسویه POS</label>
+                <select asp-for="PosBankAccountId" asp-items="Model.BankAccounts">
+                    <option value="">انتخاب حساب بانکی</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="PosAccountingOperationId">عملیات حسابداری کارت‌خوان</label>
+                <select asp-for="PosAccountingOperationId" asp-items="Model.AccountingOperations">
+                    <option value="">انتخاب عملیات حسابداری</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="PosCashFlowFactorId">عامل گردش نقدینگی کارت‌خوان</label>
+                <select asp-for="PosCashFlowFactorId" asp-items="Model.CashFlowFactors">
+                    <option value="">انتخاب عامل گردش نقدینگی</option>
+                </select>
+            </div>
+        </div>
+        <div class="calc-note">
+            انتخاب مقادیر در این صفحه به معنی تأیید حسابداری نیست. تا زمان تأیید مسئول مالی، ثبت رسید کارت‌خوان در سامانه فعال نخواهد شد.
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">ذخیره نگاشت‌ها</button>
+    </div>
+</form>

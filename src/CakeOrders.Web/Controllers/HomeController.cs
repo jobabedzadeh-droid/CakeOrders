@@ -1,6 +1,6 @@
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
-using CakeOrders.Web.ViewModels;
+using CakeOrders.Web.ViewModels.Dashboard;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

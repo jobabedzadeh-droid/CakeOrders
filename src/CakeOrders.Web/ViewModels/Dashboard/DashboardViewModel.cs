@@ -1,6 +1,6 @@
 ﻿using CakeOrders.Domain.Entities;
 
-namespace CakeOrders.Web.ViewModels;
+namespace CakeOrders.Web.ViewModels.Dashboard;
 
 public sealed class DashboardViewModel
 {
