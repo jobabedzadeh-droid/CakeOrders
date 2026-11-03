@@ -6,6 +6,7 @@
     var isBirthdayCake = Model.Kind == OrderKind.BirthdayCake;
     var cake = Model.CakeType switch { CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت", _ => "تمام فوندانت" };
     var isWorkshopMember = ViewBag.IsWorkshopMember as bool? == true;
+    var cashReceiptKey = Guid.NewGuid().ToString("N");
 }
 <div class="page-heading">
     <div>
@@ -128,7 +129,7 @@
         <form asp-controller="OrderPayments" asp-action="ReceiveCash" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="orderId" value="@Model.Id" />
-            <input type="hidden" name="idempotencyKey" value="@Guid.NewGuid().ToString("N")" />
+            <input type="hidden" name="idempotencyKey" value="@cashReceiptKey" />
             <div class="form-group">
                 <label for="cashPurpose">نوع دریافت</label>
                 <select id="cashPurpose" name="purpose" class="form-control" required>
