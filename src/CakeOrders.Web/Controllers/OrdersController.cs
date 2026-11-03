@@ -1,6 +1,7 @@
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
 using CakeOrders.Web.ViewModels.Orders;
+using CakeOrders.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,7 @@ using System.Text.Json;
 namespace CakeOrders.Web.Controllers;
 
 [Authorize(Roles = "Admin,User")]
-public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment environment) : Controller
+public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment environment, IOrderProductionRoutingService productionRouting) : Controller
 {
     private const long MaxImageBytes = 5 * 1024 * 1024;
 
@@ -281,9 +282,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         await db.SaveChangesAsync(cancellationToken);
 
         if (order.Status == OrderStatus.Confirmed &&
-            !await TryCreateBirthdayCakeProductionTaskAsync(
+            !await productionRouting.EnsureBirthdayCakeTaskAsync(
                 order,
                 User.FindFirstValue(ClaimTypes.NameIdentifier),
+                DateTime.UtcNow,
                 cancellationToken))
         {
             await transaction.RollbackAsync(cancellationToken);
@@ -500,7 +502,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         if (model.NewStatus == OrderStatus.Confirmed &&
             order.Kind == OrderKind.BirthdayCake &&
-            !await TryCreateBirthdayCakeProductionTaskAsync(order, userId, cancellationToken))
+            !await productionRouting.EnsureBirthdayCakeTaskAsync(order, userId, now, cancellationToken))
         {
             await transaction.RollbackAsync(cancellationToken);
             TempData["Error"] = "کارگاه فعال «کیک‌سازی» برای شعبه سفارش پیدا نشد؛ وضعیت سفارش تغییر نکرد.";
@@ -533,170 +535,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             : "وضعیت سفارش با موفقیت تغییر کرد.";
 
         return RedirectToAction(nameof(Details), new { id = order.Id });
-    }
-
-    private async Task<bool> TryCreateBirthdayCakeProductionTaskAsync(
-        Order order,
-        string? actorUserId,
-        CancellationToken cancellationToken)
-    {
-        if (order.Kind != OrderKind.BirthdayCake ||
-            order.ProductionBranchId is not long branchId)
-        {
-            return false;
-        }
-
-        // این بررسی علاوه بر قفل سفارش، از ایجاد وظیفه تکراری جلوگیری می‌کند.
-        var taskAlreadyExists = await db.ProductionTasks
-            .AnyAsync(x => x.OrderId == order.Id, cancellationToken);
-
-        if (taskAlreadyExists)
-            return true;
-
-        var workshopId = await db.Workshops
-            .Where(x =>
-                x.BranchId == branchId &&
-                x.IsActive &&
-                x.Name == "کیک‌سازی")
-            .Select(x => (long?)x.Id)
-            .SingleOrDefaultAsync(cancellationToken);
-
-        if (!workshopId.HasValue)
-            return false;
-
-        var now = DateTime.UtcNow;
-
-        var cakeTypeText = order.CakeType switch
-        {
-            CakeType.Cream => "خامه‌ای",
-            CakeType.SemiFondant => "نیمه فوندانت",
-            CakeType.FullFondant => "تمام فوندانت",
-            _ => "نامشخص"
-        };
-
-        var notes = string.Join(
-            " | ",
-            new[]
-            {
-                $"نوع سفارش: {order.OrderType}",
-                $"نوع کیک: {cakeTypeText}",
-                $"وزن درخواستی: {order.RequestedWeightKg:0.##} کیلوگرم",
-                string.IsNullOrWhiteSpace(order.BackgroundColor) ? null : $"رنگ زمینه: {order.BackgroundColor}",
-                string.IsNullOrWhiteSpace(order.MoldType) ? null : $"قالب: {order.MoldType}",
-                string.IsNullOrWhiteSpace(order.PrintType) ? null : $"نوع چاپ: {order.PrintType}",
-                order.HasBananaFilling ? "فیلینگ موز" : null,
-                order.HasWalnutFilling ? "فیلینگ گردو" : null,
-                string.IsNullOrWhiteSpace(order.CakeText) ? null : $"متن روی کیک: {order.CakeText}",
-                string.IsNullOrWhiteSpace(order.DesignNotes) ? null : $"توضیحات طرح: {order.DesignNotes}"
-            }.Where(x => !string.IsNullOrWhiteSpace(x)));
-
-        var task = new ProductionTask
-        {
-            OrderId = order.Id,
-            BranchId = branchId,
-            WorkshopId = workshopId.Value,
-            Status = ProductionTaskStatus.AwaitingWorkshopReview,
-            CreatedAtUtc = now,
-            CreatedByUserId = actorUserId
-        };
-
-        task.Items.Add(new ProductionTaskItem
-        {
-            ProductName = "کیک تولد",
-            Unit = ProductUnit.Piece,
-            Quantity = 1,
-            Notes = notes
-        });
-
-        task.History.Add(new ProductionTaskHistory
-        {
-            PreviousStatus = null,
-            NewStatus = ProductionTaskStatus.AwaitingWorkshopReview,
-            ChangedAtUtc = now,
-            ChangedByUserId = actorUserId,
-            Note = "وظیفه تولید ایجاد و برای بررسی به کارگاه ارجاع شد."
-        });
-
-        db.ProductionTasks.Add(task);
-        return true;
-    }
-
-    private async Task<bool> ResubmitRejectedProductionTaskAsync(
-        Order order,
-        string? actorUserId,
-        CancellationToken cancellationToken)
-    {
-        var task = await db.ProductionTasks
-            .Include(x => x.Items)
-            .Include(x => x.History)
-            .Where(x => x.OrderId == order.Id)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .ThenByDescending(x => x.Id)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (task?.Status != ProductionTaskStatus.Rejected)
-            return true;
-
-        if (order.ProductionBranchId is not long branchId)
-            return false;
-
-        var workshopId = await db.Workshops
-            .Where(x => x.BranchId == branchId && x.IsActive && x.Name == "کیک‌سازی")
-            .Select(x => (long?)x.Id)
-            .SingleOrDefaultAsync(cancellationToken);
-
-        if (!workshopId.HasValue)
-            return false;
-
-        var cakeTypeText = order.CakeType switch
-        {
-            CakeType.Cream => "خامه‌ای",
-            CakeType.SemiFondant => "نیمه فوندانت",
-            CakeType.FullFondant => "تمام فوندانت",
-            _ => "نامشخص"
-        };
-
-        var notes = string.Join(" | ", new[]
-        {
-            $"نوع سفارش: {order.OrderType}",
-            $"نوع کیک: {cakeTypeText}",
-            $"وزن درخواستی: {order.RequestedWeightKg:0.##} کیلوگرم",
-            string.IsNullOrWhiteSpace(order.BackgroundColor) ? null : $"رنگ زمینه: {order.BackgroundColor}",
-            string.IsNullOrWhiteSpace(order.MoldType) ? null : $"قالب: {order.MoldType}",
-            string.IsNullOrWhiteSpace(order.PrintType) ? null : $"نوع چاپ: {order.PrintType}",
-            order.HasBananaFilling ? "فیلینگ موز" : null,
-            order.HasWalnutFilling ? "فیلینگ گردو" : null,
-            string.IsNullOrWhiteSpace(order.CakeText) ? null : $"متن روی کیک: {order.CakeText}",
-            string.IsNullOrWhiteSpace(order.DesignNotes) ? null : $"توضیحات طرح: {order.DesignNotes}"
-        }.Where(x => !string.IsNullOrWhiteSpace(x)));
-
-        var now = DateTime.UtcNow;
-        var previousStatus = task.Status;
-        task.Status = ProductionTaskStatus.AwaitingWorkshopReview;
-        task.WorkshopId = workshopId.Value;
-        task.BranchId = branchId;
-        task.UpdatedAtUtc = now;
-        task.UpdatedByUserId = actorUserId;
-
-        task.Items.Clear();
-        task.Items.Add(new ProductionTaskItem
-        {
-            ProductName = "کیک تولد",
-            Unit = ProductUnit.Piece,
-            Quantity = 1,
-            Notes = notes
-        });
-
-        task.History.Add(new ProductionTaskHistory
-        {
-            PreviousStatus = previousStatus,
-            NewStatus = ProductionTaskStatus.AwaitingWorkshopReview,
-            ChangedAtUtc = now,
-            ChangedByUserId = actorUserId,
-            Note = "سفارش پس از اصلاح توسط اپراتور، مجدداً برای بررسی به کارگاه ارجاع شد."
-        });
-
-        return true;
     }
 
     private void ValidateImage(Microsoft.AspNetCore.Http.IFormFile? file, string key)
@@ -984,7 +822,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         try
         {
-            if (!await ResubmitRejectedProductionTaskAsync(order, changedByUserId, cancellationToken))
+            if (!await productionRouting.EnsureBirthdayCakeTaskAsync(order, changedByUserId, DateTime.UtcNow, cancellationToken))
             {
                 DeleteOrderImage(newSampleImagePath);
                 DeleteOrderImage(newPrintImagePath);
