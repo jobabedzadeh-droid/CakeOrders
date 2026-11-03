@@ -11,6 +11,9 @@ public sealed class ApplicationUser : IdentityUser
 
     public bool IsActive { get; set; } = true;
 
+    // Allows an eligible order operator to manually confirm orders before the requested deposit is fully paid.
+    public bool CanManuallyConfirmOrders { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAtUtc { get; set; }
