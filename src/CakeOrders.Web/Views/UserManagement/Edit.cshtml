@@ -66,6 +66,18 @@
                 </label>
             </div>
 
+            @if (Model.CanConfigureManualOrderConfirmation)
+            {
+                <div class="form-field">
+                    <label>دسترسی تأیید سفارش</label>
+                    <label class="checkbox-field">
+                        <input asp-for="CanManuallyConfirmOrders" type="checkbox" />
+                        اجازه تأیید دستی سفارش‌ها
+                    </label>
+                    <small>این دسترسی فقط برای اپراتورهای سفارش فاقد عضویت کارگاه قابل تنظیم است.</small>
+                </div>
+            }
+
         </div>
 
         <div class="form-actions">
