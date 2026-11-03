@@ -2,7 +2,7 @@
 @using CakeOrders.Domain.Entities
 @{
     ViewData["Title"] = "پنل کارگاه";
-    string StatusLabel(ProductionTaskStatus status) => status switch
+    string StatusLabel(ProductionTaskStatus? status) => status switch
     {
         ProductionTaskStatus.AwaitingWorkshopReview => "در انتظار بررسی کارگاه",
         ProductionTaskStatus.Pending => "پذیرفته‌شده / آماده تولید",
@@ -10,7 +10,7 @@
         ProductionTaskStatus.Completed => "تکمیل‌شده",
         ProductionTaskStatus.Rejected => "ردشده توسط کارگاه",
         ProductionTaskStatus.Cancelled => "لغوشده",
-        _ => status.ToString()
+        _ => status?.ToString() ?? "—"
     };
     string CakeTypeLabel(CakeType type) => type switch
     {
