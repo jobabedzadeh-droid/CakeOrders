@@ -20,6 +20,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<PosTerminal> PosTerminals => Set<PosTerminal>();
     public DbSet<OrderChangeLog> OrderChangeLogs => Set<OrderChangeLog>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+    public DbSet<OrderCashPayment> OrderCashPayments => Set<OrderCashPayment>();
     public DbSet<RahkaranIntegrationSettings> RahkaranIntegrationSettings => Set<RahkaranIntegrationSettings>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<ProductionTask> ProductionTasks => Set<ProductionTask>();
@@ -218,6 +219,23 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(x => new { x.OrderId, x.ChangedAtUtc });
+        });
+
+        modelBuilder.Entity<OrderCashPayment>(entity =>
+        {
+            entity.ToTable("OrderCashPayments");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.ReceivedByUserId).HasMaxLength(450).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+            entity.Property(x => x.ReceiptReference).HasMaxLength(100);
+            entity.Property(x => x.IdempotencyKey).HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => x.IdempotencyKey).IsUnique();
+            entity.HasIndex(x => new { x.OrderId, x.ReceivedAtUtc });
+            entity.HasOne(x => x.Order)
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<PaymentTransaction>(entity =>
