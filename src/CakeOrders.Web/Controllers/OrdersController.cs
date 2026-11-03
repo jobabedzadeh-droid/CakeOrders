@@ -822,7 +822,16 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         try
         {
-            if (!await productionRouting.EnsureBirthdayCakeTaskAsync(order, changedByUserId, DateTime.UtcNow, cancellationToken))
+            var latestProductionTaskStatus = await db.ProductionTasks
+                .Where(x => x.OrderId == order.Id)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .Select(x => (ProductionTaskStatus?)x.Status)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (latestProductionTaskStatus == ProductionTaskStatus.Rejected &&
+                !await productionRouting.EnsureBirthdayCakeTaskAsync(
+                    order, changedByUserId, DateTime.UtcNow, cancellationToken))
             {
                 DeleteOrderImage(newSampleImagePath);
                 DeleteOrderImage(newPrintImagePath);
