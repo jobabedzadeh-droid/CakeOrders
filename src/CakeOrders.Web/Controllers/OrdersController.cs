@@ -236,7 +236,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             Kind = OrderKind.BirthdayCake,
             // This screen is for manually entered, in-person orders.
             Channel = OrderChannel.InPerson,
-            Status = model.RequestedDepositAmount > 0 ? OrderStatus.PendingReview : OrderStatus.Confirmed,
+            // No order is auto-confirmed at creation; confirmation follows a successful deposit or an authorized manual decision.
+            Status = OrderStatus.PendingReview,
             CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
             UpdatedByUserId = null,
             CreatedAtUtc = DateTime.UtcNow,
@@ -269,7 +270,9 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             NewStatus = order.Status,
             ChangedAtUtc = DateTime.UtcNow,
             ChangedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
-            Note = model.RequestedDepositAmount > 0 ? "ثبت سفارش؛ در انتظار پرداخت بیعانه" : "ثبت اولیه سفارش حضوری"
+            Note = model.RequestedDepositAmount > 0
+                ? "ثبت سفارش؛ در انتظار پرداخت بیعانه و تأیید خودکار پس از تکمیل آن"
+                : "ثبت اولیه سفارش؛ در انتظار بررسی و تأیید دستی"
         });
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
