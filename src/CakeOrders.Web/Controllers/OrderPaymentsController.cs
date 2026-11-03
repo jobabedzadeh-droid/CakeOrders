@@ -59,6 +59,8 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
             ? Math.Min(depositRemaining, order.RemainingAmount) : order.RemainingAmount;
         if (amount <= 0 || amount > limit)
             return BadRequest("مبلغ باید بیشتر از صفر و حداکثر برابر مانده مجاز باشد.");
+        if (decimal.Truncate(amount) != amount)
+            return BadRequest("مبلغ نقدی باید عدد صحیح و برحسب ریال باشد.");
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId)) return Forbid();
