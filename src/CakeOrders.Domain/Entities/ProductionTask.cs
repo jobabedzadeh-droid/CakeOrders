@@ -2,10 +2,13 @@ namespace CakeOrders.Domain.Entities;
 
 public enum ProductionTaskStatus
 {
+    // A newly routed task must be reviewed by the assigned workshop manager.
     Pending = 1,
     InProgress = 2,
     Completed = 3,
-    Cancelled = 4
+    Cancelled = 4,
+    AwaitingWorkshopReview = 5,
+    Rejected = 6
 }
 
 public sealed class ProductionTask
@@ -21,7 +24,7 @@ public sealed class ProductionTask
     public long WorkshopId { get; set; }
     public Workshop Workshop { get; set; } = null!;
 
-    public ProductionTaskStatus Status { get; set; } = ProductionTaskStatus.Pending;
+    public ProductionTaskStatus Status { get; set; } = ProductionTaskStatus.AwaitingWorkshopReview;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public string? CreatedByUserId { get; set; }
