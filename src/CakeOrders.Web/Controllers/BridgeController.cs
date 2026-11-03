@@ -71,6 +71,59 @@ public sealed class BridgeController(CakeOrdersDbContext db) : ControllerBase
     }
 
     /// <summary>
+    /// Returns the payment already claimed by this Bridge installation, if any.
+    /// This endpoint is read-only and never claims or changes a payment.
+    /// </summary>
+    [HttpGet("payments/active")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> GetActivePayment(CancellationToken cancellationToken)
+    {
+        DisableCaching();
+
+        var identity = GetBridgeIdentity();
+        if (identity is null)
+            return Unauthorized(new { error = "invalid_bridge_identity" });
+
+        var payment = await db.PaymentTransactions
+            .AsNoTracking()
+            .Where(x =>
+                x.CashRegisterId == identity.Value.CashRegisterId &&
+                x.BridgeInstallationId == identity.Value.InstallationId &&
+                x.Status == PaymentTransactionStatus.Processing)
+            .OrderByDescending(x => x.ProcessingAtUtc)
+            .ThenByDescending(x => x.Id)
+            .Select(x => new
+            {
+                paymentId = x.Id,
+                merchantReference = x.MerchantReference,
+                amount = x.Amount,
+                currency = "IRR",
+                purpose = x.Purpose.ToString()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (payment is null)
+            return NoContent();
+
+        if (payment.amount <= 0 ||
+            decimal.Truncate(payment.amount) != payment.amount ||
+            payment.amount > long.MaxValue)
+        {
+            return Conflict(new { error = "invalid_active_payment_amount" });
+        }
+
+        return Ok(new
+        {
+            payment.paymentId,
+            payment.merchantReference,
+            amount = decimal.ToInt64(payment.amount),
+            payment.currency,
+            payment.purpose
+        });
+    }
+
+    /// <summary>
     /// Atomically claims one queued payment for this authenticated cash register.
     /// A claimed payment is never automatically re-queued because the POS may already
     /// have received the sale command.
