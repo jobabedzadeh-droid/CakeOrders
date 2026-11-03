@@ -3,6 +3,7 @@ using System.Security.Claims;
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
 using CakeOrders.Web.ViewModels.Orders;
+using CakeOrders.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -11,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CakeOrders.Web.Controllers;
 
 [Authorize(Roles = "Admin,User")]
-public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
+public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProductionRoutingService productionRouting) : Controller
 {
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -81,7 +82,7 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
             order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount)
         {
             if (order.Kind == OrderKind.BirthdayCake &&
-                !await EnsureCashProductionTaskAsync(order, userId, now, cancellationToken))
+                !await productionRouting.EnsureBirthdayCakeTaskAsync(order, userId, now, cancellationToken))
             {
                 await transaction.RollbackAsync(cancellationToken);
                 TempData["Error"] = "کارگاه فعال کیک‌سازی پیدا نشد؛ دریافت وجه ثبت نشد تا سفارش بدون وظیفه تولید تأیید نشود.";
@@ -103,69 +104,6 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db) : Controller
         await transaction.CommitAsync(cancellationToken);
         TempData["Success"] = "دریافت نقدی با موفقیت ثبت شد.";
         return RedirectToAction("Details", "Orders", new { id = orderId });
-    }
-
-    private async Task<bool> EnsureCashProductionTaskAsync(Order order, string actorUserId,
-        DateTime now, CancellationToken cancellationToken)
-    {
-        if (order.ProductionBranchId is not long branchId) return false;
-        var workshopId = await db.Workshops.Where(x => x.BranchId == branchId && x.IsActive && x.Name == "کیک‌سازی")
-            .Select(x => (long?)x.Id).SingleOrDefaultAsync(cancellationToken);
-        if (!workshopId.HasValue) return false;
-
-        var task = await db.ProductionTasks.Include(x => x.Items).Include(x => x.History)
-            .Where(x => x.OrderId == order.Id).OrderByDescending(x => x.CreatedAtUtc)
-            .ThenByDescending(x => x.Id).FirstOrDefaultAsync(cancellationToken);
-        if (task is not null && task.Status != ProductionTaskStatus.Rejected) return true;
-
-        var cakeType = order.CakeType switch
-        {
-            CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت",
-            CakeType.FullFondant => "تمام فوندانت", _ => "نامشخص"
-        };
-        var notes = string.Join(" | ", new[]
-        {
-            $"نوع سفارش: {order.OrderType}", $"نوع کیک: {cakeType}",
-            $"وزن درخواستی: {order.RequestedWeightKg:0.##} کیلوگرم",
-            string.IsNullOrWhiteSpace(order.BackgroundColor) ? null : $"رنگ زمینه: {order.BackgroundColor}",
-            string.IsNullOrWhiteSpace(order.MoldType) ? null : $"قالب: {order.MoldType}",
-            string.IsNullOrWhiteSpace(order.PrintType) ? null : $"نوع چاپ: {order.PrintType}",
-            order.HasBananaFilling ? "فیلینگ موز" : null, order.HasWalnutFilling ? "فیلینگ گردو" : null,
-            string.IsNullOrWhiteSpace(order.CakeText) ? null : $"متن روی کیک: {order.CakeText}",
-            string.IsNullOrWhiteSpace(order.DesignNotes) ? null : $"توضیحات طرح: {order.DesignNotes}"
-        }.Where(x => !string.IsNullOrWhiteSpace(x)));
-
-        var isNew = task is null;
-        if (isNew)
-        {
-            task = new ProductionTask
-            {
-                OrderId = order.Id, BranchId = branchId, WorkshopId = workshopId.Value,
-                Status = ProductionTaskStatus.AwaitingWorkshopReview, CreatedAtUtc = now
-            };
-            db.ProductionTasks.Add(task);
-        }
-        else
-        {
-            task!.Status = ProductionTaskStatus.AwaitingWorkshopReview;
-            task.BranchId = branchId; task.WorkshopId = workshopId.Value;
-            task.UpdatedAtUtc = now; task.UpdatedByUserId = actorUserId;
-            task.Items.Clear();
-        }
-
-        task!.Items.Add(new ProductionTaskItem
-        {
-            ProductName = "کیک تولد", Unit = ProductUnit.Piece, Quantity = 1, Notes = notes
-        });
-        task.History.Add(new ProductionTaskHistory
-        {
-            PreviousStatus = isNew ? null : ProductionTaskStatus.Rejected,
-            NewStatus = ProductionTaskStatus.AwaitingWorkshopReview, ChangedAtUtc = now,
-            ChangedByUserId = isNew ? null : actorUserId,
-            Note = isNew ? "وظیفه تولید پس از تکمیل بیعانه نقدی ایجاد و ارجاع شد."
-                : "وظیفه تولید پس از تکمیل بیعانه نقدی مجدداً برای بررسی ارجاع شد."
-        });
-        return true;
     }
 
     [HttpGet]
