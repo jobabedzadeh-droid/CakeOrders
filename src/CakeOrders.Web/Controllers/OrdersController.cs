@@ -363,6 +363,26 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
                 x => x.DisplayName,
                 cancellationToken);
 
+        var cashPayments = await db.OrderCashPayments
+            .AsNoTracking()
+            .Where(x => x.OrderId == id)
+            .OrderByDescending(x => x.ReceivedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        var cashReceiverIds = cashPayments
+            .Select(x => x.ReceivedByUserId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToList();
+
+        var cashReceiverNames = await db.Users
+            .AsNoTracking()
+            .Where(x => cashReceiverIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
+
+        ViewBag.CashPayments = cashPayments;
+        ViewBag.CashReceiverNames = cashReceiverNames;
         ViewBag.OrderChangeLogs = changeLogs;
         ViewBag.OrderChangeLogUserNames = changeLogUserNames;
 
