@@ -11,6 +11,8 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddScoped<CakeOrders.Web.Services.IUserNotificationService, CakeOrders.Web.Services.UserNotificationService>();
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<CakeOrdersDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("CakeOrders")));
