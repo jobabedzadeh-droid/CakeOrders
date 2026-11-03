@@ -325,6 +325,55 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.ToTable("Orders");
                 });
 
+            modelBuilder.Entity("CakeOrders.Domain.Entities.OrderCashPayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Purpose")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReceiptReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReceivedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId", "ReceivedAtUtc");
+
+                    b.ToTable("OrderCashPayments", (string)null);
+                });
+
             modelBuilder.Entity("CakeOrders.Domain.Entities.OrderChangeLog", b =>
                 {
                     b.Property<long>("Id")
@@ -874,6 +923,48 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.ToTable("Referrers");
                 });
 
+            modelBuilder.Entity("CakeOrders.Domain.Entities.UserNotification", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Link")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RecipientUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientUserId", "CreatedAtUtc");
+
+                    b.HasIndex("RecipientUserId", "ReadAtUtc");
+
+                    b.ToTable("UserNotifications");
+                });
+
             modelBuilder.Entity("CakeOrders.Domain.Entities.Workshop", b =>
                 {
                     b.Property<long>("Id")
@@ -911,6 +1002,9 @@ namespace CakeOrders.Infrastructure.Data.Migrations
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
+
+                    b.Property<bool>("CanManuallyConfirmOrders")
+                        .HasColumnType("bit");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -1158,6 +1252,17 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Navigation("ProductionBranch");
                 });
 
+            modelBuilder.Entity("CakeOrders.Domain.Entities.OrderCashPayment", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("CakeOrders.Domain.Entities.OrderChangeLog", b =>
                 {
                     b.HasOne("CakeOrders.Domain.Entities.Order", "Order")
@@ -1326,6 +1431,15 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Navigation("OrderItem");
 
                     b.Navigation("ProductionTask");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.UserNotification", b =>
+                {
+                    b.HasOne("CakeOrders.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.Workshop", b =>
