@@ -119,6 +119,50 @@
 }
 </section>
 
+
+@if (!isWorkshopMember && Model.Status != OrderStatus.Cancelled && Model.RemainingAmount > 0)
+{
+    <section class="form-panel">
+        <h3>ثبت دریافت نقدی</h3>
+        <p class="text-muted">ثبت این فرم به معنی تأیید دریافت واقعی وجه توسط اپراتور است.</p>
+        <form asp-controller="OrderPayments" asp-action="ReceiveCash" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="orderId" value="@Model.Id" />
+            <input type="hidden" name="idempotencyKey" value="@Guid.NewGuid().ToString("N")" />
+            <div class="form-group">
+                <label for="cashPurpose">نوع دریافت</label>
+                <select id="cashPurpose" name="purpose" class="form-control" required>
+                    @if (Model.RequestedDepositAmount > Model.DepositAmount)
+                    {
+                        <option value="@((int)PaymentPurpose.Deposit)">بیعانه</option>
+                    }
+                    @if (Model.RequestedDepositAmount <= Model.DepositAmount)
+                    {
+                        <option value="@((int)PaymentPurpose.Settlement)">تسویه</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="cashAmount">مبلغ دریافتی (ریال)</label>
+                <input id="cashAmount" name="amount" type="number" min="1" max="@Model.RemainingAmount"
+                       step="1" class="form-control" required />
+            </div>
+            <div class="form-group">
+                <label for="cashReceiptReference">شماره رسید (اختیاری)</label>
+                <input id="cashReceiptReference" name="receiptReference" maxlength="100" class="form-control" />
+            </div>
+            <div class="form-group">
+                <label for="cashNotes">توضیحات (اختیاری)</label>
+                <textarea id="cashNotes" name="notes" maxlength="1000" rows="2" class="form-control"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary"
+                    onclick="return confirm('آیا دریافت واقعی این مبلغ را تأیید می‌کنید؟');">
+                تأیید دریافت وجه نقد
+            </button>
+        </form>
+    </section>
+}
+
 @{
     var allowedTransitions = Model.Status switch
     {
