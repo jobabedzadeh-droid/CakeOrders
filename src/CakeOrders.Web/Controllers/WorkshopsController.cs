@@ -68,6 +68,38 @@ public sealed class WorkshopsController(
         return View(model);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetActive(
+    long workshopId,
+    bool isActive,
+    CancellationToken cancellationToken)
+    {
+        var workshop = await db.Workshops
+            .FirstOrDefaultAsync(
+                x => x.Id == workshopId,
+                cancellationToken);
+
+        if (workshop is null)
+            return NotFound();
+
+        if (workshop.IsActive == isActive)
+        {
+            TempData["ErrorMessage"] = "وضعیت کارگاه تغییری نکرده است.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        workshop.IsActive = isActive;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        TempData["SuccessMessage"] = isActive
+            ? $"کارگاه «{workshop.Name}» با موفقیت فعال شد."
+            : $"کارگاه «{workshop.Name}» غیرفعال شد.";
+
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpGet]
     public async Task<IActionResult> Assign(
         long workshopId,

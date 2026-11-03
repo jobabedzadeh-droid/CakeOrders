@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using CakeOrders.Domain.Entities;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
-namespace CakeOrders.Web.ViewModels;
+namespace CakeOrders.Web.ViewModels.Orders;
 
 public class OrderCreateViewModel
 {
@@ -110,7 +110,7 @@ public class OrderCreateViewModel
     [Required(ErrorMessage = "زمان تحویل را وارد کنید.")]
     public DateTime DeliveryAt { get; set; } = DateTime.Now.AddHours(2);
 
-    public decimal CalculatedTotal => (RequestedWeightKg * PricePerKg) + MacaronCost + FlowerCost + DummyCost + PrintingCost + ShippingCost + OtherCost - Discount;
+    public decimal CalculatedTotal => RequestedWeightKg * PricePerKg;
 
     public IEnumerable<SelectListItem> OrderTypes => new[]
     {
@@ -137,4 +137,6 @@ public class OrderCreateViewModel
         new SelectListItem("سینی", "سینی"),
         new SelectListItem("روی کیک", "روی کیک")
     };
+
+    public List<OrderItemCreateViewModel> Items { get; set; } = new();
 }

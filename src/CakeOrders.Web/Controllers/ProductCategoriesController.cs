@@ -29,6 +29,36 @@ public sealed class ProductCategoriesController(CakeOrdersDbContext db) : Contro
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetActive(
+    long id,
+    bool isActive,
+    CancellationToken cancellationToken)
+    {
+        var category = await db.ProductCategories
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (category is null)
+            return NotFound();
+
+        if (category.IsActive == isActive)
+        {
+            TempData["Error"] = "وضعیت گروه تغییری نکرده است.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        category.IsActive = isActive;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        TempData["Success"] = isActive
+            ? $"گروه «{category.Name}» با موفقیت فعال شد."
+            : $"گروه «{category.Name}» غیرفعال شد.";
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(ProductCategoryEditViewModel model, CancellationToken cancellationToken)
     {
         await ValidateName(model.Name, null, cancellationToken);
@@ -49,17 +79,32 @@ public sealed class ProductCategoriesController(CakeOrdersDbContext db) : Contro
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(long id, ProductCategoryEditViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(
+    long id,
+    ProductCategoryEditViewModel model,
+    CancellationToken cancellationToken)
     {
-        if (id != model.Id) return BadRequest();
+        if (id != model.Id)
+            return BadRequest();
+
         await ValidateName(model.Name, id, cancellationToken);
-        if (!ModelState.IsValid) return View(model);
-        var item = await db.ProductCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (item is null) return NotFound();
+
+        var item = await db.ProductCategories
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (item is null)
+            return NotFound();
+
+        if (!ModelState.IsValid)
+            return View(model);
+
         item.Name = model.Name.Trim();
         item.IsActive = model.IsActive;
+
         await db.SaveChangesAsync(cancellationToken);
+
         TempData["Success"] = "گروه محصول به‌روزرسانی شد.";
+
         return RedirectToAction(nameof(Index));
     }
 

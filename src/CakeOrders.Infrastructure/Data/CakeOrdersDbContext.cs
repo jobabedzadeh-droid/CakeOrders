@@ -21,6 +21,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<OrderChangeLog> OrderChangeLogs => Set<OrderChangeLog>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<RahkaranIntegrationSettings> RahkaranIntegrationSettings => Set<RahkaranIntegrationSettings>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -275,6 +276,39 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.HasOne(x => x.PosTerminal)
                 .WithMany()
                 .HasForeignKey(x => x.PosTerminalId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<OrderItem>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.ProductName)
+                .HasMaxLength(150)
+                .IsRequired();
+
+            entity.Property(x => x.Quantity)
+                .HasPrecision(18, 3);
+
+            entity.Property(x => x.UnitPrice)
+                .HasPrecision(18, 2);
+
+            entity.Property(x => x.LineTotal)
+                .HasPrecision(18, 2);
+
+            entity.HasOne(x => x.Order)
+                .WithMany(x => x.Items)
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Product)
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Workshop)
+                .WithMany()
+                .HasForeignKey(x => x.WorkshopId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

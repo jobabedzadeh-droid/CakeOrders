@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
 
-namespace CakeOrders.Web.ViewModels;
+namespace CakeOrders.Web.ViewModels.Integrations.Rahkaran;
 
 public sealed class RahkaranSettingsViewModel
 {

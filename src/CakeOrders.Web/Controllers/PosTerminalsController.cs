@@ -1,7 +1,7 @@
 using System.Net;
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
-using CakeOrders.Web.ViewModels;
+using CakeOrders.Web.ViewModels.CashManagement;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

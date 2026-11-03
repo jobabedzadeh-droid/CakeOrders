@@ -1,6 +1,6 @@
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
-using CakeOrders.Web.ViewModels;
+using CakeOrders.Web.ViewModels.Orders;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -106,10 +106,19 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     }
 
     [HttpGet]
-    public async Task<IActionResult> Create(CancellationToken cancellationToken)
+    public IActionResult Create()
+    {
+        return View();
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> CreateBirthdayCake(
+    CancellationToken cancellationToken)
     {
         var model = new OrderCreateViewModel();
+
         await PopulateProductionBranchesAsync(model, cancellationToken);
+
         return View(model);
     }
 
@@ -149,7 +158,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(11 * 1024 * 1024)]
-    public async Task<IActionResult> Create(OrderCreateViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateBirthdayCake(OrderCreateViewModel model, CancellationToken cancellationToken)
     {
         var selectedBranchExists = await db.Branches.AnyAsync(
             x => x.Id == model.ProductionBranchId && x.IsActive,
@@ -188,6 +197,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         var order = new Order
         {
             OrderNumber = $"CO-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}",
+            Kind = OrderKind.BirthdayCake,
             // This screen is for manually entered, in-person orders.
             Channel = OrderChannel.InPerson,
             Status = model.RequestedDepositAmount > 0 ? OrderStatus.PendingReview : OrderStatus.Confirmed,
@@ -448,6 +458,11 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         if (order is null)
             return NotFound();
+
+        if (order.Kind != OrderKind.BirthdayCake)
+        {
+            return BadRequest("این سفارش از نوع کیک تولد نیست.");
+        }
 
         var model = new OrderEditViewModel
         {

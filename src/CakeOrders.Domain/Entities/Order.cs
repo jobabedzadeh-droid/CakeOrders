@@ -5,6 +5,7 @@ namespace CakeOrders.Domain.Entities;
 public enum OrderChannel { [Display(Name = "حضوری")] InPerson = 1, [Display(Name = "آنلاین")] Online = 2 }
 public enum OrderStatus { [Display(Name = "در انتظار بررسی")] PendingReview = 1, [Display(Name = "تأیید شده")] Confirmed = 2, [Display(Name = "رد شده")] Rejected = 3, [Display(Name = "در حال تولید")] InProduction = 4, [Display(Name = "آماده تحویل")] ReadyForDelivery = 5, [Display(Name = "تحویل شده")] Delivered = 6, [Display(Name = "لغو شده")] Cancelled = 7 }
 public enum CakeType { [Display(Name = "خامه‌ای")] Cream = 1, [Display(Name = "نیمه فوندانت")] SemiFondant = 2, [Display(Name = "تمام فوندانت")] FullFondant = 3 }
+public enum OrderKind { [Display(Name = "کیک تولد")] BirthdayCake = 1, [Display(Name = "شیرینی")] Sweets = 2 }
 
 public sealed class Order
 {
@@ -12,6 +13,7 @@ public sealed class Order
     public string OrderNumber { get; set; } = string.Empty;
     public OrderChannel Channel { get; set; } = OrderChannel.InPerson;
     public OrderStatus Status { get; set; } = OrderStatus.PendingReview;
+    public OrderKind Kind { get; set; } = OrderKind.BirthdayCake;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public string? CreatedByUserId { get; set; }
     public string? UpdatedByUserId { get; set; }
@@ -55,5 +57,6 @@ public sealed class Order
     public string? RahkaranSalesRequestId { get; set; }
     public string? RahkaranReceiptId { get; set; }
     public ICollection<OrderStatusHistory> StatusHistory { get; set; } = new List<OrderStatusHistory>();
+    public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
     public decimal RemainingAmount => Math.Max(0, FinalAmount - PaidAmount);
 }

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using CakeOrders.Domain.Entities;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
-namespace CakeOrders.Web.ViewModels;
+namespace CakeOrders.Web.ViewModels.Orders;
 
 public sealed class OrderPaymentStartViewModel
 {

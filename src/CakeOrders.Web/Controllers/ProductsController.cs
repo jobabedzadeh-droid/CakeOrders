@@ -12,12 +12,59 @@ namespace CakeOrders.Web.Controllers;
 public sealed class ProductsController(CakeOrdersDbContext db) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(
+    string? search,
+    long? categoryId,
+    bool? isActive,
+    int page = 1,
+    int pageSize = 20,
+    CancellationToken cancellationToken = default)
     {
-        var products = await db.Products
-            .AsNoTracking()
-            .Include(x => x.Category)
-            .Include(x => x.WorkshopRoutings)
+        // محدود کردن تعداد رکوردهای هر صفحه
+        pageSize = pageSize switch
+        {
+            10 or 20 or 50 or 100 => pageSize,
+            _ => 20
+        };
+
+        page = Math.Max(1, page);
+
+        var query = db.Products.AsNoTracking();
+
+        // جست‌وجو بر اساس نام یا کد محصول
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            search = search.Trim();
+
+            query = query.Where(x =>
+                x.Name.Contains(search) ||
+                x.Code.Contains(search));
+        }
+
+        // فیلتر گروه محصول
+        if (categoryId.HasValue && categoryId.Value > 0)
+        {
+            query = query.Where(x => x.CategoryId == categoryId.Value);
+        }
+
+        // فیلتر وضعیت
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        // تعداد کل محصولات پس از اعمال فیلترها
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var totalPages = Math.Max(
+            1,
+            (int)Math.Ceiling(totalCount / (double)pageSize));
+
+        if (page > totalPages)
+            page = totalPages;
+
+        // دریافت محصولات صفحه جاری
+        var products = await query
             .OrderBy(x => x.Category.Name)
             .ThenBy(x => x.Name)
             .Select(x => new ProductListItemViewModel
@@ -30,7 +77,42 @@ public sealed class ProductsController(CakeOrdersDbContext db) : Controller
                 IsActive = x.IsActive,
                 RoutingCount = x.WorkshopRoutings.Count
             })
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
+
+        // اطلاعات گروه‌ها برای فیلتر
+        var categories = await db.ProductCategories
+            .AsNoTracking()
+            .OrderBy(x => x.Name)
+            .Select(x => new SelectListItem
+            {
+                Text = x.Name,
+                Value = x.Id.ToString()
+            })
+            .ToListAsync(cancellationToken);
+
+        categories.Insert(0, new SelectListItem
+        {
+            Text = "همه گروه‌ها",
+            Value = "",
+            Selected = !categoryId.HasValue || categoryId.Value <= 0
+        });
+
+        foreach (var category in categories.Where(x => !string.IsNullOrEmpty(x.Value)))
+        {
+            category.Selected = category.Value == categoryId?.ToString();
+        }
+
+        // اطلاعات صفحه برای View
+        ViewBag.Search = search;
+        ViewBag.CategoryId = categoryId;
+        ViewBag.IsActive = isActive;
+        ViewBag.Page = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalCount = totalCount;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.Categories = categories;
 
         return View(products);
     }
@@ -70,7 +152,7 @@ public sealed class ProductsController(CakeOrdersDbContext db) : Controller
         db.Products.Add(product);
         await db.SaveChangesAsync(cancellationToken);
 
-        await SaveRoutingsAsync(product.Id, model.BranchRoutings, cancellationToken);
+        SaveRoutings(product.Id, model.BranchRoutings);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -140,8 +222,7 @@ public sealed class ProductsController(CakeOrdersDbContext db) : Controller
         product.Description = Normalize(model.Description);
         product.IsActive = model.IsActive;
 
-        db.ProductWorkshopRoutings.RemoveRange(product.WorkshopRoutings);
-        await SaveRoutingsAsync(product.Id, model.BranchRoutings, cancellationToken);
+        SaveRoutings(product.Id, model.BranchRoutings, product.WorkshopRoutings);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -164,69 +245,188 @@ public sealed class ProductsController(CakeOrdersDbContext db) : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task ValidateProductAsync(ProductEditViewModel model, long? excludeId, CancellationToken cancellationToken)
+    private async Task ValidateProductAsync(
+    ProductEditViewModel model,
+    long? excludeId,
+    CancellationToken cancellationToken)
     {
         model.Code = model.Code?.Trim() ?? string.Empty;
         model.Name = model.Name?.Trim() ?? string.Empty;
 
+        model.BranchRoutings ??= [];
+        var routes = model.BranchRoutings;
+
         if (!Enum.IsDefined(model.Unit))
-            ModelState.AddModelError(nameof(model.Unit), "واحد انتخاب‌شده معتبر نیست.");
+        {
+            ModelState.AddModelError(
+                nameof(model.Unit),
+                "واحد انتخاب‌شده معتبر نیست.");
+        }
 
-        if (!await db.ProductCategories.AnyAsync(x => x.Id == model.CategoryId && x.IsActive, cancellationToken))
-            ModelState.AddModelError(nameof(model.CategoryId), "گروه محصول انتخاب‌شده معتبر یا غیرفعال است.");
+        var validCategory = await db.ProductCategories.AnyAsync(
+            x => x.Id == model.CategoryId &&
+                 (x.IsActive ||
+                  (excludeId.HasValue &&
+                   db.Products.Any(p =>
+                       p.Id == excludeId.Value &&
+                       p.CategoryId == x.Id))),
+            cancellationToken);
 
-        if (await db.Products.AnyAsync(x => x.Code == model.Code && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken))
-            ModelState.AddModelError(nameof(model.Code), "کد محصول تکراری است.");
+        if (!validCategory)
+        {
+            ModelState.AddModelError(
+                nameof(model.CategoryId),
+                "گروه محصول انتخاب‌شده معتبر یا غیرفعال است.");
+        }
 
-        if (await db.Products.AnyAsync(x => x.CategoryId == model.CategoryId && x.Name == model.Name && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken))
-            ModelState.AddModelError(nameof(model.Name), "محصولی با این نام در گروه انتخاب‌شده وجود دارد.");
+        var duplicateCode = await db.Products.AnyAsync(
+            x => x.Code == model.Code &&
+                 (!excludeId.HasValue || x.Id != excludeId.Value),
+            cancellationToken);
 
+        if (duplicateCode)
+        {
+            ModelState.AddModelError(
+                nameof(model.Code),
+                "کد محصول تکراری است.");
+        }
+
+        var duplicateName = await db.Products.AnyAsync(
+            x => x.CategoryId == model.CategoryId &&
+                 x.Name == model.Name &&
+                 (!excludeId.HasValue || x.Id != excludeId.Value),
+            cancellationToken);
+
+        if (duplicateName)
+        {
+            ModelState.AddModelError(
+                nameof(model.Name),
+                "محصولی با این نام در گروه انتخاب‌شده وجود دارد.");
+        }
+
+        // اعتبارسنجی شعبه‌ها
         var activeBranchIds = await db.Branches
             .Where(x => x.IsActive)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
 
-        var submittedBranchIds = model.BranchRoutings.Select(x => x.BranchId).ToList();
-        if (activeBranchIds.Except(submittedBranchIds).Any() || submittedBranchIds.Distinct().Count() != submittedBranchIds.Count)
-            ModelState.AddModelError(string.Empty, "اطلاعات تخصیص کارگاه‌ها معتبر نیست؛ صفحه را تازه‌سازی کنید.");
+        var submittedBranchIds = routes
+            .Select(x => x.BranchId)
+            .ToList();
 
-        foreach (var route in model.BranchRoutings.Where(x => x.WorkshopId.HasValue))
+        if (activeBranchIds.Except(submittedBranchIds).Any() ||
+            submittedBranchIds.Except(activeBranchIds).Any() ||
+            submittedBranchIds.Distinct().Count() != submittedBranchIds.Count)
         {
-            var validWorkshop = await db.Workshops.AnyAsync(
-                x => x.Id == route.WorkshopId.Value &&
-                     x.BranchId == route.BranchId &&
-                     x.IsActive,
-                cancellationToken);
-
-            if (!validWorkshop)
-                ModelState.AddModelError(string.Empty, $"کارگاه انتخاب‌شده برای شعبه {route.BranchName} معتبر یا فعال نیست.");
+            ModelState.AddModelError(
+                string.Empty,
+                "اطلاعات تخصیص کارگاه‌ها معتبر نیست؛ صفحه را تازه‌سازی کنید.");
         }
-    }
 
-    private async Task SaveRoutingsAsync(long productId, IEnumerable<ProductBranchRoutingViewModel> routes, CancellationToken cancellationToken)
-    {
-        var validRoutes = routes.Where(x => x.WorkshopId.HasValue);
-        foreach (var route in validRoutes)
-        {
-            db.ProductWorkshopRoutings.Add(new ProductWorkshopRouting
+        // اعتبارسنجی کارگاه‌های انتخاب‌شده
+        var selectedRoutes = routes
+            .Where(x => x.WorkshopId.HasValue)
+            .Select(x => new
             {
-                ProductId = productId,
-                BranchId = route.BranchId,
-                WorkshopId = route.WorkshopId!.Value,
-                CreatedAtUtc = DateTime.UtcNow
-            });
-        }
+                x.BranchId,
+                WorkshopId = x.WorkshopId!.Value
+            })
+            .ToList();
 
-        await Task.CompletedTask;
+        var selectedWorkshopIds = selectedRoutes
+            .Select(x => x.WorkshopId)
+            .Distinct()
+            .ToList();
+
+        var validWorkshopPairs = await db.Workshops
+            .Where(x => selectedWorkshopIds.Contains(x.Id) && x.IsActive)
+            .Select(x => new
+            {
+                x.BranchId,
+                WorkshopId = x.Id
+            })
+            .ToListAsync(cancellationToken);
+
+        var validWorkshopSet = validWorkshopPairs
+            .Select(x => (x.BranchId, x.WorkshopId))
+            .ToHashSet();
+
+        foreach (var route in selectedRoutes)
+        {
+            if (!validWorkshopSet.Contains(
+                    (route.BranchId, route.WorkshopId)))
+            {
+                var branchName = routes
+                    .First(x => x.BranchId == route.BranchId)
+                    .BranchName;
+
+                ModelState.AddModelError(
+                    string.Empty,
+                    $"کارگاه انتخاب‌شده برای شعبه {branchName} معتبر یا فعال نیست.");
+            }
+        }
     }
 
-    private async Task PopulateFormAsync(ProductEditViewModel model, CancellationToken cancellationToken)
+    private void SaveRoutings(
+    long productId,
+    IEnumerable<ProductBranchRoutingViewModel> routes,
+    ICollection<ProductWorkshopRouting>? existingRoutings = null)
+    {
+        var submittedRoutes = routes.ToDictionary(x => x.BranchId);
+
+        var existingByBranch = (existingRoutings ?? [])
+            .ToDictionary(x => x.BranchId);
+
+        // حذف تخصیص‌هایی که از فرم حذف شده‌اند
+        // یا دیگر برای آن شعبه کارگاهی انتخاب نشده است.
+        foreach (var existing in existingByBranch.Values.ToList())
+        {
+            if (!submittedRoutes.TryGetValue(existing.BranchId, out var submitted) ||
+                !submitted.WorkshopId.HasValue)
+            {
+                db.ProductWorkshopRoutings.Remove(existing);
+            }
+        }
+
+        // افزودن تخصیص‌های جدید یا به‌روزرسانی تخصیص‌های قبلی
+        foreach (var route in routes)
+        {
+            if (route.WorkshopId is not long workshopId)
+                continue;
+
+            if (existingByBranch.TryGetValue(route.BranchId, out var existing))
+            {
+                if (existing.WorkshopId != workshopId)
+                {
+                    existing.WorkshopId = workshopId;
+                    existing.UpdatedAtUtc = DateTime.UtcNow;
+                }
+            }
+            else
+            {
+                db.ProductWorkshopRoutings.Add(new ProductWorkshopRouting
+                {
+                    ProductId = productId,
+                    BranchId = route.BranchId,
+                    WorkshopId = workshopId,
+                    CreatedAtUtc = DateTime.UtcNow
+                });
+            }
+        }
+    }
+
+    private async Task PopulateFormAsync(
+    ProductEditViewModel model,
+    CancellationToken cancellationToken)
     {
         model.Categories = await db.ProductCategories
             .AsNoTracking()
-            .Where(x => x.IsActive)
+            .Where(x => x.IsActive || x.Id == model.CategoryId)
             .OrderBy(x => x.Name)
-            .Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.CategoryId))
+            .Select(x => new SelectListItem(
+                x.Name,
+                x.Id.ToString(),
+                x.Id == model.CategoryId))
             .ToListAsync(cancellationToken);
 
         var branches = await db.Branches
@@ -236,19 +436,29 @@ public sealed class ProductsController(CakeOrdersDbContext db) : Controller
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
 
-        var existing = model.BranchRoutings.ToDictionary(x => x.BranchId, x => x.WorkshopId);
+        var existing = (model.BranchRoutings ?? [])
+            .GroupBy(x => x.BranchId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First().WorkshopId);
+
         model.BranchRoutings = branches.Select(branch =>
         {
             existing.TryGetValue(branch.Id, out var selectedWorkshopId);
+
             return new ProductBranchRoutingViewModel
             {
                 BranchId = branch.Id,
                 BranchName = branch.Name,
                 WorkshopId = selectedWorkshopId,
+
                 Workshops = branch.Workshops
-                    .Where(x => x.IsActive)
+                    .Where(x => x.IsActive || x.Id == selectedWorkshopId)
                     .OrderBy(x => x.Name)
-                    .Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == selectedWorkshopId))
+                    .Select(x => new SelectListItem(
+                        x.IsActive ? x.Name : $"{x.Name} (غیرفعال)",
+                        x.Id.ToString(),
+                        x.Id == selectedWorkshopId))
                     .ToList()
             };
         }).ToList();

@@ -1,7 +1,7 @@
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
 using CakeOrders.Infrastructure.Rahkaran;
-using CakeOrders.Web.ViewModels;
+using CakeOrders.Web.ViewModels.Integrations.Rahkaran;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;

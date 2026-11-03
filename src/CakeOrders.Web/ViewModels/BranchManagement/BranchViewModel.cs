@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace CakeOrders.Web.ViewModels;
+namespace CakeOrders.Web.ViewModels.BranchManagement;
 
 public sealed class BranchViewModel
 {
