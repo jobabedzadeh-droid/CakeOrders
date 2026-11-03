@@ -14,6 +14,7 @@
         <a class="nav-link" asp-controller="Home" asp-action="Index">▦ <span>داشبورد</span></a>
         <a class="nav-link" asp-controller="Orders" asp-action="Index">▤ <span>همه سفارش‌ها</span></a>
         <a class="nav-link" asp-controller="Orders" asp-action="Create">＋ <span>ثبت سفارش جدید</span></a>
+        <a class="nav-link" asp-controller="Notifications" asp-action="Index">♢ <span>اعلان‌های من</span></a>
         @if (User.IsInRole("Admin"))
         {
             <div class="nav-caption">تنظیمات مدیریت</div>
