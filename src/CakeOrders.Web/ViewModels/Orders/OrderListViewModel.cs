@@ -10,6 +10,8 @@ public sealed class OrderListViewModel
 
     public OrderChannel? Channel { get; set; }
 
+    public OrderKind? Kind { get; set; }
+
     public DateTime? DeliveryFrom { get; set; }
 
     public DateTime? DeliveryTo { get; set; }

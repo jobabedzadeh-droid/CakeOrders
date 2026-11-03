@@ -20,6 +20,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
       string? search,
       OrderStatus? status,
       OrderChannel? channel,
+      OrderKind? kind,
       DateTime? deliveryFrom,
       DateTime? deliveryTo,
       int page = 1,
@@ -49,6 +50,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         // فیلتر کانال سفارش
         if (channel.HasValue)
             query = query.Where(x => x.Channel == channel.Value);
+
+        // فیلتر نوع سفارش
+        if (kind.HasValue)
+            query = query.Where(x => x.Kind == kind.Value);
 
         // فیلتر تاریخ تحویل از
         if (deliveryFrom.HasValue)
@@ -94,6 +99,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             Search = search,
             Status = status,
             Channel = channel,
+            Kind = kind,
             DeliveryFrom = deliveryFrom,
             DeliveryTo = deliveryTo,
             Orders = orders,
@@ -248,6 +254,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         var order = await db.Orders
             .AsNoTracking()
             .Include(x => x.StatusHistory)
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Workshop)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (order is null)
