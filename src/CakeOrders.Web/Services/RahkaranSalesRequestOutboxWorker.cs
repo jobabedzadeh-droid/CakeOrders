@@ -21,7 +21,7 @@ public sealed class RahkaranSalesRequestOutboxWorker(
         {
             try
             {
-                if (_options.Enabled)
+                if (_options.Enabled && _options.SalesRequestDispatchEnabled)
                     await ProcessOneAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
