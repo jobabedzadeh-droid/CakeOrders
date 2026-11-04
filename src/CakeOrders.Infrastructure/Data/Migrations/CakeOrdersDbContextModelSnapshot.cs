@@ -286,6 +286,9 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<string>("ReferrerCode")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long?>("ReferrerId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
 
@@ -321,6 +324,8 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("ProductionBranchId");
+
+                    b.HasIndex("ReferrerId");
 
                     b.ToTable("Orders");
                 });
@@ -960,6 +965,16 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Referrers");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Order", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Referrer", "Referrer")
+                        .WithMany("Orders")
+                        .HasForeignKey("ReferrerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Referrer");
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranSalesRequestOutbox", b =>
@@ -1655,6 +1670,11 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Navigation("History");
 
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Referrer", b =>
+                {
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.Workshop", b =>
