@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace CakeOrders.Infrastructure.Rahkaran;
 
-public interface IRahkaranSalesRequestClient
+public sealed record RahkaranSalesRequestResult(bool Succeeded, string? SalesRequestId, string? Error, int HttpStatusCode);\n\npublic interface IRahkaranSalesRequestClient
 {
     Task<RahkaranSalesRequestResult> PlacePendingAsync(RahkaranSaleRequest request, CancellationToken cancellationToken);
 }
