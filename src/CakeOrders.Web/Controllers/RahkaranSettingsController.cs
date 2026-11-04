@@ -32,6 +32,19 @@ public sealed class RahkaranSettingsController(
             PosBankAccountId = settings?.PosBankAccountId,
             PosAccountingOperationId = settings?.PosAccountingOperationId,
             PosCashFlowFactorId = settings?.PosCashFlowFactorId,
+            SalesOfficeId = settings?.SalesOfficeId,
+            SalesAreaId = settings?.SalesAreaId,
+            SalesTypeId = settings?.SalesTypeId,
+            SalesInventoryId = settings?.SalesInventoryId,
+            SalesPlantId = settings?.SalesPlantId,
+            SalesCurrencyId = settings?.SalesCurrencyId,
+            SalesPaymentAgreementId = settings?.SalesPaymentAgreementId,
+            CreamCakeProductId = settings?.CreamCakeProductId,
+            CreamCakeUnitId = settings?.CreamCakeUnitId,
+            SemiFondantCakeProductId = settings?.SemiFondantCakeProductId,
+            SemiFondantCakeUnitId = settings?.SemiFondantCakeUnitId,
+            FullFondantCakeProductId = settings?.FullFondantCakeProductId,
+            FullFondantCakeUnitId = settings?.FullFondantCakeUnitId,
             ServiceBaseUrl = options.Value.ServiceBaseUrl,
             IntegrationEnabled = options.Value.Enabled
         };
@@ -46,8 +59,6 @@ public sealed class RahkaranSettingsController(
     {
         try
         {
-            // GetAllCashes is a documented, read-only endpoint and is used as
-            // the connectivity probe. This action never creates a financial document.
             var cashes = await rahkaran.GetCashesAsync(cancellationToken);
             TempData["Success"] = $"ارتباط با راهکاران برقرار است. تعداد صندوق‌های دریافتی: {cashes.Count}";
         }
@@ -87,11 +98,24 @@ public sealed class RahkaranSettingsController(
         settings.PosBankAccountId = model.PosBankAccountId;
         settings.PosAccountingOperationId = model.PosAccountingOperationId;
         settings.PosCashFlowFactorId = model.PosCashFlowFactorId;
+        settings.SalesOfficeId = model.SalesOfficeId;
+        settings.SalesAreaId = model.SalesAreaId;
+        settings.SalesTypeId = model.SalesTypeId;
+        settings.SalesInventoryId = model.SalesInventoryId;
+        settings.SalesPlantId = model.SalesPlantId;
+        settings.SalesCurrencyId = model.SalesCurrencyId;
+        settings.SalesPaymentAgreementId = model.SalesPaymentAgreementId;
+        settings.CreamCakeProductId = model.CreamCakeProductId;
+        settings.CreamCakeUnitId = model.CreamCakeUnitId;
+        settings.SemiFondantCakeProductId = model.SemiFondantCakeProductId;
+        settings.SemiFondantCakeUnitId = model.SemiFondantCakeUnitId;
+        settings.FullFondantCakeProductId = model.FullFondantCakeProductId;
+        settings.FullFondantCakeUnitId = model.FullFondantCakeUnitId;
         settings.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
 
-        TempData["Success"] = "نگاشت‌های انتخاب‌شده در پایگاه داده CakeOrders ذخیره شدند. ثبت مالی همچنان غیرفعال است.";
+        TempData["Success"] = "نگاشت‌های راهکاران در پایگاه داده CakeOrders ذخیره شدند. ارسال درخواست فروش هنوز فعال نشده است.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -119,6 +143,27 @@ public sealed class RahkaranSettingsController(
         await LoadAsync("عوامل گردش نقدینگی", () => rahkaran.GetCashFlowFactorsAsync(cancellationToken), items =>
             model.CashFlowFactors = items.Select(x => new SelectListItem(
                 $"{x.Code} - {x.Title} (شناسه: {x.Id})", x.Id.ToString())).ToList());
+
+        await LoadAsync("حوزه‌های فروش", () => rahkaran.GetSalesAreasAsync(cancellationToken), items =>
+            model.SalesAreas = items
+                .Where(x => x.Id > 0)
+                .Select(x => new SelectListItem(
+                    $"{x.Code} - {x.Name} (شناسه: {x.Id})", x.Id.ToString()))
+                .ToList());
+
+        await LoadAsync("مراکز فروش", () => rahkaran.GetSalesOfficesAsync(cancellationToken), items =>
+            model.SalesOffices = items
+                .Where(x => x.Id > 0)
+                .Select(x => new SelectListItem(
+                    $"{x.Code} - {x.Name} (شناسه: {x.Id})", x.Id.ToString()))
+                .ToList());
+
+        await LoadAsync("نحوه‌های فروش", () => rahkaran.GetSalesTypesAsync(cancellationToken), items =>
+            model.SalesTypes = items
+                .Where(x => x.Id > 0)
+                .Select(x => new SelectListItem(
+                    $"{x.Number} - {x.Name} (شناسه: {x.Id})", x.Id.ToString()))
+                .ToList());
     }
 
     private async Task LoadAsync<T>(
@@ -130,26 +175,14 @@ public sealed class RahkaranSettingsController(
         {
             var items = await fetch();
             assign(items);
-            modelSuccess(title, items.Count);
+            ViewData["RahkaranSuccessCount"] = (int)(ViewData["RahkaranSuccessCount"] ?? 0) + 1;
+            ViewData["RahkaranMessages"] ??= new List<string>();
+            ((List<string>)ViewData["RahkaranMessages"]!).Add($"{title}: {items.Count} مورد دریافت شد.");
         }
         catch (Exception)
         {
-            // Keep the page usable even if one optional master-data endpoint
-            // is unavailable in this Rahkaran installation.
-            modelFailure(title);
-        }
-
-        void modelSuccess(string name, int count)
-        {
-            ViewData["RahkaranSuccessCount"] = (int)(ViewData["RahkaranSuccessCount"] ?? 0) + 1;
             ViewData["RahkaranMessages"] ??= new List<string>();
-            ((List<string>)ViewData["RahkaranMessages"]!).Add($"{name}: {count} مورد دریافت شد.");
-        }
-
-        void modelFailure(string name)
-        {
-            ViewData["RahkaranMessages"] ??= new List<string>();
-            ((List<string>)ViewData["RahkaranMessages"]!).Add($"{name}: دریافت اطلاعات ناموفق بود.");
+            ((List<string>)ViewData["RahkaranMessages"]!).Add($"{title}: دریافت اطلاعات ناموفق بود.");
         }
     }
 
@@ -162,5 +195,18 @@ public sealed class RahkaranSettingsController(
         if (model.PosBankAccountId <= 0) model.PosBankAccountId = null;
         if (model.PosAccountingOperationId <= 0) model.PosAccountingOperationId = null;
         if (model.PosCashFlowFactorId <= 0) model.PosCashFlowFactorId = null;
+        if (model.SalesOfficeId <= 0) model.SalesOfficeId = null;
+        if (model.SalesAreaId <= 0) model.SalesAreaId = null;
+        if (model.SalesTypeId <= 0) model.SalesTypeId = null;
+        if (model.SalesInventoryId <= 0) model.SalesInventoryId = null;
+        if (model.SalesPlantId <= 0) model.SalesPlantId = null;
+        if (model.SalesCurrencyId <= 0) model.SalesCurrencyId = null;
+        if (model.SalesPaymentAgreementId <= 0) model.SalesPaymentAgreementId = null;
+        if (model.CreamCakeProductId <= 0) model.CreamCakeProductId = null;
+        if (model.CreamCakeUnitId <= 0) model.CreamCakeUnitId = null;
+        if (model.SemiFondantCakeProductId <= 0) model.SemiFondantCakeProductId = null;
+        if (model.SemiFondantCakeUnitId <= 0) model.SemiFondantCakeUnitId = null;
+        if (model.FullFondantCakeProductId <= 0) model.FullFondantCakeProductId = null;
+        if (model.FullFondantCakeUnitId <= 0) model.FullFondantCakeUnitId = null;
     }
 }
