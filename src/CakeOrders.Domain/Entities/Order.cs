@@ -52,6 +52,8 @@ public sealed class Order
     // مجموع تمام پرداخت‌های موفق سفارش، شامل بیعانه و تسویه.
     public decimal PaidAmount { get; set; }
     public string? ReferrerCode { get; set; }
+    public long? ReferrerId { get; set; }
+    public Referrer? Referrer { get; set; }
     public string? RejectionReason { get; set; }
     public string? RahkaranCustomerId { get; set; }
     public string? RahkaranSalesRequestId { get; set; }
