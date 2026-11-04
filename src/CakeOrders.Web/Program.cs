@@ -39,6 +39,18 @@ builder.Services.AddHttpClient<IRahkaranCustomerClient, RahkaranCustomerClient>(
             : new Uri(baseAddress.AbsoluteUri + "/");
 });
 
+builder.Services.AddHttpClient<IRahkaranSalesRequestClient, RahkaranSalesRequestClient>((serviceProvider, client) =>
+{
+    var rahkaran = serviceProvider.GetRequiredService<IOptions<RahkaranOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(rahkaran.TimeoutSeconds, 5, 120));
+    if (Uri.TryCreate(rahkaran.ServiceBaseUrl, UriKind.Absolute, out var baseAddress))
+        client.BaseAddress = baseAddress.AbsoluteUri.EndsWith('/')
+            ? baseAddress
+            : new Uri(baseAddress.AbsoluteUri + "/");
+});
+
+builder.Services.AddHostedService<CakeOrders.Web.Services.RahkaranSalesRequestOutboxWorker>();
+
 builder.Services.AddHttpClient<IRahkaranMasterDataClient, RahkaranMasterDataClient>((serviceProvider, client) =>
 {
     var rahkaran = serviceProvider.GetRequiredService<IOptions<RahkaranOptions>>().Value;

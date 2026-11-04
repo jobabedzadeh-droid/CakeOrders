@@ -383,6 +383,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             .Where(x => cashReceiverIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
 
+        ViewBag.RahkaranSalesRequestOutbox = await db.RahkaranSalesRequestOutbox
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.OrderId == id, cancellationToken);
+
         ViewBag.CashPayments = cashPayments;
         ViewBag.CashReceiverNames = cashReceiverNames;
         ViewBag.OrderChangeLogs = changeLogs;

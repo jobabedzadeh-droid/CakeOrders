@@ -145,8 +145,8 @@ public sealed class RahkaranBankAccountDto
 
 public sealed class RahkaranCustomerDto
 {
-    [JsonPropertyName("id")] public long Id { get; init; }
-    [JsonPropertyName("PartyId")] public long? PartyId { get; init; }
+    [JsonPropertyName("id"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)] public long Id { get; init; }
+    [JsonPropertyName("PartyId"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)] public long? PartyId { get; init; }
     [JsonPropertyName("number")] public string? Number { get; init; }
     [JsonPropertyName("PartyName")] public string? PartyName { get; init; }
     [JsonPropertyName("FirstName")] public string? FirstName { get; init; }
