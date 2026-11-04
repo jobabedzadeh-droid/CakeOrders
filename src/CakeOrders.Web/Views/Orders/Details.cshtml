@@ -7,6 +7,15 @@
     var cake = Model.CakeType switch { CakeType.Cream => "خامه‌ای", CakeType.SemiFondant => "نیمه فوندانت", _ => "تمام فوندانت" };
     var isWorkshopMember = ViewBag.IsWorkshopMember as bool? == true;
     var cashReceiptKey = Guid.NewGuid().ToString("N");
+    var rahkaranOutbox = ViewBag.RahkaranSalesRequestOutbox as RahkaranSalesRequestOutbox;
+    var rahkaranSyncText = rahkaranOutbox?.Status switch
+    {
+        RahkaranSalesRequestSyncStatus.Pending => "در صف ارسال",
+        RahkaranSalesRequestSyncStatus.Processing => "در حال ارسال",
+        RahkaranSalesRequestSyncStatus.Succeeded => "با موفقیت ثبت شد",
+        RahkaranSalesRequestSyncStatus.NeedsReview => "نیازمند بررسی دستی",
+        _ => "ثبت نشده"
+    };
 }
 <div class="page-heading">
     <div>
@@ -31,6 +40,26 @@
 @if (TempData["Error"] is string error)
 {
     <div class="alert-danger">@error</div>
+}
+@if (rahkaranOutbox is not null)
+{
+    <section class="form-panel">
+        <h2>همگام‌سازی درخواست فروش راهکاران</h2>
+        <div class="detail-grid">
+            <div><small>وضعیت همگام‌سازی</small><b>@rahkaranSyncText</b></div>
+            <div><small>شناسه درخواست فروش راهکاران</small><b>@(rahkaranOutbox.RemoteSalesRequestId ?? Model.RahkaranSalesRequestId ?? "—")</b></div>
+            <div><small>تعداد تلاش</small><b>@rahkaranOutbox.AttemptCount</b></div>
+            <div><small>آخرین تلاش</small><b>@(rahkaranOutbox.LastAttemptAtUtc.HasValue ? PersianDateTime.Format(rahkaranOutbox.LastAttemptAtUtc.Value) : "—")</b></div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(rahkaranOutbox.LastError))
+        {
+            <div class="alert-danger mt-3">@rahkaranOutbox.LastError</div>
+        }
+        @if (rahkaranOutbox.Status == RahkaranSalesRequestSyncStatus.NeedsReview)
+        {
+            <p class="text-muted">برای جلوگیری از ایجاد درخواست فروش تکراری، ارسال خودکار مجدد انجام نمی‌شود. ابتدا وضعیت سند در راهکاران بررسی شود.</p>
+        }
+    </section>
 }
 <section class="form-panel">
     <div class="detail-grid">
