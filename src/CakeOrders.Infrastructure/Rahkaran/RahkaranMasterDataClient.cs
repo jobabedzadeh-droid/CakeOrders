@@ -15,6 +15,7 @@ public interface IRahkaranMasterDataClient
     Task<IReadOnlyList<RahkaranSalesOfficeDto>> GetSalesOfficesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranSalesTypeDto>> GetSalesTypesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranCustomerDto>> GetCustomersAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RahkaranEmployeeDto>> GetEmployeesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranCustomerDto>> GetCustomerChangesAsync(
         DateTimeOffset fromDate, DateTimeOffset toDate, long masterEntityId,
         int pageIndex, int pageSize, CancellationToken cancellationToken = default);
@@ -32,6 +33,7 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
     private const string Branches = "General/BranchManagement/Services/BranchService.svc/";
     private const string Parties = "Sales/PartyManagement/Services/PartyManagementService.svc/";
     private const string SalesStructure = "Sales/SalesStructure/Services/SalesStructureService.svc/";
+    private const string Employees = "HCM/Staff/Services/EmployeeWebService.svc/";
 
     public Task<IReadOnlyList<RahkaranBranchDto>> GetBranchesAsync(CancellationToken ct = default) =>
         GetListAsync<RahkaranBranchDto>(Branches + "GetBranches", ct);
@@ -59,6 +61,68 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
 
     public Task<IReadOnlyList<RahkaranCustomerDto>> GetCustomersAsync(CancellationToken ct = default) =>
         GetListAsync<RahkaranCustomerDto>(Parties + "GetCustomers", ct);
+
+    public async Task<IReadOnlyList<RahkaranEmployeeDto>> GetEmployeesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await httpClient.GetAsync(
+            Employees + "GetEmployeeList",
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(
+            stream,
+            cancellationToken: cancellationToken);
+
+        var payload = document.RootElement;
+
+        if (payload.TryGetProperty("GetEmployeeListResponse", out var responseElement))
+            payload = responseElement;
+
+        if (payload.TryGetProperty("GetEmployeeListResult", out var resultElement))
+            payload = resultElement;
+
+        if (payload.TryGetProperty("EmployeeDocument", out var employeeDocumentElement))
+            payload = employeeDocumentElement;
+
+        var employees = new List<RahkaranEmployeeDto>();
+
+        if (payload.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in payload.EnumerateArray())
+            {
+                var employeeElement = item;
+                if (employeeElement.ValueKind == JsonValueKind.Object &&
+                    employeeElement.TryGetProperty("EmployeeDocument", out var nestedEmployee))
+                {
+                    employeeElement = nestedEmployee;
+                }
+
+                var employee = JsonSerializer.Deserialize<RahkaranEmployeeDto>(
+                    employeeElement.GetRawText(),
+                    JsonOptions);
+
+                if (employee is not null)
+                    employees.Add(employee);
+            }
+
+            return employees;
+        }
+
+        if (payload.ValueKind == JsonValueKind.Object &&
+            payload.TryGetProperty("Code", out _))
+        {
+            var employee = JsonSerializer.Deserialize<RahkaranEmployeeDto>(
+                payload.GetRawText(),
+                JsonOptions);
+
+            if (employee is not null)
+                employees.Add(employee);
+        }
+
+        return employees;
+    }
 
     public async Task<IReadOnlyList<RahkaranCustomerDto>> GetCustomerChangesAsync(
         DateTimeOffset fromDate, DateTimeOffset toDate, long masterEntityId,
@@ -97,6 +161,24 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
         return await response.Content.ReadFromJsonAsync<List<T>>(
             cancellationToken: cancellationToken) ?? [];
     }
+}
+
+public sealed class RahkaranEmployeeDto
+{
+    [JsonPropertyName("EmployeeId"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long? EmployeeId { get; init; }
+
+    [JsonPropertyName("Code")]
+    public string? Code { get; init; }
+
+    [JsonPropertyName("FirstName")]
+    public string? FirstName { get; init; }
+
+    [JsonPropertyName("LastName")]
+    public string? LastName { get; init; }
+
+    [JsonPropertyName("Name")]
+    public string? Name { get; init; }
 }
 
 public sealed class RahkaranBranchDto

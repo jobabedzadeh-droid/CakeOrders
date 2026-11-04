@@ -28,6 +28,28 @@
 }
 
 <section class="form-panel">
+    <h2>فهرست کارکنان و کدهای معرف</h2>
+    <p>
+        فهرست کارکنان از سرویس منابع انسانی راهکاران دریافت و در جدول داخلی سامانه ذخیره می‌شود.
+        جست‌وجوی کد معرف در فرم سفارش از همین اطلاعات داخلی انجام خواهد شد.
+    </p>
+    <div class="detail-grid">
+        <div>
+            <small>تعداد کارکنان ذخیره‌شده</small>
+            <b>@Model.CachedEmployeeCount نفر</b>
+        </div>
+    </div>
+    <form asp-action="SyncEmployees" method="post">
+        @Html.AntiForgeryToken()
+        <button class="btn btn-primary" type="submit">دریافت و به‌روزرسانی فهرست از راهکاران</button>
+    </form>
+    <div class="calc-note">
+        همگام‌سازی، کارکنان جدید را اضافه و اطلاعات کارکنان موجود را به‌روزرسانی می‌کند.
+        اطلاعات قبلی که در پاسخ جدید راهکاران وجود نداشته باشند، حذف نخواهند شد.
+    </div>
+</section>
+
+<section class="form-panel">
     <h2>وضعیت اتصال</h2>
     <div class="detail-grid">
         <div>

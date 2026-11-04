@@ -46,11 +46,89 @@ public sealed class RahkaranSettingsController(
             FullFondantCakeProductId = settings?.FullFondantCakeProductId,
             FullFondantCakeUnitId = settings?.FullFondantCakeUnitId,
             ServiceBaseUrl = options.Value.ServiceBaseUrl,
-            IntegrationEnabled = options.Value.Enabled
+            IntegrationEnabled = options.Value.Enabled,
+            CachedEmployeeCount = await db.Referrers.CountAsync(cancellationToken)
         };
 
         await LoadMasterDataAsync(model, cancellationToken);
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncEmployees(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var receivedEmployees = await rahkaran.GetEmployeesAsync(cancellationToken);
+
+            var employees = receivedEmployees
+                .Where(x => !string.IsNullOrWhiteSpace(x.Code))
+                .GroupBy(x => x.Code!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+
+            if (employees.Count == 0)
+            {
+                TempData["Error"] = "فهرست کارکنان از راهکاران خالی بود یا کد پرسنلی معتبری در پاسخ وجود نداشت؛ اطلاعات داخلی تغییری نکرد.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var existingReferrers = await db.Referrers.ToListAsync(cancellationToken);
+            var referrersByCode = existingReferrers.ToDictionary(
+                x => x.Code,
+                StringComparer.OrdinalIgnoreCase);
+
+            var addedCount = 0;
+            var updatedCount = 0;
+
+            foreach (var employee in employees)
+            {
+                var code = employee.Code!.Trim();
+                var firstName = employee.FirstName?.Trim() ?? string.Empty;
+                var lastName = employee.LastName?.Trim() ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(firstName) &&
+                    string.IsNullOrWhiteSpace(lastName) &&
+                    !string.IsNullOrWhiteSpace(employee.Name))
+                {
+                    firstName = employee.Name.Trim();
+                }
+
+                if (!referrersByCode.TryGetValue(code, out var referrer))
+                {
+                    referrer = new Referrer
+                    {
+                        Code = code,
+                        FirstName = firstName,
+                        LastName = lastName,
+                        IsActive = true
+                    };
+
+                    db.Referrers.Add(referrer);
+                    referrersByCode.Add(code, referrer);
+                    addedCount++;
+                }
+                else
+                {
+                    referrer.FirstName = firstName;
+                    referrer.LastName = lastName;
+                    referrer.IsActive = true;
+                    updatedCount++;
+                }
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+
+            TempData["Success"] =
+                $"فهرست کارکنان با موفقیت همگام‌سازی شد؛ {addedCount} کارمند جدید و {updatedCount} کارمند به‌روزرسانی شدند. کارکنان قبلی که در پاسخ جدید نبودند حذف نشدند.";
+        }
+        catch (Exception)
+        {
+            TempData["Error"] = "دریافت یا ذخیره فهرست کارکنان از راهکاران ناموفق بود. اتصال و دسترسی سرویس را بررسی کنید؛ اطلاعات قبلی حفظ شده‌اند.";
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]

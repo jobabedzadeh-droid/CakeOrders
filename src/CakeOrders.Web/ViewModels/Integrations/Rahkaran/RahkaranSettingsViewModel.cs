@@ -29,6 +29,7 @@ public sealed class RahkaranSettingsViewModel
 
     public string ServiceBaseUrl { get; set; } = string.Empty;
     public bool IntegrationEnabled { get; set; }
+    public int CachedEmployeeCount { get; set; }
 
     public IReadOnlyList<SelectListItem> Branches { get; set; } = [];
     public IReadOnlyList<SelectListItem> Cashes { get; set; } = [];
