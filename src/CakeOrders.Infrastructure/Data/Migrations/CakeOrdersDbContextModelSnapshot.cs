@@ -863,6 +863,45 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<long?>("BranchId")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("SalesOfficeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SalesAreaId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SalesTypeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SalesInventoryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SalesPlantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SalesCurrencyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SalesPaymentAgreementId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CreamCakeProductId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CreamCakeUnitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SemiFondantCakeProductId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SemiFondantCakeUnitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("FullFondantCakeProductId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("FullFondantCakeUnitId")
+                        .HasColumnType("bigint");
+
                     b.Property<long?>("CashAccountingOperationId")
                         .HasColumnType("bigint");
 

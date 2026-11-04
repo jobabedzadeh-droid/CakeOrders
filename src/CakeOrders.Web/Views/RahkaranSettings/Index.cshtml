@@ -40,7 +40,7 @@
         </div>
         <div>
             <small>وضعیت دریافت اطلاعات پایه</small>
-            <b>@successCount از ۵ سرویس</b>
+            <b>@successCount از ۸ سرویس</b>
         </div>
     </div>
     @if (!Model.IntegrationEnabled)
@@ -117,6 +117,88 @@
         </div>
         <div class="calc-note">
             انتخاب مقادیر در این صفحه به معنی تأیید حسابداری نیست. تا زمان تأیید مسئول مالی، ثبت رسید کارت‌خوان در سامانه فعال نخواهد شد.
+        </div>
+    </section>
+
+    <section class="form-panel">
+        <h2>نگاشت درخواست فروش راهکاران</h2>
+        <p>
+            مرکز فروش، حوزه فروش و نحوه فروش از سرویس‌های مستند راهکاران دریافت می‌شوند.
+            شناسه انبار، مرکز نگهداری، ارز، محصولات و واحد سنجش باید از اطلاعات واقعی محیط راهکاران وارد شوند.
+            مقادیر نمونه مستندات در این فرم استفاده نشده‌اند.
+        </p>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="SalesOfficeId">مرکز فروش</label>
+                <select asp-for="SalesOfficeId" asp-items="Model.SalesOffices">
+                    <option value="">انتخاب مرکز فروش</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="SalesAreaId">حوزه فروش</label>
+                <select asp-for="SalesAreaId" asp-items="Model.SalesAreas">
+                    <option value="">انتخاب حوزه فروش</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="SalesTypeId">نحوه فروش</label>
+                <select asp-for="SalesTypeId" asp-items="Model.SalesTypes">
+                    <option value="">انتخاب نحوه فروش</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="SalesInventoryId">شناسه انبار</label>
+                <input asp-for="SalesInventoryId" type="number" min="1" />
+            </div>
+            <div class="field">
+                <label asp-for="SalesPlantId">شناسه مرکز نگهداری</label>
+                <input asp-for="SalesPlantId" type="number" min="1" />
+            </div>
+            <div class="field">
+                <label asp-for="SalesCurrencyId">شناسه ارز</label>
+                <input asp-for="SalesCurrencyId" type="number" min="1" />
+            </div>
+            <div class="field">
+                <label asp-for="SalesPaymentAgreementId">شناسه روش توافق پرداخت (اختیاری)</label>
+                <input asp-for="SalesPaymentAgreementId" type="number" min="1" />
+            </div>
+        </div>
+        <div class="calc-note">
+            شناسه‌های انبار، مرکز نگهداری، ارز و روش توافق پرداخت باید توسط مدیر راهکاران یا مسئول مالی تأیید شوند.
+        </div>
+    </section>
+
+    <section class="form-panel">
+        <h2>نگاشت محصولات کیک تولد</h2>
+        <p>
+            برای هر نوع کیک، شناسه محصول متناظر در راهکاران و شناسه واحد سنجش کیلوگرم را وارد کنید.
+            مقدارها باید از اطلاعات واقعی راهکاران گرفته شوند.
+        </p>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="CreamCakeProductId">شناسه محصول کیک خامه‌ای</label>
+                <input asp-for="CreamCakeProductId" type="number" min="1" />
+            </div>
+            <div class="field">
+                <label asp-for="CreamCakeUnitId">شناسه واحد کیک خامه‌ای (کیلوگرم)</label>
+                <input asp-for="CreamCakeUnitId" type="number" min="1" />
+            </div>
+            <div class="field">
+                <label asp-for="SemiFondantCakeProductId">شناسه محصول کیک نیمه‌فوندانت</label>
+                <input asp-for="SemiFondantCakeProductId" type="number" min="1" />
+            </div>
+            <div class="field">
+                <label asp-for="SemiFondantCakeUnitId">شناسه واحد کیک نیمه‌فوندانت (کیلوگرم)</label>
+                <input asp-for="SemiFondantCakeUnitId" type="number" min="1" />
+            </div>
+            <div class="field">
+                <label asp-for="FullFondantCakeProductId">شناسه محصول کیک تمام‌فوندانت</label>
+                <input asp-for="FullFondantCakeProductId" type="number" min="1" />
+            </div>
+            <div class="field">
+                <label asp-for="FullFondantCakeUnitId">شناسه واحد کیک تمام‌فوندانت (کیلوگرم)</label>
+                <input asp-for="FullFondantCakeUnitId" type="number" min="1" />
+            </div>
         </div>
     </section>
 
