@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace CakeOrders.Infrastructure.Data.Migrations
 {
-    [Migration("20261104090000_AddRahkaranSalesRequestOutbox")]
-    partial class AddRahkaranSalesRequestOutbox : Migration
+    [DbContext(typeof(CakeOrdersDbContext))]
+    partial class AddRahkaranSalesRequestOutbox
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
