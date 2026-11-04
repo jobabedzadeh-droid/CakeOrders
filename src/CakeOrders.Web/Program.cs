@@ -21,13 +21,31 @@ builder.Services.AddDbContext<CakeOrdersDbContext>(options =>
 builder.Services.Configure<RahkaranOptions>(
     builder.Configuration.GetSection(RahkaranOptions.SectionName));
 
+builder.Services.AddSingleton<System.Net.CookieContainer>();
+builder.Services.AddSingleton<RahkaranAuthenticationSession>();
+builder.Services.AddTransient<RahkaranAuthenticationHandler>();
+
+// Every Rahkaran client shares the same CookieContainer and authenticated session.
+
 builder.Services.AddHttpClient<IRahkaranReceiptClient, RahkaranReceiptClient>((serviceProvider, client) =>
 {
     var rahkaran = serviceProvider.GetRequiredService<IOptions<RahkaranOptions>>().Value;
     client.Timeout = TimeSpan.FromSeconds(Math.Clamp(rahkaran.TimeoutSeconds, 5, 120));
-});
+})
+    .ConfigurePrimaryHttpMessageHandler(serviceProvider => new HttpClientHandler
+    {
+        CookieContainer = serviceProvider.GetRequiredService<System.Net.CookieContainer>(),
+        UseCookies = true
+    })
+    .AddHttpMessageHandler<RahkaranAuthenticationHandler>();
 
-builder.Services.AddHttpClient<IRahkaranDepositReceiptClient, RahkaranDepositReceiptClient>();
+builder.Services.AddHttpClient<IRahkaranDepositReceiptClient, RahkaranDepositReceiptClient>()
+    .ConfigurePrimaryHttpMessageHandler(serviceProvider => new HttpClientHandler
+    {
+        CookieContainer = serviceProvider.GetRequiredService<System.Net.CookieContainer>(),
+        UseCookies = true
+    })
+    .AddHttpMessageHandler<RahkaranAuthenticationHandler>();
 
 builder.Services.AddHttpClient<IRahkaranCustomerClient, RahkaranCustomerClient>((serviceProvider, client) =>
 {
@@ -37,7 +55,13 @@ builder.Services.AddHttpClient<IRahkaranCustomerClient, RahkaranCustomerClient>(
         client.BaseAddress = baseAddress.AbsoluteUri.EndsWith('/')
             ? baseAddress
             : new Uri(baseAddress.AbsoluteUri + "/");
-});
+})
+    .ConfigurePrimaryHttpMessageHandler(serviceProvider => new HttpClientHandler
+    {
+        CookieContainer = serviceProvider.GetRequiredService<System.Net.CookieContainer>(),
+        UseCookies = true
+    })
+    .AddHttpMessageHandler<RahkaranAuthenticationHandler>();
 
 builder.Services.AddHttpClient<IRahkaranSalesRequestClient, RahkaranSalesRequestClient>((serviceProvider, client) =>
 {
@@ -47,7 +71,13 @@ builder.Services.AddHttpClient<IRahkaranSalesRequestClient, RahkaranSalesRequest
         client.BaseAddress = baseAddress.AbsoluteUri.EndsWith('/')
             ? baseAddress
             : new Uri(baseAddress.AbsoluteUri + "/");
-});
+})
+    .ConfigurePrimaryHttpMessageHandler(serviceProvider => new HttpClientHandler
+    {
+        CookieContainer = serviceProvider.GetRequiredService<System.Net.CookieContainer>(),
+        UseCookies = true
+    })
+    .AddHttpMessageHandler<RahkaranAuthenticationHandler>();
 
 builder.Services.AddHostedService<CakeOrders.Web.Services.RahkaranSalesRequestOutboxWorker>();
 
@@ -60,7 +90,13 @@ builder.Services.AddHttpClient<IRahkaranMasterDataClient, RahkaranMasterDataClie
         client.BaseAddress = baseAddress.AbsoluteUri.EndsWith('/')
             ? baseAddress
             : new Uri(baseAddress.AbsoluteUri + "/");
-});
+})
+    .ConfigurePrimaryHttpMessageHandler(serviceProvider => new HttpClientHandler
+    {
+        CookieContainer = serviceProvider.GetRequiredService<System.Net.CookieContainer>(),
+        UseCookies = true
+    })
+    .AddHttpMessageHandler<RahkaranAuthenticationHandler>();
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(options =>

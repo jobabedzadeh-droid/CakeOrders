@@ -57,3 +57,16 @@ Connection strings and secrets must not be committed. Use User Secrets in develo
 
 ## Not production-ready yet
 Full user/role administration, automated tests, complete payment initiation and result callbacks, complete status transition workflows, daily delivery scheduling, online-order approval/rejection actions, backup/restore verification, and Rahkaran integration remain future work. Do not expose the SQL Server port publicly.
+
+## Rahkaran authentication configuration
+
+Rahkaran HTTP clients use a shared server-side session. Before the first API call, CakeOrders obtains a fresh session, encrypts `sessionId**password` with the server-provided RSA public key using PKCS#1 v1.5, posts the login request, and verifies the resulting cookie against `GetAllCashes`. All typed Rahkaran clients share the same in-memory cookie container.
+
+Configure credentials only as protected server environment variables (never in source control or appsettings):
+
+- `Rahkaran__Username`
+- `Rahkaran__Password`
+- `Rahkaran__Enabled` = `true` only after testing with an approved Rahkaran account and environment.
+
+The default `Rahkaran:Enabled` value remains `false`. The authentication handler does not automatically replay failed requests; a 401 invalidates the local session so a later, separate request can establish a fresh session. This is intentional to avoid replaying non-idempotent financial or sales POST operations after an uncertain response.
+- `Rahkaran__SalesRequestDispatchEnabled` = `true` only after sales-request payload mapping and outbox behavior have been explicitly approved. It defaults to `false`, so enabling Rahkaran authentication/master-data access does not automatically dispatch queued sales requests.
