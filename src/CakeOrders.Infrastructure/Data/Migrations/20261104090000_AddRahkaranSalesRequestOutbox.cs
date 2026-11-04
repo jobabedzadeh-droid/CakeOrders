@@ -52,8 +52,8 @@ public sealed partial class AddRahkaranSalesRequestOutbox : Migration
             columns: new[] { "Status", "NextAttemptAtUtc", "CreatedAtUtc" });
     }
 
-    // Keep the durable integration history if this migration is rolled back.
     protected override void Down(MigrationBuilder migrationBuilder)
     {
+        migrationBuilder.DropTable(name: "RahkaranSalesRequestOutbox");
     }
 }
