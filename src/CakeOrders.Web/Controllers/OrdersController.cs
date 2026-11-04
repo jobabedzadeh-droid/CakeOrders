@@ -630,6 +630,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         var model = new OrderEditViewModel
         {
             Id = order.Id,
+            ProductionBranchId = order.ProductionBranchId,
             CustomerName = order.CustomerName,
             CustomerPhone = order.CustomerPhone,
             OrderType = order.OrderType,
