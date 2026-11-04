@@ -11,6 +11,9 @@ public interface IRahkaranMasterDataClient
     Task<IReadOnlyList<RahkaranAccountingOperationDto>> GetAccountingOperationsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranCashFlowFactorDto>> GetCashFlowFactorsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranBankAccountDto>> GetBankAccountsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RahkaranSalesAreaDto>> GetSalesAreasAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RahkaranSalesOfficeDto>> GetSalesOfficesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RahkaranSalesTypeDto>> GetSalesTypesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranCustomerDto>> GetCustomersAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RahkaranCustomerDto>> GetCustomerChangesAsync(
         DateTimeOffset fromDate, DateTimeOffset toDate, long masterEntityId,
@@ -28,6 +31,7 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
     private const string Financial = "ReceiptAndPayment/FinancialOperation/Services/FinancialOperationService.svc/";
     private const string Branches = "General/BranchManagement/Services/BranchService.svc/";
     private const string Parties = "Sales/PartyManagement/Services/PartyManagementService.svc/";
+    private const string SalesStructure = "Sales/SalesStructure/Services/SalesStructureService.svc/";
 
     public Task<IReadOnlyList<RahkaranBranchDto>> GetBranchesAsync(CancellationToken ct = default) =>
         GetListAsync<RahkaranBranchDto>(Branches + "GetBranches", ct);
@@ -43,6 +47,15 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
 
     public Task<IReadOnlyList<RahkaranBankAccountDto>> GetBankAccountsAsync(CancellationToken ct = default) =>
         GetListAsync<RahkaranBankAccountDto>(Treasury + "GetAllBankAccounts", ct);
+
+    public Task<IReadOnlyList<RahkaranSalesAreaDto>> GetSalesAreasAsync(CancellationToken ct = default) =>
+        GetListAsync<RahkaranSalesAreaDto>(SalesStructure + "GetSalesAreas", ct);
+
+    public Task<IReadOnlyList<RahkaranSalesOfficeDto>> GetSalesOfficesAsync(CancellationToken ct = default) =>
+        GetListAsync<RahkaranSalesOfficeDto>(SalesStructure + "GetSalesOffices", ct);
+
+    public Task<IReadOnlyList<RahkaranSalesTypeDto>> GetSalesTypesAsync(CancellationToken ct = default) =>
+        GetListAsync<RahkaranSalesTypeDto>(SalesStructure + "GetSalesTypes", ct);
 
     public Task<IReadOnlyList<RahkaranCustomerDto>> GetCustomersAsync(CancellationToken ct = default) =>
         GetListAsync<RahkaranCustomerDto>(Parties + "GetCustomers", ct);
@@ -155,4 +168,42 @@ public sealed class RahkaranCustomerListRequest
     [JsonPropertyName("MasterEntityID")] public long MasterEntityID { get; init; }
     [JsonPropertyName("PageIndex")] public int PageIndex { get; init; }
     [JsonPropertyName("PageSize")] public int PageSize { get; init; }
+}
+
+public sealed class RahkaranSalesAreaDto
+{
+    [JsonPropertyName("id"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long Id { get; init; }
+    [JsonPropertyName("code")] public string? Code { get; init; }
+    [JsonPropertyName("name")] public string? Name { get; init; }
+    [JsonPropertyName("stateTitle")] public string? StateTitle { get; init; }
+}
+
+public sealed class RahkaranSalesOfficeDto
+{
+    [JsonPropertyName("id"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long Id { get; init; }
+    [JsonPropertyName("code")] public string? Code { get; init; }
+    [JsonPropertyName("name")] public string? Name { get; init; }
+    [JsonPropertyName("branchRef")] public string? BranchRef { get; init; }
+    [JsonPropertyName("stateTitle")] public string? StateTitle { get; init; }
+    [JsonPropertyName("areas")] public IReadOnlyList<RahkaranSalesOfficeAreaDto> Areas { get; init; } = [];
+}
+
+public sealed class RahkaranSalesOfficeAreaDto
+{
+    [JsonPropertyName("id"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long Id { get; init; }
+    [JsonPropertyName("salesAreaRef"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long SalesAreaRef { get; init; }
+    [JsonPropertyName("isDefault")] public bool IsDefault { get; init; }
+}
+
+public sealed class RahkaranSalesTypeDto
+{
+    [JsonPropertyName("id"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long Id { get; init; }
+    [JsonPropertyName("number")] public string? Number { get; init; }
+    [JsonPropertyName("name")] public string? Name { get; init; }
+    [JsonPropertyName("stateTitle")] public string? StateTitle { get; init; }
 }
