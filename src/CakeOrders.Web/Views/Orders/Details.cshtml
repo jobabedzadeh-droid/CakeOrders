@@ -84,6 +84,7 @@
         <div><small>وضعیت بیعانه</small><b>@(Model.RequestedDepositAmount <= 0 ? "بدون بیعانه" : Model.DepositAmount >= Model.RequestedDepositAmount ? "پرداخت کامل" : Model.DepositAmount > 0 ? "پرداخت ناقص" : "در انتظار پرداخت")</b></div>
         <div><small>مانده</small><b>@Model.RemainingAmount.ToString("N0")</b></div>
         <div><small>کانال</small><b>@(Model.Channel == OrderChannel.Online ? "آنلاین" : "حضوری")</b></div>
+        <div><small>معرف</small><b>@(Model.Referrer is not null ? $"{Model.Referrer.FirstName} {Model.Referrer.LastName} ({Model.Referrer.Code})" : !string.IsNullOrWhiteSpace(Model.ReferrerCode) ? Model.ReferrerCode : "—")</b></div>
         @if (isBirthdayCake)
         {
             <div><small>قالب کیک</small><b>@(Model.MoldType ?? "—")</b></div>
