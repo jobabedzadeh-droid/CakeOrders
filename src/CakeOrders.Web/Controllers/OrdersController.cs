@@ -208,6 +208,18 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (model.RequestedDepositAmount > Math.Max(0, model.CalculatedTotal))
             ModelState.AddModelError(nameof(model.RequestedDepositAmount), "بیعانه درخواستی نمی‌تواند از مبلغ نهایی بیشتر باشد.");
 
+        long? referrerId = null;
+        if (!string.IsNullOrWhiteSpace(model.ReferrerCode))
+        {
+            referrerId = await db.Referrers.AsNoTracking()
+                .Where(x => x.IsActive && x.Code == model.ReferrerCode.Trim())
+                .Select(x => (long?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!referrerId.HasValue)
+                ModelState.AddModelError(nameof(model.ReferrerCode), "کد معرف معتبر نیست یا در فهرست کارکنان وجود ندارد.");
+        }
+
         ValidateImage(model.SampleImage, nameof(model.SampleImage));
         ValidateImage(model.PrintImage, nameof(model.PrintImage));
 
@@ -263,7 +275,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             FinalAmount = model.CalculatedTotal,
             RequestedDepositAmount = model.RequestedDepositAmount,
             DepositAmount = 0,
-            ReferrerCode = model.ReferrerCode?.Trim()
+            ReferrerCode = model.ReferrerCode?.Trim(),
+            ReferrerId = referrerId
         };
         order.StatusHistory.Add(new OrderStatusHistory
         {
@@ -318,6 +331,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         var order = await db.Orders
             .AsNoTracking()
             .Include(x => x.StatusHistory)
+            .Include(x => x.Referrer)
             .Include(x => x.Items)
                 .ThenInclude(x => x.Workshop)
             .FirstOrDefaultAsync(x => x.Id == id &&
@@ -680,6 +694,18 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
                 "بیعانه درخواستی نمی‌تواند از بیعانه پرداخت‌شده کمتر یا از مبلغ نهایی بیشتر باشد.");
         }
 
+        long? referrerId = null;
+        if (!string.IsNullOrWhiteSpace(model.ReferrerCode))
+        {
+            referrerId = await db.Referrers.AsNoTracking()
+                .Where(x => x.IsActive && x.Code == model.ReferrerCode.Trim())
+                .Select(x => (long?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!referrerId.HasValue)
+                ModelState.AddModelError(nameof(model.ReferrerCode), "کد معرف معتبر نیست یا در فهرست کارکنان وجود ندارد.");
+        }
+
         // اعتبارسنجی تصاویر جدید
         ValidateImage(model.SampleImage, nameof(model.SampleImage));
         ValidateImage(model.PrintImage, nameof(model.PrintImage));
@@ -826,6 +852,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         order.RequestedDepositAmount = model.RequestedDepositAmount;
 
         order.ReferrerCode = model.ReferrerCode?.Trim();
+        order.ReferrerId = referrerId;
 
         order.UpdatedByUserId =
             User.FindFirstValue(ClaimTypes.NameIdentifier);
