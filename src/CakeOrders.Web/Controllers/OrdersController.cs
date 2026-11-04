@@ -630,7 +630,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         var model = new OrderEditViewModel
         {
             Id = order.Id,
-            ProductionBranchId = order.ProductionBranchId,
+            ProductionBranchId = order.ProductionBranchId ?? 0,
             CustomerName = order.CustomerName,
             CustomerPhone = order.CustomerPhone,
             OrderType = order.OrderType,
@@ -668,6 +668,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         if (id != model.Id)
             return BadRequest();
+
+        // ProductionBranchId is required for creating an order, but is not editable here.
+        // Keep the persisted value unchanged and do not validate the hidden edit-form value.
+        ModelState.Remove(nameof(model.ProductionBranchId));
 
         var order = await db.Orders
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
