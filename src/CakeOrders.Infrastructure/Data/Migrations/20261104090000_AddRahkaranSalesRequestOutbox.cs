@@ -7,8 +7,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace CakeOrders.Infrastructure.Data.Migrations;
 
-[DbContext(typeof(CakeOrdersDbContext))]
-[Migration("20261104090000_AddRahkaranSalesRequestOutbox")]
 public sealed class AddRahkaranSalesRequestOutbox : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
