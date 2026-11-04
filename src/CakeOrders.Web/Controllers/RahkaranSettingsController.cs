@@ -174,10 +174,9 @@ public sealed class RahkaranSettingsController(
         catch (Exception ex)
         {
             logger.LogError(
-                "Rahkaran employee synchronization failed during phase '{Phase}'. ExceptionType={ExceptionType}; StackTrace={StackTrace}",
-                phase,
-                ex.GetType().FullName,
-                ex.StackTrace);
+                ex,
+                "Rahkaran employee synchronization failed during phase '{Phase}'.",
+                phase);
 
             TempData["Error"] = "دریافت یا ذخیره فهرست کارکنان از راهکاران ناموفق بود. جزئیات خطا در لاگ برنامه ثبت شده است؛ اطلاعات قبلی حفظ شده‌اند.";
         }
