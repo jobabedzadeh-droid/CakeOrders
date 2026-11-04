@@ -19,6 +19,17 @@ public sealed partial class AddOrderReferrerRelationship : Migration
             type: "bigint",
             nullable: true);
 
+        // Preserve and normalize existing referrer links where the stored code matches an employee.
+        migrationBuilder.Sql("""
+            UPDATE o
+            SET o.ReferrerId = r.Id
+            FROM Orders AS o
+            INNER JOIN Referrers AS r
+                ON LTRIM(RTRIM(o.ReferrerCode)) = r.Code
+            WHERE o.ReferrerCode IS NOT NULL
+              AND LTRIM(RTRIM(o.ReferrerCode)) <> '';
+            """);
+
         migrationBuilder.CreateIndex(
             name: "IX_Orders_ReferrerId",
             table: "Orders",
