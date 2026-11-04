@@ -79,6 +79,10 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
             entity.Property(x => x.LastName).HasMaxLength(100).IsRequired();
             entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasMany(x => x.Orders)
+                .WithOne(x => x.Referrer)
+                .HasForeignKey(x => x.ReferrerId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<OrderStatusHistory>(entity =>
         {
