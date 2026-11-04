@@ -143,7 +143,7 @@ public sealed class RahkaranSalesRequestOutboxWorker(
             if (missing.Count > 0)
                 throw new InvalidOperationException("نگاشت یا داده‌های لازم تکمیل نیست: " + string.Join("، ", missing));
 
-            var localDate = new DateTimeOffset(order.CreatedAtUtc, TimeSpan.FromHours(3.5));
+            var localDate = new DateTimeOffset(order.CreatedAtUtc).ToOffset(TimeSpan.FromHours(3.5));
             var milliseconds = localDate.ToUnixTimeMilliseconds();
             var request = new RahkaranSaleRequest
             {
