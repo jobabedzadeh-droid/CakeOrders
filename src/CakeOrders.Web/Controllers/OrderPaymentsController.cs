@@ -92,6 +92,9 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
             var previous = order.Status;
             order.Status = OrderStatus.Confirmed;
             order.UpdatedByUserId = userId;
+
+            await RahkaranSalesRequestOutboxEnqueuer.EnqueueIfMissingAsync(
+                db, order.Id, now, cancellationToken);
             order.StatusHistory.Add(new OrderStatusHistory
             {
                 PreviousStatus = previous, NewStatus = OrderStatus.Confirmed,

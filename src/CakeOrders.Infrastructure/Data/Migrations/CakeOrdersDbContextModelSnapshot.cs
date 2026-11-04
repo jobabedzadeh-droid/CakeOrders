@@ -923,6 +923,60 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.ToTable("Referrers");
                 });
 
+            modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranSalesRequestOutbox", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("LastAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("ProcessingStartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RemoteSalesRequestId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RemoteSalesRequestNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "CreatedAtUtc");
+
+                    b.ToTable("RahkaranSalesRequestOutbox");
+                });
+
             modelBuilder.Entity("CakeOrders.Domain.Entities.UserNotification", b =>
                 {
                     b.Property<long>("Id")
@@ -1431,6 +1485,17 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Navigation("OrderItem");
 
                     b.Navigation("ProductionTask");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranSalesRequestOutbox", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.UserNotification", b =>

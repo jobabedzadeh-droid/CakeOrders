@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature/rahkaran-sales-request-outbox ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, feature/workshop-review-workflow ]
 
 jobs:
   build:
