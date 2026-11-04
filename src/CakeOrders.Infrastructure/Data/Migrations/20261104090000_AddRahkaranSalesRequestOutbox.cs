@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace CakeOrders.Infrastructure.Data.Migrations;
 
-public sealed class AddRahkaranSalesRequestOutbox : Migration
+public sealed partial class AddRahkaranSalesRequestOutbox : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
