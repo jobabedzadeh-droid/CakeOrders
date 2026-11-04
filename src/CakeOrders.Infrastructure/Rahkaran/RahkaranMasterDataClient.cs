@@ -77,14 +77,25 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
 
         var payload = document.RootElement;
 
-        if (payload.TryGetProperty("GetEmployeeListResponse", out var responseElement))
+        // Rahkaran may return either a direct JSON array or a WCF-style object wrapper.
+        // TryGetProperty is valid only for JSON objects, so inspect the token kind first.
+        if (payload.ValueKind == JsonValueKind.Object &&
+            payload.TryGetProperty("GetEmployeeListResponse", out var responseElement))
+        {
             payload = responseElement;
+        }
 
-        if (payload.TryGetProperty("GetEmployeeListResult", out var resultElement))
+        if (payload.ValueKind == JsonValueKind.Object &&
+            payload.TryGetProperty("GetEmployeeListResult", out var resultElement))
+        {
             payload = resultElement;
+        }
 
-        if (payload.TryGetProperty("EmployeeDocument", out var employeeDocumentElement))
+        if (payload.ValueKind == JsonValueKind.Object &&
+            payload.TryGetProperty("EmployeeDocument", out var employeeDocumentElement))
+        {
             payload = employeeDocumentElement;
+        }
 
         var employees = new List<RahkaranEmployeeDto>();
 
