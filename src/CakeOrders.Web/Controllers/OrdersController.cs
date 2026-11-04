@@ -513,6 +513,12 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         order.Status = model.NewStatus;
         order.UpdatedByUserId = userId;
 
+        if (model.NewStatus == OrderStatus.Confirmed)
+        {
+            await RahkaranSalesRequestOutboxEnqueuer.EnqueueIfMissingAsync(
+                db, order.Id, now, cancellationToken);
+        }
+
         if (model.NewStatus == OrderStatus.Rejected)
             order.RejectionReason = model.Note!.Trim();
 
