@@ -347,6 +347,9 @@ public sealed class BridgeController(CakeOrdersDbContext db, IOrderProductionRou
                             var previousOrderStatus = payment.Order.Status;
                             payment.Order.Status = OrderStatus.Confirmed;
                             payment.Order.UpdatedByUserId = null;
+
+                            await RahkaranSalesRequestOutboxEnqueuer.EnqueueIfMissingAsync(
+                                db, payment.Order.Id, now, cancellationToken);
                             payment.Order.StatusHistory.Add(new OrderStatusHistory
                             {
                                 PreviousStatus = previousOrderStatus,
