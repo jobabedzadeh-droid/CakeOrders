@@ -14,7 +14,8 @@ namespace CakeOrders.Web.Controllers;
 public sealed class RahkaranSettingsController(
     CakeOrdersDbContext db,
     IRahkaranMasterDataClient rahkaran,
-    IOptions<RahkaranOptions> options) : Controller
+    IOptions<RahkaranOptions> options,
+    ILogger<RahkaranSettingsController> logger) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -58,27 +59,63 @@ public sealed class RahkaranSettingsController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SyncEmployees(CancellationToken cancellationToken)
     {
+        var phase = "دریافت فهرست کارکنان";
+
         try
         {
-            var receivedEmployees = await rahkaran.GetEmployeesAsync(cancellationToken);
+            logger.LogInformation("Rahkaran employee synchronization started.");
 
-            var employees = receivedEmployees
+            var receivedEmployees = await rahkaran.GetEmployeesAsync(cancellationToken);
+            var employeesWithCode = receivedEmployees
                 .Where(x => !string.IsNullOrWhiteSpace(x.Code))
+                .ToList();
+
+            var employees = employeesWithCode
                 .GroupBy(x => x.Code!.Trim(), StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.First())
                 .ToList();
 
+            logger.LogInformation(
+                "Rahkaran employee response processed. Received={ReceivedCount}, WithPersonnelCode={WithCodeCount}, UniquePersonnelCodes={UniqueCodeCount}.",
+                receivedEmployees.Count,
+                employeesWithCode.Count,
+                employees.Count);
+
             if (employees.Count == 0)
             {
+                logger.LogWarning(
+                    "Rahkaran employee synchronization stopped because no employee with a valid personnel code was returned. Received={ReceivedCount}.",
+                    receivedEmployees.Count);
+
                 TempData["Error"] = "فهرست کارکنان از راهکاران خالی بود یا کد پرسنلی معتبری در پاسخ وجود نداشت؛ اطلاعات داخلی تغییری نکرد.";
                 return RedirectToAction(nameof(Index));
             }
 
+            phase = "خواندن کارکنان موجود از پایگاه داده";
             var existingReferrers = await db.Referrers.ToListAsync(cancellationToken);
-            var referrersByCode = existingReferrers.ToDictionary(
-                x => x.Code,
-                StringComparer.OrdinalIgnoreCase);
 
+            var duplicateExistingCodes = existingReferrers
+                .GroupBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
+                .Count(group => group.Count() > 1);
+
+            if (duplicateExistingCodes > 0)
+            {
+                logger.LogWarning(
+                    "Duplicate personnel codes already exist in the local Referrers table. DuplicateGroups={DuplicateGroupCount}. The first record per code will be used for matching; existing records will not be deleted.",
+                    duplicateExistingCodes);
+            }
+
+            var referrersByCode = existingReferrers
+                .GroupBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(),
+                    StringComparer.OrdinalIgnoreCase);
+
+            logger.LogInformation(
+                "Local referrers loaded for synchronization. ExistingRecords={ExistingCount}, DistinctCodes={DistinctCodeCount}.",
+                existingReferrers.Count,
+                referrersByCode.Count);
+
+            phase = "به‌روزرسانی اطلاعات کارکنان";
             var addedCount = 0;
             var updatedCount = 0;
 
@@ -118,14 +155,31 @@ public sealed class RahkaranSettingsController(
                 }
             }
 
+            phase = "ذخیره تغییرات در پایگاه داده";
+            logger.LogInformation(
+                "Saving Rahkaran employee synchronization changes. Added={AddedCount}, Updated={UpdatedCount}.",
+                addedCount,
+                updatedCount);
+
             await db.SaveChangesAsync(cancellationToken);
+
+            logger.LogInformation(
+                "Rahkaran employee synchronization completed successfully. Added={AddedCount}, Updated={UpdatedCount}, PreviousRecordsPreserved=true.",
+                addedCount,
+                updatedCount);
 
             TempData["Success"] =
                 $"فهرست کارکنان با موفقیت همگام‌سازی شد؛ {addedCount} کارمند جدید و {updatedCount} کارمند به‌روزرسانی شدند. کارکنان قبلی که در پاسخ جدید نبودند حذف نشدند.";
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            TempData["Error"] = "دریافت یا ذخیره فهرست کارکنان از راهکاران ناموفق بود. اتصال و دسترسی سرویس را بررسی کنید؛ اطلاعات قبلی حفظ شده‌اند.";
+            logger.LogError(
+                "Rahkaran employee synchronization failed during phase '{Phase}'. ExceptionType={ExceptionType}; StackTrace={StackTrace}",
+                phase,
+                ex.GetType().FullName,
+                ex.StackTrace);
+
+            TempData["Error"] = "دریافت یا ذخیره فهرست کارکنان از راهکاران ناموفق بود. جزئیات خطا در لاگ برنامه ثبت شده است؛ اطلاعات قبلی حفظ شده‌اند.";
         }
 
         return RedirectToAction(nameof(Index));
