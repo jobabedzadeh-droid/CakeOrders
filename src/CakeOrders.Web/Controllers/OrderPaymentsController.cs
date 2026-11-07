@@ -79,18 +79,18 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
         await db.SaveChangesAsync(cancellationToken); // Generate payment ID before linking its receipt outbox row.
         order.PaidAmount += amount;
         if (purpose == PaymentPurpose.Deposit)
-        {
             order.DepositAmount += amount;
-            db.RahkaranReceiptOutbox.Add(new RahkaranReceiptOutbox
-            {
-                OrderId = order.Id,
-                OrderCashPaymentId = cashPayment.Id,
-                Source = RahkaranReceiptSource.Cash,
-                Amount = amount,
-                Status = RahkaranReceiptSyncStatus.Pending,
-                CreatedAtUtc = now
-            });
-        }
+
+        // Every confirmed cash receipt (deposit or settlement) is sent to Rahkaran.
+        db.RahkaranReceiptOutbox.Add(new RahkaranReceiptOutbox
+        {
+            OrderId = order.Id,
+            OrderCashPaymentId = cashPayment.Id,
+            Source = RahkaranReceiptSource.Cash,
+            Amount = amount,
+            Status = RahkaranReceiptSyncStatus.Pending,
+            CreatedAtUtc = now
+        });
 
         if (purpose == PaymentPurpose.Deposit && order.Status == OrderStatus.PendingReview &&
             order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount)
