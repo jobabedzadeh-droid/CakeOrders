@@ -37,6 +37,7 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
             // Its documented MasterEntityID is the customer ID, so enrich each indexed row.
             var remoteCustomers = new List<RahkaranCustomerDto>(customerIndex.Count);
             var detailFailures = 0;
+            var detailFailureIds = new HashSet<long>();
             var fromDate = new DateTimeOffset(1900, 1, 1, 0, 0, 0, TimeSpan.Zero);
             var toDate = DateTimeOffset.UtcNow;
 
@@ -48,11 +49,21 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                         fromDate, toDate, indexedCustomer.Id, 1, 100, cancellationToken);
                     var detailedCustomer = details.FirstOrDefault(x => x.Id == indexedCustomer.Id)
                         ?? details.FirstOrDefault();
-                    remoteCustomers.Add(detailedCustomer ?? indexedCustomer);
+                    if (detailedCustomer is null)
+                    {
+                        detailFailures++;
+                        detailFailureIds.Add(indexedCustomer.Id);
+                        remoteCustomers.Add(indexedCustomer);
+                    }
+                    else
+                    {
+                        remoteCustomers.Add(detailedCustomer);
+                    }
                 }
                 catch (Exception ex)
                 {
                     detailFailures++;
+                    detailFailureIds.Add(indexedCustomer.Id);
                     HttpContext.RequestServices.GetRequiredService<ILogger<CustomersController>>()
                         .LogWarning(ex,
                             "Could not retrieve detailed Rahkaran customer data for CustomerID={CustomerId}; the basic customer record will be retained.",
@@ -156,21 +167,26 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 local.Telephone = remote.Tel?.Trim();
                 local.Fax = remote.Fax?.Trim();
                 local.PostalCode = remote.ZipCode?.Trim();
-                local.AddressesJson = remote.Addresses?.GetRawText();
                 local.Details = remote.Details;
-                local.NationalId = remote.NationalId?.Trim();
-                local.EconomicCode = remote.EconomicCode?.Trim();
-                local.RegistrationCode = remote.RegistrationCode?.Trim();
-                local.WebsiteUrl = remote.WebsiteUrl?.Trim();
                 local.RahkaranStateCode = remote.StateCode;
                 local.RahkaranStateTitle = remote.StateTitle?.Trim();
                 local.RahkaranTypeCode = remote.TypeCode;
                 local.RahkaranTypeTitle = remote.TypeTitle?.Trim();
-                local.RahkaranStatus = remote.Status;
-                local.RahkaranPartyType = remote.PartyType ?? remote.Type;
-                local.RahkaranCreatedAt = remote.CreationDate?.UtcDateTime;
-                local.RahkaranLastModifiedAt = remote.LastModificationDate?.UtcDateTime;
-                local.RahkaranRawDataJson = JsonSerializer.Serialize(remote);
+
+                // A failed detail request must never erase richer data from a previous sync.
+                if (!detailFailureIds.Contains(remote.Id))
+                {
+                    local.NationalId = remote.NationalId?.Trim();
+                    local.EconomicCode = remote.EconomicCode?.Trim();
+                    local.RegistrationCode = remote.RegistrationCode?.Trim();
+                    local.WebsiteUrl = remote.WebsiteUrl?.Trim();
+                    local.RahkaranStatus = remote.Status;
+                    local.RahkaranPartyType = remote.PartyType ?? remote.Type;
+                    local.RahkaranCreatedAt = remote.CreationDate?.UtcDateTime;
+                    local.RahkaranLastModifiedAt = remote.LastModificationDate?.UtcDateTime;
+                    local.RahkaranRawDataJson = JsonSerializer.Serialize(remote);
+                    local.AddressesJson = remote.Addresses?.GetRawText();
+                }
                 local.LastRahkaranSyncAtUtc = now;
                 local.UpdatedAtUtc = now;
 
