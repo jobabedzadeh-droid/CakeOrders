@@ -103,7 +103,6 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.RahkaranTypeTitle).HasMaxLength(150);
             entity.Property(x => x.RahkaranRawDataJson).HasColumnType("nvarchar(max)");
             entity.HasIndex(x => x.RahkaranCustomerId)
-                .IsUnique()
                 .HasFilter("[RahkaranCustomerId] IS NOT NULL");
             entity.HasIndex(x => x.RahkaranDLCode);
             entity.HasIndex(x => x.NormalizedPhone).IsUnique();
