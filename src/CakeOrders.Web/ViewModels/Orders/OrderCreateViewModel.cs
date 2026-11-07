@@ -12,6 +12,8 @@ public class OrderCreateViewModel
 
     // Selected internal customer; required when creating a new order.
     public long? CustomerId { get; set; }
+    public string? CustomerFirstName { get; set; }
+    public string? CustomerLastName { get; set; }
 
     public IEnumerable<SelectListItem> ProductionBranches { get; set; } = Enumerable.Empty<SelectListItem>();
 
