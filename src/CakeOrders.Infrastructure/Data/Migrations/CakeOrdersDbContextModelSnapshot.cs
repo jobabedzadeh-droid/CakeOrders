@@ -197,7 +197,7 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<string>("WebsiteUrl").HasMaxLength(500).HasColumnType("nvarchar(500)");
                     b.HasKey("Id");
                     b.HasIndex("NormalizedPhone").IsUnique();
-                    b.HasIndex("RahkaranCustomerId").IsUnique().HasFilter("[RahkaranCustomerId] IS NOT NULL");
+                    b.HasIndex("RahkaranCustomerId").HasFilter("[RahkaranCustomerId] IS NOT NULL");
                     b.HasIndex("RahkaranDLCode");
                     b.ToTable("Customers");
                 });
