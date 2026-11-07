@@ -24,6 +24,12 @@ public sealed class ExpandRahkaranCustomerData : Migration
         migrationBuilder.AddColumn<string>(
             name: "CompanyName", table: "Customers", type: "nvarchar(300)", maxLength: 300, nullable: true);
         migrationBuilder.AddColumn<string>(
+            name: "AddressesJson", table: "Customers", type: "nvarchar(max)", nullable: true);
+        migrationBuilder.AddColumn<string>(
+            name: "Fax", table: "Customers", type: "nvarchar(50)", maxLength: 50, nullable: true);
+        migrationBuilder.AddColumn<string>(
+            name: "PostalCode", table: "Customers", type: "nvarchar(30)", maxLength: 30, nullable: true);
+        migrationBuilder.AddColumn<string>(
             name: "Details", table: "Customers", type: "nvarchar(max)", nullable: true);
         migrationBuilder.AddColumn<string>(
             name: "EconomicCode", table: "Customers", type: "nvarchar(50)", maxLength: 50, nullable: true);
@@ -94,6 +100,9 @@ public sealed class ExpandRahkaranCustomerData : Migration
         migrationBuilder.DropIndex(name: "IX_Customers_RahkaranDLCode", table: "Customers");
 
         migrationBuilder.DropColumn(name: "CompanyName", table: "Customers");
+        migrationBuilder.DropColumn(name: "AddressesJson", table: "Customers");
+        migrationBuilder.DropColumn(name: "Fax", table: "Customers");
+        migrationBuilder.DropColumn(name: "PostalCode", table: "Customers");
         migrationBuilder.DropColumn(name: "Details", table: "Customers");
         migrationBuilder.DropColumn(name: "EconomicCode", table: "Customers");
         migrationBuilder.DropColumn(name: "Email", table: "Customers");
