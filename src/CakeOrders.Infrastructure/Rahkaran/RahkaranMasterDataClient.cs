@@ -73,8 +73,14 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
             var customers = new List<RahkaranCustomerDto>();
             foreach (var item in payload.EnumerateArray())
             {
+                var customerElement = FindCustomerCollection(item);
+                if (customerElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
+                    customerElement = item;
+                if (customerElement.ValueKind == JsonValueKind.Array)
+                    continue;
+
                 var customer = JsonSerializer.Deserialize<RahkaranCustomerDto>(
-                    item.GetRawText(), JsonOptions);
+                    customerElement.GetRawText(), JsonOptions);
                 if (customer is not null && customer.Id > 0)
                     customers.Add(customer);
             }
@@ -99,6 +105,9 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
         if (element.ValueKind != JsonValueKind.Object)
             return default;
 
+        if (element.TryGetProperty("id", out _) || element.TryGetProperty("ID", out _))
+            return element;
+
         // WCF versions may wrap the list in Response/Result/CustomerDocument objects.
         foreach (var property in element.EnumerateObject())
         {
@@ -113,9 +122,6 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
                 (nested.TryGetProperty("id", out _) || nested.TryGetProperty("ID", out _)))
                 return nested;
         }
-
-        if (element.TryGetProperty("id", out _) || element.TryGetProperty("ID", out _))
-            return element;
 
         return default;
     }
