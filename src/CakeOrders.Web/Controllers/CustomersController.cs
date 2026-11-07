@@ -26,7 +26,7 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
             if (customerIndex.Count == 0)
             {
                 TempData["Error"] = "راهکاران هیچ مشتری‌ای برنگرداند؛ برای جلوگیری از همگام‌سازی اشتباه، اطلاعات داخلی تغییر نکرد.";
-                return RedirectToAction(nameof(Index), "Home");
+                return RedirectToAction("Index", "RahkaranSettings");
             }
 
             // GetCustomers is the lightweight index. GetCustomerList returns the richer
@@ -186,7 +186,7 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
             TempData["Error"] = "همگام‌سازی مشتریان راهکاران ناموفق بود؛ اطلاعات قبلی حفظ شدند. جزئیات در لاگ برنامه ثبت شده است.";
         }
 
-        return RedirectToAction(nameof(Index), "Home");
+        return RedirectToAction("Index", "RahkaranSettings");
     }
 
     [HttpGet]
