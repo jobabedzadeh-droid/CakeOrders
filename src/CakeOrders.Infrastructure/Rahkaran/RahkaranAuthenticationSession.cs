@@ -56,9 +56,11 @@ public sealed class RahkaranAuthenticationSession : IDisposable
             if (_authenticated)
                 return;
 
-            if (!_options.Enabled)
+            // Read-only master-data access is independently configurable.
+            // Financial receipt and sales-request workers still require Enabled.
+            if (!_options.Enabled && !_options.MasterDataEnabled)
                 throw new InvalidOperationException(
-                    "Rahkaran integration is disabled. Set Rahkaran:Enabled=true only after configuring credentials and validating the environment.");
+                    "Rahkaran access is disabled. Enable Rahkaran:MasterDataEnabled for read-only master data, or Rahkaran:Enabled only after validating financial integration.");
 
             if (string.IsNullOrWhiteSpace(_options.Username) ||
                 string.IsNullOrWhiteSpace(_options.Password))
