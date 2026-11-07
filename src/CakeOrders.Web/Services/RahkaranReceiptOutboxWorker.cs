@@ -94,12 +94,27 @@ public sealed class RahkaranReceiptOutboxWorker(
         try
         {
             var order = entry.Order;
-            if (string.IsNullOrWhiteSpace(order.RahkaranCustomerId) ||
-                !long.TryParse(order.RahkaranCustomerId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var customerId) ||
-                customerId <= 0)
-                throw new InvalidOperationException("شناسه مشتری راهکاران روی سفارش ثبت نشده است.");
-
             var customers = await masterData.GetCustomersAsync(ct);
+            long customerId;
+            if (!long.TryParse(order.RahkaranCustomerId, NumberStyles.Integer, CultureInfo.InvariantCulture, out customerId) ||
+                customerId <= 0)
+            {
+                var mobile = NormalizeMobile(order.CustomerPhone);
+                if (mobile.Length < 10)
+                    throw new InvalidOperationException("شماره موبایل مشتری برای تطبیق با راهکاران معتبر نیست.");
+
+                var mobileMatches = customers
+                    .Where(x => NormalizeMobile(x.Mobile) == mobile)
+                    .ToList();
+                if (mobileMatches.Count != 1)
+                    throw new InvalidOperationException(mobileMatches.Count == 0
+                        ? "مشتری با این شماره موبایل در راهکاران یافت نشد."
+                        : "چند مشتری با این شماره موبایل در راهکاران وجود دارد؛ انتخاب مشتری باید دستی انجام شود.");
+
+                customerId = mobileMatches[0].Id;
+                order.RahkaranCustomerId = customerId.ToString(CultureInfo.InvariantCulture);
+            }
+
             var customerMatches = customers.Where(x => x.Id == customerId).ToList();
             if (customerMatches.Count != 1 || string.IsNullOrWhiteSpace(customerMatches[0].DLCode))
                 throw new InvalidOperationException("کد تفصیلی مشتری از راهکاران به‌صورت یکتا دریافت نشد؛ ابتدا اطلاعات مشتری را بررسی کنید.");
@@ -211,5 +226,21 @@ public sealed class RahkaranReceiptOutboxWorker(
             entry.LastError = ex.Message.Length <= 2000 ? ex.Message : ex.Message[..2000];
             await db.SaveChangesAsync(ct);
         }
+    }
+
+    private static string NormalizeMobile(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "";
+        var digits = new string(value.Select(ch => ch switch
+        {
+            >= '۰' and <= '۹' => (char)('0' + ch - '۰'),
+            >= '٠' and <= '٩' => (char)('0' + ch - '٠'),
+            _ => ch
+        }).Where(char.IsDigit).ToArray());
+
+        if (digits.StartsWith("0098", StringComparison.Ordinal)) digits = digits[4..];
+        else if (digits.StartsWith("98", StringComparison.Ordinal) && digits.Length == 12) digits = digits[2..];
+        if (digits.Length == 10 && digits[0] == '9') digits = "0" + digits;
+        return digits;
     }
 }
