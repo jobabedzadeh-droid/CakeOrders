@@ -3,6 +3,8 @@ using CakeOrders.Infrastructure.Data;
 using CakeOrders.Infrastructure.Rahkaran;
 using System.Text.Json;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using CakeOrders.Web.Services;
 using CakeOrders.Web.ViewModels.Customers;
 using Microsoft.AspNetCore.Authorization;
@@ -99,7 +101,9 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 {
                     // Customers without a valid mobile are still retained. The R-prefixed key
                     // is deliberately outside the Iranian-mobile format and cannot match lookups.
-                    var normalizedKey = mobileIsValid ? phone : "R" + remote.Id.ToString(CultureInfo.InvariantCulture);
+                    var normalizedKey = mobileIsValid
+                        ? phone
+                        : "R" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(remoteId)))[..10];
                     if (byPhone.ContainsKey(normalizedKey))
                     {
                         skipped++;
