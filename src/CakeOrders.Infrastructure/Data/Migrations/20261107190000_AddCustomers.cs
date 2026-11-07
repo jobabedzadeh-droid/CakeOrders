@@ -57,6 +57,72 @@ public sealed class AddCustomers : Migration
             principalTable: "Customers",
             principalColumn: "Id",
             onDelete: ReferentialAction.Restrict);
+
+        // Import customers from historical orders so existing phone numbers are recognized
+        // immediately. Orders sharing a normalized mobile number point to one customer.
+        migrationBuilder.Sql(@"
+SELECT
+    o.Id AS OrderId,
+    LTRIM(RTRIM(o.CustomerName)) AS CustomerName,
+    o.RahkaranCustomerId,
+    o.CreatedAtUtc,
+    CASE
+        WHEN LEFT(cleaned.Digits, 4) = '0098' AND LEN(cleaned.Digits) = 14 THEN '0' + SUBSTRING(cleaned.Digits, 5, 10)
+        WHEN LEFT(cleaned.Digits, 2) = '98' AND LEN(cleaned.Digits) = 12 THEN '0' + SUBSTRING(cleaned.Digits, 3, 10)
+        WHEN LEFT(cleaned.Digits, 1) = '9' AND LEN(cleaned.Digits) = 10 THEN '0' + cleaned.Digits
+        ELSE cleaned.Digits
+    END AS NormalizedPhone
+INTO #OrderCustomerPhones
+FROM Orders o
+CROSS APPLY
+(
+    SELECT TRANSLATE(
+        COALESCE(o.CustomerPhone, ''),
+        N'۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩',
+        N'01234567890123456789') AS Digits
+) translated
+CROSS APPLY
+(
+    SELECT REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+        translated.Digits, N' ', N''), N'-', N''), N'(', N''), N')', N''), N'+', N''), N'.', N''), N'_', N'') AS Digits
+) cleaned
+WHERE o.CustomerName IS NOT NULL
+  AND LEN(LTRIM(RTRIM(o.CustomerName))) > 0;
+
+;WITH RankedCustomers AS
+(
+    SELECT *,
+        ROW_NUMBER() OVER (PARTITION BY NormalizedPhone ORDER BY CreatedAtUtc DESC, OrderId DESC) AS RowNumber
+    FROM #OrderCustomerPhones
+    WHERE LEN(NormalizedPhone) = 11
+      AND LEFT(NormalizedPhone, 2) = '09'
+)
+INSERT INTO Customers
+    (FirstName, LastName, Phone, NormalizedPhone, RahkaranCustomerId, IsActive, CreatedAtUtc)
+SELECT
+    LEFT(CASE WHEN CHARINDEX(N' ', CustomerName) > 0
+        THEN LEFT(CustomerName, CHARINDEX(N' ', CustomerName) - 1)
+        ELSE CustomerName END, 100),
+    LEFT(CASE WHEN CHARINDEX(N' ', CustomerName) > 0
+        THEN LTRIM(SUBSTRING(CustomerName, CHARINDEX(N' ', CustomerName) + 1, 200))
+        ELSE N'' END, 100),
+    NormalizedPhone,
+    NormalizedPhone,
+    RahkaranCustomerId,
+    1,
+    CreatedAtUtc
+FROM RankedCustomers
+WHERE RowNumber = 1;
+
+UPDATE o
+SET o.CustomerId = c.Id
+FROM Orders o
+INNER JOIN #OrderCustomerPhones p ON p.OrderId = o.Id
+INNER JOIN Customers c ON c.NormalizedPhone = p.NormalizedPhone
+WHERE o.CustomerId IS NULL;
+
+DROP TABLE #OrderCustomerPhones;
+");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
