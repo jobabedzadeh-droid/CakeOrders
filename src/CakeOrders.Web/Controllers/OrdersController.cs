@@ -400,6 +400,12 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         ViewBag.RahkaranSalesRequestOutbox = await db.RahkaranSalesRequestOutbox
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.OrderId == id, cancellationToken);
+        ViewBag.RahkaranReceiptOutboxes = await db.RahkaranReceiptOutbox
+            .AsNoTracking()
+            .Where(x => x.OrderId == id)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .ToListAsync(cancellationToken);
 
         ViewBag.CashPayments = cashPayments;
         ViewBag.CashReceiverNames = cashReceiverNames;

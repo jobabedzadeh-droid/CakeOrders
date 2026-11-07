@@ -39,7 +39,12 @@ builder.Services.AddHttpClient<IRahkaranReceiptClient, RahkaranReceiptClient>((s
     })
     .AddHttpMessageHandler<RahkaranAuthenticationHandler>();
 
-builder.Services.AddHttpClient<IRahkaranDepositReceiptClient, RahkaranDepositReceiptClient>()
+builder.Services.AddHttpClient<IRahkaranDepositReceiptClient, RahkaranDepositReceiptClient>((serviceProvider, client) =>
+{
+    var rahkaran = serviceProvider.GetRequiredService<IOptions<RahkaranOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(rahkaran.TimeoutSeconds, 5, 120));
+})
+
     .ConfigurePrimaryHttpMessageHandler(serviceProvider => new HttpClientHandler
     {
         CookieContainer = serviceProvider.GetRequiredService<System.Net.CookieContainer>(),
@@ -80,6 +85,7 @@ builder.Services.AddHttpClient<IRahkaranSalesRequestClient, RahkaranSalesRequest
     .AddHttpMessageHandler<RahkaranAuthenticationHandler>();
 
 builder.Services.AddHostedService<CakeOrders.Web.Services.RahkaranSalesRequestOutboxWorker>();
+builder.Services.AddHostedService<CakeOrders.Web.Services.RahkaranReceiptOutboxWorker>();
 
 builder.Services.AddHttpClient<IRahkaranMasterDataClient, RahkaranMasterDataClient>((serviceProvider, client) =>
 {

@@ -41,6 +41,53 @@
 {
     <div class="alert-danger">@error</div>
 }
+@{
+    var receiptOutboxes = ViewBag.RahkaranReceiptOutboxes as List<RahkaranReceiptOutbox>
+        ?? new List<RahkaranReceiptOutbox>();
+    string ReceiptStatusText(RahkaranReceiptSyncStatus status) => status switch
+    {
+        RahkaranReceiptSyncStatus.Pending => "در صف ارسال",
+        RahkaranReceiptSyncStatus.Processing => "در حال ارسال",
+        RahkaranReceiptSyncStatus.Succeeded => "با موفقیت ثبت شد",
+        RahkaranReceiptSyncStatus.NeedsReview => "نیازمند بررسی دستی",
+        _ => status.ToString()
+    };
+}
+
+@if (receiptOutboxes.Count > 0)
+{
+    <section class="form-panel">
+        <h2>رسیدهای بیعانه راهکاران</h2>
+        <p class="text-muted">هر پرداخت موفق بیعانه، مستقل از سایر پرداخت‌ها، یک رسید مالی جداگانه دارد.</p>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>منبع دریافت</th>
+                        <th>مبلغ (ریال)</th>
+                        <th>وضعیت</th>
+                        <th>شناسه رسید راهکاران</th>
+                        <th>شماره رسید</th>
+                        <th>توضیحات خطا</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var receipt in receiptOutboxes)
+                    {
+                        <tr>
+                            <td>@(receipt.Source == RahkaranReceiptSource.Cash ? "نقدی" : "کارت‌خوان")</td>
+                            <td>@receipt.Amount.ToString("N0")</td>
+                            <td>@ReceiptStatusText(receipt.Status)</td>
+                            <td>@(receipt.RemoteReceiptId ?? "—")</td>
+                            <td>@(receipt.RemoteReceiptNumber ?? "—")</td>
+                            <td>@(receipt.LastError ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
 @if (rahkaranOutbox is not null)
 {
     <section class="form-panel">

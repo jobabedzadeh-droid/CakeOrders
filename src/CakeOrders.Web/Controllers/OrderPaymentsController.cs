@@ -76,6 +76,7 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
             IdempotencyKey = idempotencyKey
         };
         db.OrderCashPayments.Add(cashPayment);
+        await db.SaveChangesAsync(cancellationToken); // Generate payment ID before linking its receipt outbox row.
         order.PaidAmount += amount;
         if (purpose == PaymentPurpose.Deposit)
         {
