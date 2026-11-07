@@ -182,7 +182,10 @@ body.customer-modal-open { overflow:hidden; }
         document.body.classList.remove('customer-modal-open');
     }
 
+    let customerLookupVersion = 0;
+
     async function lookupCustomer(openWhenMissing) {
+        const requestVersion = ++customerLookupVersion;
         const phone = phoneInput.value.trim();
         if (!phone) {
             clearSelectedCustomer();
@@ -201,6 +204,7 @@ body.customer-modal-open { overflow:hidden; }
             if (!response.ok) throw new Error('lookup-failed');
 
             const result = await response.json();
+            if (requestVersion !== customerLookupVersion) return false;
             if (result.found) {
                 selectCustomer(result.customer);
                 return true;
@@ -232,6 +236,7 @@ body.customer-modal-open { overflow:hidden; }
     }
 
     phoneInput.addEventListener('input', function () {
+        customerLookupVersion++;
         clearSelectedCustomer();
         lookupMessage.textContent = 'برای جست‌وجو، پس از واردکردن شماره از فیلد خارج شوید.';
         lookupMessage.className = 'customer-lookup-message';
