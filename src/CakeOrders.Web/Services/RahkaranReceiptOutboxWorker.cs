@@ -166,8 +166,13 @@ public sealed class RahkaranReceiptOutboxWorker(
             }
             else
             {
-                if (settings.PosBankAccountId is not > 0 || settings.PosAccountingOperationId is not > 0)
-                    throw new InvalidOperationException("حساب بانکی مقصد و عملیات حسابداری کارت‌خوان در تنظیمات راهکاران تکمیل نشده است.");
+                if (settings.PosBankAccountId is not > 0 ||
+                    settings.PosAccountingOperationId is not > 0 ||
+                    settings.PosCashFlowFactorId is not > 0)
+                {
+                    throw new InvalidOperationException(
+                        "حساب بانکی، عملیات حسابداری و عامل جریان نقدی کارت‌خوان باید در تنظیمات راهکاران تکمیل شوند.");
+                }
 
                 result = await posClient.RegisterDepositReceiptAsync(_options.ServiceBaseUrl,
                     new RahkaranDepositReceiptRequest
