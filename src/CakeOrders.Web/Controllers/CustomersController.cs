@@ -93,6 +93,11 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 else
                 {
                     updated++;
+                    if (!string.IsNullOrWhiteSpace(remote.FirstName))
+                        local.FirstName = remote.FirstName.Trim();
+                    if (!string.IsNullOrWhiteSpace(remote.LastName))
+                        local.LastName = remote.LastName.Trim();
+
                     if (mobileIsValid)
                     {
                         // Update the indexed mobile only when it is not owned by another local row.
