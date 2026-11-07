@@ -277,6 +277,23 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             if (rahkaranSettings.SalesCurrencyId is not > 0)
                 ModelState.AddModelError(string.Empty, "ارز درخواست فروش راهکاران تعیین نشده است.");
 
+            // Deposit receipts are also posted to Rahkaran. Keep both supported
+            // payment routes fully configured before accepting a new order.
+            if (rahkaranSettings.BranchId is not > 0)
+                ModelState.AddModelError(string.Empty, "شعبه مالی راهکاران تعیین نشده است.");
+            if (rahkaranSettings.CashId is not > 0)
+                ModelState.AddModelError(string.Empty, "صندوق راهکاران تعیین نشده است.");
+            if (rahkaranSettings.CashAccountingOperationId is not > 0)
+                ModelState.AddModelError(string.Empty, "عملیات حسابداری دریافت نقدی راهکاران تعیین نشده است.");
+            if (rahkaranSettings.CashFlowFactorId is not > 0)
+                ModelState.AddModelError(string.Empty, "عامل گردش نقدینگی دریافت نقدی راهکاران تعیین نشده است.");
+            if (rahkaranSettings.PosBankAccountId is not > 0)
+                ModelState.AddModelError(string.Empty, "حساب بانکی مقصد کارت‌خوان در راهکاران تعیین نشده است.");
+            if (rahkaranSettings.PosAccountingOperationId is not > 0)
+                ModelState.AddModelError(string.Empty, "عملیات حسابداری کارت‌خوان راهکاران تعیین نشده است.");
+            if (rahkaranSettings.PosCashFlowFactorId is not > 0)
+                ModelState.AddModelError(string.Empty, "عامل گردش نقدینگی کارت‌خوان راهکاران تعیین نشده است.");
+
             var (rahkaranProductId, rahkaranUnitId) = model.CakeType switch
             {
                 CakeType.Cream => (rahkaranSettings.CreamCakeProductId, rahkaranSettings.CreamCakeUnitId),
