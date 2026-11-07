@@ -160,9 +160,7 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 local.RahkaranPartyId = remote.PartyId ?? remote.PartyRef;
                 local.RahkaranCustomerNumber = remote.Number?.Trim();
                 local.RahkaranSecondCode = remote.SecondCode?.Trim();
-                local.RahkaranDLCode = remote.DLCode?.Trim();
                 local.RahkaranPartyName = remote.PartyName?.Trim();
-                local.CompanyName = remote.CompanyName?.Trim();
                 local.Email = remote.Email?.Trim();
                 local.Telephone = remote.Tel?.Trim();
                 local.Fax = remote.Fax?.Trim();
@@ -176,6 +174,8 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 // A failed detail request must never erase richer data from a previous sync.
                 if (!detailFailureIds.Contains(remote.Id))
                 {
+                    local.RahkaranDLCode = remote.DLCode?.Trim();
+                    local.CompanyName = remote.CompanyName?.Trim();
                     local.NationalId = remote.NationalId?.Trim();
                     local.EconomicCode = remote.EconomicCode?.Trim();
                     local.RegistrationCode = remote.RegistrationCode?.Trim();
