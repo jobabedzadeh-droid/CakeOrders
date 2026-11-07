@@ -123,12 +123,12 @@ public sealed class RahkaranReceiptOutboxWorker(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<CakeOrdersDbContext>();
-        var masterData = scope.ServiceProvider.GetRequiredService<IRahkaranMasterDataClient>();
         var cashClient = scope.ServiceProvider.GetRequiredService<IRahkaranReceiptClient>();
         var posClient = scope.ServiceProvider.GetRequiredService<IRahkaranDepositReceiptClient>();
 
         var entry = await db.RahkaranReceiptOutbox
             .Include(x => x.Order)
+                .ThenInclude(x => x.Customer)
             .SingleOrDefaultAsync(x => x.Id == outboxId, ct);
         if (entry is null || entry.Status != RahkaranReceiptSyncStatus.Processing)
             return;
@@ -136,31 +136,24 @@ public sealed class RahkaranReceiptOutboxWorker(
         try
         {
             var order = entry.Order;
-            var customers = await masterData.GetCustomersAsync(ct);
-            long customerId;
-            if (!long.TryParse(order.RahkaranCustomerId, NumberStyles.Integer, CultureInfo.InvariantCulture, out customerId) ||
+            var customer = order.Customer
+                ?? throw new InvalidOperationException("مشتری داخلی سفارش به یک رکورد مشتری متصل نیست؛ ابتدا اطلاعات مشتریان راهکاران را همگام‌سازی و سفارش را بررسی کنید.");
+
+            var storedCustomerId = customer.RahkaranCustomerId;
+            if (!string.IsNullOrWhiteSpace(order.RahkaranCustomerId) &&
+                !string.IsNullOrWhiteSpace(storedCustomerId) &&
+                !string.Equals(order.RahkaranCustomerId, storedCustomerId, StringComparison.Ordinal))
+                throw new InvalidOperationException("شناسه مشتری راهکاران در سفارش با شناسه ذخیره‌شده در پرونده مشتری یکسان نیست.");
+
+            var customerIdValue = storedCustomerId ?? order.RahkaranCustomerId;
+            if (!long.TryParse(customerIdValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var customerId) ||
                 customerId <= 0)
-            {
-                var mobile = NormalizeMobile(order.CustomerPhone);
-                if (mobile.Length < 10)
-                    throw new InvalidOperationException("شماره موبایل مشتری برای تطبیق با راهکاران معتبر نیست.");
+                throw new InvalidOperationException("شناسه مشتری راهکاران در پرونده مشتری ثبت نشده است؛ ابتدا همگام‌سازی اطلاعات مشتریان را اجرا کنید.");
 
-                var mobileMatches = customers
-                    .Where(x => NormalizeMobile(x.Mobile) == mobile)
-                    .ToList();
-                if (mobileMatches.Count != 1)
-                    throw new InvalidOperationException(mobileMatches.Count == 0
-                        ? "مشتری با این شماره موبایل در راهکاران یافت نشد."
-                        : "چند مشتری با این شماره موبایل در راهکاران وجود دارد؛ انتخاب مشتری باید دستی انجام شود.");
+            if (string.IsNullOrWhiteSpace(customer.RahkaranDLCode))
+                throw new InvalidOperationException("کد تفصیلی مشتری در پایگاه داده CakeOrders موجود نیست؛ همگام‌سازی جزئیات مشتری را اجرا و کد تفصیلی را بررسی کنید.");
 
-                customerId = mobileMatches[0].Id;
-                order.RahkaranCustomerId = customerId.ToString(CultureInfo.InvariantCulture);
-            }
-
-            var customerMatches = customers.Where(x => x.Id == customerId).ToList();
-            var matchedCustomer = customerMatches.Count == 1 ? customerMatches[0] : null;
-            if (matchedCustomer is null || string.IsNullOrWhiteSpace(matchedCustomer.DLCode))
-                throw new InvalidOperationException("کد تفصیلی مشتری از راهکاران به‌صورت یکتا دریافت نشد؛ ابتدا اطلاعات مشتری را بررسی کنید.");
+            order.RahkaranCustomerId = customerId.ToString(CultureInfo.InvariantCulture);
 
             var settings = await db.RahkaranIntegrationSettings.AsNoTracking()
                 .SingleOrDefaultAsync(x => x.Id == 1, ct)
@@ -169,7 +162,7 @@ public sealed class RahkaranReceiptOutboxWorker(
             if (settings.BranchId is not > 0 || settings.CashId is not > 0)
                 throw new InvalidOperationException("شناسه شعبه و صندوق راهکاران باید در تنظیمات ثبت شود.");
 
-            var customerCode = matchedCustomer.DLCode.Trim();
+            var customerCode = customer.RahkaranDLCode.Trim();
             var localDate = new DateTimeOffset(DateTime.SpecifyKind(entry.CreatedAtUtc, DateTimeKind.Utc))
                 .ToOffset(TimeSpan.FromHours(3.5));
             var documentNumber = $"CO-{order.OrderNumber}-{(entry.OrderCashPaymentId ?? entry.PaymentTransactionId ?? entry.Id).ToString(CultureInfo.InvariantCulture)}";
@@ -276,19 +269,4 @@ public sealed class RahkaranReceiptOutboxWorker(
         }
     }
 
-    private static string NormalizeMobile(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return "";
-        var digits = new string(value.Select(ch => ch switch
-        {
-            >= '۰' and <= '۹' => (char)('0' + ch - '۰'),
-            >= '٠' and <= '٩' => (char)('0' + ch - '٠'),
-            _ => ch
-        }).Where(char.IsDigit).ToArray());
-
-        if (digits.StartsWith("0098", StringComparison.Ordinal)) digits = digits[4..];
-        else if (digits.StartsWith("98", StringComparison.Ordinal) && digits.Length == 12) digits = digits[2..];
-        if (digits.Length == 10 && digits[0] == '9') digits = "0" + digits;
-        return digits;
-    }
 }
