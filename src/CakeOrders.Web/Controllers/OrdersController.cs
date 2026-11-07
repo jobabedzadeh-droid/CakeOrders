@@ -209,8 +209,12 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             else
             {
                 model.CustomerName = selectedCustomer.FullName;
+                model.CustomerFirstName = selectedCustomer.FirstName;
+                model.CustomerLastName = selectedCustomer.LastName;
                 model.CustomerPhone = selectedCustomer.Phone;
                 ModelState.Remove(nameof(model.CustomerName));
+                ModelState.Remove(nameof(model.CustomerFirstName));
+                ModelState.Remove(nameof(model.CustomerLastName));
                 ModelState.Remove(nameof(model.CustomerPhone));
             }
         }
