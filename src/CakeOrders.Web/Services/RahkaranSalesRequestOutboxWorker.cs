@@ -124,6 +124,7 @@ public sealed class RahkaranSalesRequestOutboxWorker(
 
         var entry = await db.RahkaranSalesRequestOutbox
             .Include(x => x.Order)
+                .ThenInclude(x => x.Customer)
             .SingleOrDefaultAsync(x => x.Id == outboxId, ct);
         if (entry is null || entry.Status != RahkaranSalesRequestSyncStatus.Processing) return;
 
@@ -136,6 +137,17 @@ public sealed class RahkaranSalesRequestOutboxWorker(
             var settings = await db.RahkaranIntegrationSettings.AsNoTracking().SingleOrDefaultAsync(x => x.Id == 1, ct)
                 ?? throw new InvalidOperationException("تنظیمات اتصال راهکاران ثبت نشده است.");
 
+            var localCustomer = order.Customer;
+            if (localCustomer is not null &&
+                !string.IsNullOrWhiteSpace(localCustomer.RahkaranCustomerId))
+            {
+                if (!string.IsNullOrWhiteSpace(order.RahkaranCustomerId) &&
+                    !string.Equals(order.RahkaranCustomerId, localCustomer.RahkaranCustomerId, StringComparison.Ordinal))
+                    throw new InvalidOperationException("شناسه مشتری راهکاران در سفارش با پرونده مشتری داخلی مغایرت دارد.");
+
+                order.RahkaranCustomerId = localCustomer.RahkaranCustomerId;
+            }
+
             if (string.IsNullOrWhiteSpace(order.RahkaranCustomerId))
             {
                 var mobile = NormalizeMobile(order.CustomerPhone);
@@ -147,6 +159,13 @@ public sealed class RahkaranSalesRequestOutboxWorker(
                 if (matches.Count == 1)
                 {
                     order.RahkaranCustomerId = matches[0].Id.ToString(CultureInfo.InvariantCulture);
+                    if (localCustomer is not null)
+                    {
+                        localCustomer.RahkaranCustomerId = order.RahkaranCustomerId;
+                        localCustomer.RahkaranPartyId = matches[0].PartyId ?? matches[0].PartyRef;
+                        localCustomer.RahkaranCustomerNumber = matches[0].Number;
+                        localCustomer.RahkaranSecondCode = matches[0].SecondCode;
+                    }
                     await db.SaveChangesAsync(ct);
                 }
                 else if (matches.Count > 1)
