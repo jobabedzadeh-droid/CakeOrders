@@ -10,6 +10,9 @@ public class OrderCreateViewModel
     [Range(1, long.MaxValue, ErrorMessage = "شعبه تولیدکننده را انتخاب کنید.")]
     public long ProductionBranchId { get; set; }
 
+    // Selected internal customer; required when creating a new order.
+    public long? CustomerId { get; set; }
+
     public IEnumerable<SelectListItem> ProductionBranches { get; set; } = Enumerable.Empty<SelectListItem>();
 
     [Display(Name = "نام مشتری")]
@@ -17,7 +20,6 @@ public class OrderCreateViewModel
     public string? CustomerName { get; set; }
 
     [Display(Name = "شماره تماس")]
-    [Phone(ErrorMessage = "شماره تماس معتبر نیست.")]
     [StringLength(30)]
     public string? CustomerPhone { get; set; }
 
