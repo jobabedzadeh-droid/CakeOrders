@@ -51,10 +51,16 @@ public sealed class RahkaranSalesRequestOutboxWorker(
                 item.LastError = "پردازش قبلی بیش از ۱۰ دقیقه بدون نتیجه مانده است؛ برای جلوگیری از ثبت تکراری، ارسال خودکار متوقف شد و تطبیق دستی لازم است.";
             }
 
+            // A manually confirmed order may still have an outstanding deposit.
+            // Dispatch only when no deposit was requested or the requested deposit is fully received.
             var candidate = await db.RahkaranSalesRequestOutbox
-                .FromSqlRaw(@"SELECT TOP (1) * FROM [RahkaranSalesRequestOutbox] WITH (UPDLOCK, READPAST, ROWLOCK)
-                              WHERE [Status] = 1 AND ([NextAttemptAtUtc] IS NULL OR [NextAttemptAtUtc] <= SYSUTCDATETIME())
-                              ORDER BY [CreatedAtUtc], [Id]")
+                .FromSqlRaw(@"SELECT TOP (1) o.*
+                              FROM [RahkaranSalesRequestOutbox] o WITH (UPDLOCK, READPAST, ROWLOCK)
+                              INNER JOIN [Orders] ord ON ord.[Id] = o.[OrderId]
+                              WHERE o.[Status] = 1
+                                AND (o.[NextAttemptAtUtc] IS NULL OR o.[NextAttemptAtUtc] <= SYSUTCDATETIME())
+                                AND (ord.[RequestedDepositAmount] <= 0 OR ord.[DepositAmount] >= ord.[RequestedDepositAmount])
+                              ORDER BY o.[CreatedAtUtc], o.[Id]")
                 .FirstOrDefaultAsync(ct);
 
             if (candidate is not null)
