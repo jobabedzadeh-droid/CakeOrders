@@ -199,7 +199,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
             if (selectedCustomer is null)
             {
-                ModelState.AddModelError(nameof(model.CustomerId), "مشتری انتخاب‌شده معتبر یا فعال نیست.");
+                ModelState.AddModelError(string.Empty, "مشتری انتخاب‌شده معتبر یا فعال نیست.");
                 model.CustomerId = null;
                 model.CustomerName = null;
                 model.CustomerFirstName = null;
