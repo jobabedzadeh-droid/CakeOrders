@@ -186,6 +186,35 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         if (await IsWorkshopMemberAsync(cancellationToken))
             return Forbid();
 
+        Customer? selectedCustomer = null;
+
+        if (!model.CustomerId.HasValue || model.CustomerId.Value <= 0)
+        {
+            ModelState.AddModelError(nameof(model.CustomerId), "ابتدا مشتری را با شماره موبایل انتخاب یا ثبت کنید.");
+        }
+        else
+        {
+            selectedCustomer = await db.Customers
+                .FirstOrDefaultAsync(x => x.Id == model.CustomerId.Value && x.IsActive, cancellationToken);
+
+            if (selectedCustomer is null)
+            {
+                ModelState.AddModelError(nameof(model.CustomerId), "مشتری انتخاب‌شده معتبر یا فعال نیست.");
+            }
+            else if (!CustomerPhoneNormalizer.TryNormalize(model.CustomerPhone, out var normalizedPhone) ||
+                     !string.Equals(normalizedPhone, selectedCustomer.NormalizedPhone, StringComparison.Ordinal))
+            {
+                ModelState.AddModelError(nameof(model.CustomerPhone), "شماره موبایل با مشتری انتخاب‌شده مطابقت ندارد؛ دوباره جست‌وجو کنید.");
+            }
+            else
+            {
+                model.CustomerName = selectedCustomer.FullName;
+                model.CustomerPhone = selectedCustomer.Phone;
+                ModelState.Remove(nameof(model.CustomerName));
+                ModelState.Remove(nameof(model.CustomerPhone));
+            }
+        }
+
         var selectedBranchExists = await db.Branches.AnyAsync(
             x => x.Id == model.ProductionBranchId && x.IsActive,
             cancellationToken);
@@ -256,8 +285,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             CreatedAtUtc = DateTime.UtcNow,
             ProductionBranchId = model.ProductionBranchId,
             DeliveryAt = DateTime.SpecifyKind(model.DeliveryAt, DateTimeKind.Local).ToUniversalTime(),
-            CustomerName = model.CustomerName?.Trim(),
-            CustomerPhone = model.CustomerPhone?.Trim(),
+            CustomerId = selectedCustomer!.Id,
+            CustomerName = selectedCustomer.FullName,
+            CustomerPhone = selectedCustomer.Phone,
+            RahkaranCustomerId = selectedCustomer.RahkaranCustomerId,
             OrderType = model.OrderType,
             CakeType = model.CakeType,
             RequestedWeightKg = model.RequestedWeightKg,
