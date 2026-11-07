@@ -59,7 +59,20 @@ public sealed class RahkaranSalesRequestOutboxWorker(
                               INNER JOIN [Orders] ord ON ord.[Id] = o.[OrderId]
                               WHERE o.[Status] = 1
                                 AND (o.[NextAttemptAtUtc] IS NULL OR o.[NextAttemptAtUtc] <= SYSUTCDATETIME())
-                                AND (ord.[RequestedDepositAmount] <= 0 OR ord.[DepositAmount] >= ord.[RequestedDepositAmount])
+                                AND (
+                                    ord.[RequestedDepositAmount] <= 0
+                                    OR (
+                                        ord.[DepositAmount] >= ord.[RequestedDepositAmount]
+                                        AND EXISTS (
+                                            SELECT 1 FROM [RahkaranReceiptOutbox] r
+                                            WHERE r.[OrderId] = ord.[Id]
+                                        )
+                                        AND NOT EXISTS (
+                                            SELECT 1 FROM [RahkaranReceiptOutbox] r
+                                            WHERE r.[OrderId] = ord.[Id] AND r.[Status] <> 3
+                                        )
+                                    )
+                                )
                               ORDER BY o.[CreatedAtUtc], o.[Id]")
                 .FirstOrDefaultAsync(ct);
 
