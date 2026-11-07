@@ -165,6 +165,9 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
                     b.Property<string>("CompanyName").HasMaxLength(300).HasColumnType("nvarchar(300)");
+                    b.Property<string>("AddressesJson").HasColumnType("nvarchar(max)");
+                    b.Property<string>("Fax").HasMaxLength(50).HasColumnType("nvarchar(50)");
+                    b.Property<string>("PostalCode").HasMaxLength(30).HasColumnType("nvarchar(30)");
                     b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime2");
                     b.Property<string>("Details").HasColumnType("nvarchar(max)");
                     b.Property<string>("EconomicCode").HasMaxLength(50).HasColumnType("nvarchar(50)");
