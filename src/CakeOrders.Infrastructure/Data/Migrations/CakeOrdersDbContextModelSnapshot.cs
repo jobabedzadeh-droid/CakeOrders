@@ -977,6 +977,68 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Navigation("Referrer");
                 });
 
+            modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranReceiptOutbox", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<long?>("OrderCashPaymentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PaymentTransactionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RemoteReceiptId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RemoteReceiptNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderCashPaymentId")
+                        .IsUnique()
+                        .HasFilter("[OrderCashPaymentId] IS NOT NULL");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("PaymentTransactionId")
+                        .IsUnique()
+                        .HasFilter("[PaymentTransactionId] IS NOT NULL");
+
+                    b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.ToTable("RahkaranReceiptOutbox");
+                });
+
             modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranSalesRequestOutbox", b =>
                 {
                     b.Property<long>("Id")
@@ -1539,6 +1601,27 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Navigation("OrderItem");
 
                     b.Navigation("ProductionTask");
+                });
+
+            modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranReceiptOutbox", b =>
+                {
+                    b.HasOne("CakeOrders.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CakeOrders.Domain.Entities.OrderCashPayment", null)
+                        .WithMany()
+                        .HasForeignKey("OrderCashPaymentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CakeOrders.Domain.Entities.PaymentTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranSalesRequestOutbox", b =>

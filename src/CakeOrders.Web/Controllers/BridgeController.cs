@@ -333,6 +333,15 @@ public sealed class BridgeController(CakeOrdersDbContext db, IOrderProductionRou
                 if (payment.Purpose == PaymentPurpose.Deposit)
                 {
                     payment.Order.DepositAmount += payment.Amount;
+                    db.RahkaranReceiptOutbox.Add(new RahkaranReceiptOutbox
+                    {
+                        OrderId = payment.OrderId,
+                        PaymentTransactionId = payment.Id,
+                        Source = RahkaranReceiptSource.PointOfSale,
+                        Amount = payment.Amount,
+                        Status = RahkaranReceiptSyncStatus.Pending,
+                        CreatedAtUtc = DateTime.UtcNow
+                    });
 
                     // Only a fully paid requested deposit triggers automatic confirmation.
                     if (payment.Order.Status == OrderStatus.PendingReview &&

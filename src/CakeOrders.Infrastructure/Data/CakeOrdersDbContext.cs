@@ -28,6 +28,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
     public DbSet<ProductionTaskHistory> ProductionTaskHistory => Set<ProductionTaskHistory>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<RahkaranSalesRequestOutbox> RahkaranSalesRequestOutbox => Set<RahkaranSalesRequestOutbox>();
+    public DbSet<RahkaranReceiptOutbox> RahkaranReceiptOutbox => Set<RahkaranReceiptOutbox>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -406,6 +407,29 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.HasOne(x => x.Order)
                 .WithMany()
                 .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<RahkaranReceiptOutbox>(entity =>
+        {
+            entity.ToTable("RahkaranReceiptOutbox");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Source).HasConversion<int>();
+            entity.Property(x => x.Status).HasConversion<int>();
+            entity.Property(x => x.Amount).HasPrecision(18, 2);
+            entity.Property(x => x.RemoteReceiptId).HasMaxLength(100);
+            entity.Property(x => x.RemoteReceiptNumber).HasMaxLength(100);
+            entity.Property(x => x.LastError).HasMaxLength(2000);
+            entity.HasIndex(x => x.OrderCashPaymentId).IsUnique()
+                .HasFilter("[OrderCashPaymentId] IS NOT NULL");
+            entity.HasIndex(x => x.PaymentTransactionId).IsUnique()
+                .HasFilter("[PaymentTransactionId] IS NOT NULL");
+            entity.HasIndex(x => new { x.Status, x.CreatedAtUtc });
+            entity.HasOne(x => x.Order).WithMany().HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<OrderCashPayment>().WithMany().HasForeignKey(x => x.OrderCashPaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<PaymentTransaction>().WithMany().HasForeignKey(x => x.PaymentTransactionId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

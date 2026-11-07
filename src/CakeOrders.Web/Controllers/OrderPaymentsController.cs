@@ -67,16 +67,29 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
         if (string.IsNullOrWhiteSpace(userId)) return Forbid();
         var now = DateTime.UtcNow;
 
-        db.OrderCashPayments.Add(new OrderCashPayment
+        var cashPayment = new OrderCashPayment
         {
             OrderId = orderId, Amount = amount, Purpose = purpose,
             ReceivedByUserId = userId, ReceivedAtUtc = now,
             Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
             ReceiptReference = string.IsNullOrWhiteSpace(receiptReference) ? null : receiptReference.Trim(),
             IdempotencyKey = idempotencyKey
-        });
+        };
+        db.OrderCashPayments.Add(cashPayment);
         order.PaidAmount += amount;
-        if (purpose == PaymentPurpose.Deposit) order.DepositAmount += amount;
+        if (purpose == PaymentPurpose.Deposit)
+        {
+            order.DepositAmount += amount;
+            db.RahkaranReceiptOutbox.Add(new RahkaranReceiptOutbox
+            {
+                OrderId = order.Id,
+                OrderCashPaymentId = cashPayment.Id,
+                Source = RahkaranReceiptSource.Cash,
+                Amount = amount,
+                Status = RahkaranReceiptSyncStatus.Pending,
+                CreatedAtUtc = now
+            });
+        }
 
         if (purpose == PaymentPurpose.Deposit && order.Status == OrderStatus.PendingReview &&
             order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount)
