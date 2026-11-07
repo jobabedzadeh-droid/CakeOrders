@@ -12,15 +12,6 @@ public sealed class ExpandRahkaranCustomerData : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AlterColumn<string>(
-            name: "NormalizedPhone",
-            table: "Customers",
-            type: "nvarchar(32)",
-            maxLength: 32,
-            nullable: false,
-            oldClrType: typeof(string),
-            oldType: "nvarchar(11)",
-            oldMaxLength: 11);
         migrationBuilder.AddColumn<string>(
             name: "CompanyName", table: "Customers", type: "nvarchar(300)", maxLength: 300, nullable: true);
         migrationBuilder.AddColumn<string>(
@@ -87,15 +78,6 @@ public sealed class ExpandRahkaranCustomerData : Migration
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AlterColumn<string>(
-            name: "NormalizedPhone",
-            table: "Customers",
-            type: "nvarchar(11)",
-            maxLength: 11,
-            nullable: false,
-            oldClrType: typeof(string),
-            oldType: "nvarchar(32)",
-            oldMaxLength: 32);
         migrationBuilder.DropIndex(name: "IX_Customers_RahkaranCustomerId", table: "Customers");
         migrationBuilder.DropIndex(name: "IX_Customers_RahkaranDLCode", table: "Customers");
 
