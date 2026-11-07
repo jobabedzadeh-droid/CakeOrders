@@ -200,11 +200,27 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             if (selectedCustomer is null)
             {
                 ModelState.AddModelError(nameof(model.CustomerId), "مشتری انتخاب‌شده معتبر یا فعال نیست.");
+                model.CustomerId = null;
+                model.CustomerName = null;
+                model.CustomerFirstName = null;
+                model.CustomerLastName = null;
+                ModelState.Remove(nameof(model.CustomerId));
+                ModelState.Remove(nameof(model.CustomerName));
+                ModelState.Remove(nameof(model.CustomerFirstName));
+                ModelState.Remove(nameof(model.CustomerLastName));
             }
             else if (!CustomerPhoneNormalizer.TryNormalize(model.CustomerPhone, out var normalizedPhone) ||
                      !string.Equals(normalizedPhone, selectedCustomer.NormalizedPhone, StringComparison.Ordinal))
             {
                 ModelState.AddModelError(nameof(model.CustomerPhone), "شماره موبایل با مشتری انتخاب‌شده مطابقت ندارد؛ دوباره جست‌وجو کنید.");
+                model.CustomerId = null;
+                model.CustomerName = null;
+                model.CustomerFirstName = null;
+                model.CustomerLastName = null;
+                ModelState.Remove(nameof(model.CustomerId));
+                ModelState.Remove(nameof(model.CustomerName));
+                ModelState.Remove(nameof(model.CustomerFirstName));
+                ModelState.Remove(nameof(model.CustomerLastName));
             }
             else
             {
