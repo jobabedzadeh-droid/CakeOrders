@@ -85,7 +85,9 @@ builder.Services.AddHttpClient<IRahkaranSalesRequestClient, RahkaranSalesRequest
     .AddHttpMessageHandler<RahkaranAuthenticationHandler>();
 
 builder.Services.AddHostedService<CakeOrders.Web.Services.RahkaranSalesRequestOutboxWorker>();
-builder.Services.AddHostedService<CakeOrders.Web.Services.RahkaranReceiptOutboxWorker>();
+builder.Services.AddSingleton<CakeOrders.Web.Services.RahkaranReceiptOutboxWorker>();
+builder.Services.AddHostedService(serviceProvider =>
+    serviceProvider.GetRequiredService<CakeOrders.Web.Services.RahkaranReceiptOutboxWorker>());
 
 builder.Services.AddHttpClient<IRahkaranMasterDataClient, RahkaranMasterDataClient>((serviceProvider, client) =>
 {
