@@ -162,50 +162,43 @@ namespace CakeOrders.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.Customer", b =>
                 {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
+                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("NormalizedPhone")
-                        .IsRequired()
-                        .HasMaxLength(11)
-                        .HasColumnType("nvarchar(11)");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("RahkaranCustomerId")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
+                    b.Property<string>("CompanyName").HasMaxLength(300).HasColumnType("nvarchar(300)");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("Details").HasColumnType("nvarchar(max)");
+                    b.Property<string>("EconomicCode").HasMaxLength(50).HasColumnType("nvarchar(50)");
+                    b.Property<string>("Email").HasMaxLength(254).HasColumnType("nvarchar(254)");
+                    b.Property<string>("FirstName").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<bool>("IsActive").HasColumnType("bit");
+                    b.Property<string>("LastName").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<DateTime?>("LastRahkaranSyncAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("NationalId").HasMaxLength(50).HasColumnType("nvarchar(50)");
+                    b.Property<string>("NormalizedPhone").IsRequired().HasMaxLength(11).HasColumnType("nvarchar(11)");
+                    b.Property<string>("Phone").IsRequired().HasMaxLength(30).HasColumnType("nvarchar(30)");
+                    b.Property<string>("RahkaranCustomerId").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("RahkaranCustomerNumber").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("RahkaranDLCode").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<DateTime?>("RahkaranCreatedAt").HasColumnType("datetime2");
+                    b.Property<string>("RahkaranPartyName").HasMaxLength(300).HasColumnType("nvarchar(300)");
+                    b.Property<long?>("RahkaranPartyId").HasColumnType("bigint");
+                    b.Property<int?>("RahkaranPartyType").HasColumnType("int");
+                    b.Property<int?>("RahkaranStatus").HasColumnType("int");
+                    b.Property<int?>("RahkaranStateCode").HasColumnType("int");
+                    b.Property<string>("RahkaranStateTitle").HasMaxLength(150).HasColumnType("nvarchar(150)");
+                    b.Property<string>("RahkaranTypeTitle").HasMaxLength(150).HasColumnType("nvarchar(150)");
+                    b.Property<int?>("RahkaranTypeCode").HasColumnType("int");
+                    b.Property<string>("RahkaranSecondCode").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("RahkaranRawDataJson").HasColumnType("nvarchar(max)");
+                    b.Property<DateTime?>("RahkaranLastModifiedAt").HasColumnType("datetime2");
+                    b.Property<string>("RegistrationCode").HasMaxLength(50).HasColumnType("nvarchar(50)");
+                    b.Property<string>("Telephone").HasMaxLength(50).HasColumnType("nvarchar(50)");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("WebsiteUrl").HasMaxLength(500).HasColumnType("nvarchar(500)");
                     b.HasKey("Id");
-
-                    b.HasIndex("NormalizedPhone")
-                        .IsUnique();
-
+                    b.HasIndex("NormalizedPhone").IsUnique();
+                    b.HasIndex("RahkaranCustomerId").IsUnique().HasFilter("[RahkaranCustomerId] IS NOT NULL");
+                    b.HasIndex("RahkaranDLCode");
                     b.ToTable("Customers");
                 });
 
