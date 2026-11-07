@@ -228,7 +228,9 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 x.FirstName,
                 x.LastName,
                 x.Phone,
-                x.IsActive
+                x.IsActive,
+                IsRahkaranLinked = x.RahkaranCustomerId != null && x.RahkaranCustomerId != "",
+                HasRahkaranDLCode = x.RahkaranDLCode != null && x.RahkaranDLCode != ""
             })
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -247,6 +249,8 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 customer.FirstName,
                 customer.LastName,
                 customer.Phone,
+                IsRahkaranLinked = customer.IsRahkaranLinked,
+                HasRahkaranDLCode = customer.HasRahkaranDLCode,
                 FullName = (customer.FirstName + " " + customer.LastName).Trim()
             }
         });
@@ -349,6 +353,8 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
         customer.FirstName,
         customer.LastName,
         customer.Phone,
+        IsRahkaranLinked = !string.IsNullOrWhiteSpace(customer.RahkaranCustomerId),
+        HasRahkaranDLCode = !string.IsNullOrWhiteSpace(customer.RahkaranDLCode),
         FullName = customer.FullName
     };
 }
