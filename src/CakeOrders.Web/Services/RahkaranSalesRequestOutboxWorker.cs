@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
 using CakeOrders.Infrastructure.Rahkaran;
@@ -119,7 +118,6 @@ public sealed class RahkaranSalesRequestOutboxWorker(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<CakeOrdersDbContext>();
-        var masterData = scope.ServiceProvider.GetRequiredService<IRahkaranMasterDataClient>();
         var client = scope.ServiceProvider.GetRequiredService<IRahkaranSalesRequestClient>();
 
         var entry = await db.RahkaranSalesRequestOutbox
@@ -137,42 +135,17 @@ public sealed class RahkaranSalesRequestOutboxWorker(
             var settings = await db.RahkaranIntegrationSettings.AsNoTracking().SingleOrDefaultAsync(x => x.Id == 1, ct)
                 ?? throw new InvalidOperationException("تنظیمات اتصال راهکاران ثبت نشده است.");
 
-            var localCustomer = order.Customer;
-            if (localCustomer is not null &&
-                !string.IsNullOrWhiteSpace(localCustomer.RahkaranCustomerId))
-            {
-                if (!string.IsNullOrWhiteSpace(order.RahkaranCustomerId) &&
-                    !string.Equals(order.RahkaranCustomerId, localCustomer.RahkaranCustomerId, StringComparison.Ordinal))
-                    throw new InvalidOperationException("شناسه مشتری راهکاران در سفارش با پرونده مشتری داخلی مغایرت دارد.");
+            var localCustomer = order.Customer
+                ?? throw new InvalidOperationException("پرونده مشتری داخلی به سفارش متصل نیست؛ ارسال درخواست فروش متوقف شد.");
 
-                order.RahkaranCustomerId = localCustomer.RahkaranCustomerId;
-            }
+            if (string.IsNullOrWhiteSpace(localCustomer.RahkaranCustomerId))
+                throw new InvalidOperationException("این مشتری هنوز با مشتری راهکاران تطبیق داده نشده است. ابتدا همگام‌سازی مشتریان را انجام دهید و هویت مشتری را تأیید کنید؛ تطبیق خودکار صرفاً بر اساس شماره موبایل برای ارسال مالی مجاز نیست.");
 
-            if (string.IsNullOrWhiteSpace(order.RahkaranCustomerId))
-            {
-                var mobile = NormalizeMobile(order.CustomerPhone);
-                if (mobile.Length < 10)
-                    throw new InvalidOperationException("شماره موبایل مشتری برای تطبیق با راهکاران معتبر نیست.");
+            if (!string.IsNullOrWhiteSpace(order.RahkaranCustomerId) &&
+                !string.Equals(order.RahkaranCustomerId, localCustomer.RahkaranCustomerId, StringComparison.Ordinal))
+                throw new InvalidOperationException("شناسه مشتری راهکاران در سفارش با پرونده مشتری داخلی مغایرت دارد.");
 
-                var customers = await masterData.GetCustomersAsync(ct);
-                var matches = customers.Where(x => NormalizeMobile(x.Mobile) == mobile).ToList();
-                if (matches.Count == 1)
-                {
-                    order.RahkaranCustomerId = matches[0].Id.ToString(CultureInfo.InvariantCulture);
-                    if (localCustomer is not null)
-                    {
-                        localCustomer.RahkaranCustomerId = order.RahkaranCustomerId;
-                        localCustomer.RahkaranPartyId = matches[0].PartyId ?? matches[0].PartyRef;
-                        localCustomer.RahkaranCustomerNumber = matches[0].Number;
-                        localCustomer.RahkaranSecondCode = matches[0].SecondCode;
-                    }
-                    await db.SaveChangesAsync(ct);
-                }
-                else if (matches.Count > 1)
-                    throw new InvalidOperationException("چند مشتری با این شماره موبایل در راهکاران یافت شد؛ انتخاب مشتری باید دستی انجام شود.");
-                else
-                    throw new InvalidOperationException("مشتری در راهکاران یافت نشد. ایجاد خودکار به‌دلیل نداشتن آدرس و شناسه منطقه جغرافیایی معتبر در سفارش انجام نشد؛ ابتدا مشتری را در راهکاران ایجاد و شناسه آن را به سفارش متصل کنید.");
-            }
+            order.RahkaranCustomerId = localCustomer.RahkaranCustomerId;
 
             if (!long.TryParse(order.RahkaranCustomerId, out var customerId) || customerId <= 0)
                 throw new InvalidOperationException("شناسه مشتری راهکاران روی سفارش معتبر نیست.");
@@ -270,24 +243,4 @@ public sealed class RahkaranSalesRequestOutboxWorker(
         }
     }
 
-    private static string NormalizeMobile(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return "";
-        var builder = new StringBuilder(value.Length);
-        foreach (var ch in value)
-        {
-            var digit = ch switch
-            {
-                >= '۰' and <= '۹' => (char)('0' + ch - '۰'),
-                >= '٠' and <= '٩' => (char)('0' + ch - '٠'),
-                _ => ch
-            };
-            if (char.IsDigit(digit)) builder.Append(digit);
-        }
-        var result = builder.ToString();
-        if (result.StartsWith("0098")) result = result[4..];
-        else if (result.StartsWith("98") && result.Length == 12) result = result[2..];
-        if (result.Length == 10 && result[0] == '9') result = "0" + result;
-        return result;
-    }
 }
