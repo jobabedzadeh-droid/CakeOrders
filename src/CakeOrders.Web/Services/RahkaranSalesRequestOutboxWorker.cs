@@ -64,12 +64,33 @@ public sealed class RahkaranSalesRequestOutboxWorker(
                                     OR (
                                         ord.[DepositAmount] >= ord.[RequestedDepositAmount]
                                         AND EXISTS (
-                                            SELECT 1 FROM [RahkaranReceiptOutbox] r
+                                            SELECT 1
+                                            FROM [RahkaranReceiptOutbox] r
+                                            LEFT JOIN [OrderCashPayments] cp
+                                                ON cp.[Id] = r.[OrderCashPaymentId]
+                                            LEFT JOIN [PaymentTransactions] pt
+                                                ON pt.[Id] = r.[PaymentTransactionId]
                                             WHERE r.[OrderId] = ord.[Id]
+                                              AND (
+                                                  (r.[OrderCashPaymentId] IS NOT NULL AND cp.[Purpose] = 1)
+                                                  OR
+                                                  (r.[PaymentTransactionId] IS NOT NULL AND pt.[Purpose] = 1)
+                                              )
                                         )
                                         AND NOT EXISTS (
-                                            SELECT 1 FROM [RahkaranReceiptOutbox] r
-                                            WHERE r.[OrderId] = ord.[Id] AND r.[Status] <> 3
+                                            SELECT 1
+                                            FROM [RahkaranReceiptOutbox] r
+                                            LEFT JOIN [OrderCashPayments] cp
+                                                ON cp.[Id] = r.[OrderCashPaymentId]
+                                            LEFT JOIN [PaymentTransactions] pt
+                                                ON pt.[Id] = r.[PaymentTransactionId]
+                                            WHERE r.[OrderId] = ord.[Id]
+                                              AND (
+                                                  (r.[OrderCashPaymentId] IS NOT NULL AND cp.[Purpose] = 1)
+                                                  OR
+                                                  (r.[PaymentTransactionId] IS NOT NULL AND pt.[Purpose] = 1)
+                                              )
+                                              AND r.[Status] <> 3
                                         )
                                     )
                                 )
