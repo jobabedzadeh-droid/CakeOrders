@@ -59,8 +59,66 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
     public Task<IReadOnlyList<RahkaranSalesTypeDto>> GetSalesTypesAsync(CancellationToken ct = default) =>
         GetListAsync<RahkaranSalesTypeDto>(SalesStructure + "GetSalesTypes", ct);
 
-    public Task<IReadOnlyList<RahkaranCustomerDto>> GetCustomersAsync(CancellationToken ct = default) =>
-        GetListAsync<RahkaranCustomerDto>(Parties + "GetCustomers", ct);
+    public async Task<IReadOnlyList<RahkaranCustomerDto>> GetCustomersAsync(CancellationToken ct = default)
+    {
+        using var response = await httpClient.GetAsync(Parties + "GetCustomers", ct);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+
+        var payload = FindCustomerCollection(document.RootElement);
+        if (payload.ValueKind == JsonValueKind.Array)
+        {
+            var customers = new List<RahkaranCustomerDto>();
+            foreach (var item in payload.EnumerateArray())
+            {
+                var customer = JsonSerializer.Deserialize<RahkaranCustomerDto>(
+                    item.GetRawText(), JsonOptions);
+                if (customer is not null && customer.Id > 0)
+                    customers.Add(customer);
+            }
+            return customers;
+        }
+
+        if (payload.ValueKind == JsonValueKind.Object)
+        {
+            var single = JsonSerializer.Deserialize<RahkaranCustomerDto>(
+                payload.GetRawText(), JsonOptions);
+            return single is not null && single.Id > 0 ? [single] : [];
+        }
+
+        return [];
+    }
+
+    private static JsonElement FindCustomerCollection(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Array)
+            return element;
+
+        if (element.ValueKind != JsonValueKind.Object)
+            return default;
+
+        // WCF versions may wrap the list in Response/Result/CustomerDocument objects.
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.Value.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
+                continue;
+
+            var nested = FindCustomerCollection(property.Value);
+            if (nested.ValueKind == JsonValueKind.Array)
+                return nested;
+
+            if (nested.ValueKind == JsonValueKind.Object &&
+                (nested.TryGetProperty("id", out _) || nested.TryGetProperty("ID", out _)))
+                return nested;
+        }
+
+        if (element.TryGetProperty("id", out _) || element.TryGetProperty("ID", out _))
+            return element;
+
+        return default;
+    }
 
     public async Task<IReadOnlyList<RahkaranEmployeeDto>> GetEmployeesAsync(
         CancellationToken cancellationToken = default)
