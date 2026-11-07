@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 namespace CakeOrders.Web.Services;
 
 /// <summary>
-/// Posts one FIN receipt for every successfully recorded deposit payment.
+/// Posts one FIN receipt for every successfully recorded payment.
 /// Ambiguous outcomes are never retried automatically.
 /// </summary>
 public sealed class RahkaranReceiptOutboxWorker(
@@ -130,7 +130,7 @@ public sealed class RahkaranReceiptOutboxWorker(
             var localDate = new DateTimeOffset(DateTime.SpecifyKind(entry.CreatedAtUtc, DateTimeKind.Utc))
                 .ToOffset(TimeSpan.FromHours(3.5));
             var documentNumber = $"CO-{order.OrderNumber}-{(entry.OrderCashPaymentId ?? entry.PaymentTransactionId ?? entry.Id).ToString(CultureInfo.InvariantCulture)}";
-            var description = $"بیعانه سفارش {order.OrderNumber} - {(entry.Source == RahkaranReceiptSource.Cash ? "نقدی" : "کارت‌خوان")}";
+            var description = $"دریافت سفارش {order.OrderNumber} - {(entry.Source == RahkaranReceiptSource.Cash ? "نقدی" : "کارت‌خوان")}";
 
             RahkaranReceiptResult result;
             if (entry.Source == RahkaranReceiptSource.Cash)
@@ -146,7 +146,7 @@ public sealed class RahkaranReceiptOutboxWorker(
                         CounterPartDLCode = customerCode,
                         Date = localDate,
                         Description = description,
-                        Description_En = $"Deposit for order {order.OrderNumber} - Cash",
+                        Description_En = $"Payment for order {order.OrderNumber} - Cash",
                         IsApproved = true,
                         Number = documentNumber,
                         ReceiptCashMoneys =
@@ -158,7 +158,7 @@ public sealed class RahkaranReceiptOutboxWorker(
                                 CashFlowFactorID = settings.CashFlowFactorId.Value,
                                 CounterPartDLCode = customerCode,
                                 Description = description,
-                                Description_En = $"Deposit for order {order.OrderNumber}"
+                                Description_En = $"Payment for order {order.OrderNumber}"
                             }
                         ]
                     }, ct);
@@ -176,7 +176,7 @@ public sealed class RahkaranReceiptOutboxWorker(
                         CounterPartDLCode = customerCode,
                         Date = localDate,
                         Description = description,
-                        Description_En = $"Deposit for order {order.OrderNumber} - POS",
+                        Description_En = $"Payment for order {order.OrderNumber} - POS",
                         IsApproved = true,
                         Number = documentNumber,
                         ReceiptDeposits =
