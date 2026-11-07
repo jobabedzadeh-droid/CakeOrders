@@ -1,5 +1,7 @@
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
+using CakeOrders.Infrastructure.Rahkaran;
+using System.Text.Json;
 using CakeOrders.Web.Services;
 using CakeOrders.Web.ViewModels.Customers;
 using Microsoft.AspNetCore.Authorization;
@@ -10,8 +12,146 @@ using System.Security.Claims;
 namespace CakeOrders.Web.Controllers;
 
 [Authorize(Roles = "Admin,User")]
-public sealed class CustomersController(CakeOrdersDbContext db) : Controller
+public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterDataClient rahkaran) : Controller
 {
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncFromRahkaran(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Full read-only import. No customer is created or modified in Rahkaran.
+            var remoteCustomers = await rahkaran.GetCustomersAsync(cancellationToken);
+            if (remoteCustomers.Count == 0)
+            {
+                TempData["Error"] = "راهکاران هیچ مشتری‌ای برنگرداند؛ برای جلوگیری از همگام‌سازی اشتباه، اطلاعات داخلی تغییر نکرد.";
+                return RedirectToAction(nameof(Index), "Home");
+            }
+
+            var localCustomers = await db.Customers.ToListAsync(cancellationToken);
+            var byRahkaranId = localCustomers
+                .Where(x => !string.IsNullOrWhiteSpace(x.RahkaranCustomerId))
+                .GroupBy(x => x.RahkaranCustomerId!)
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+            var byPhone = localCustomers
+                .Where(x => x.NormalizedPhone.Length == 11 && x.NormalizedPhone.StartsWith("09"))
+                .GroupBy(x => x.NormalizedPhone)
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.Ordinal);
+
+            var added = 0;
+            var updated = 0;
+            var skipped = 0;
+            var now = DateTime.UtcNow;
+
+            foreach (var remote in remoteCustomers.Where(x => x.Id > 0))
+            {
+                var remoteId = remote.Id.ToString();
+                Customer? local = null;
+
+                if (!byRahkaranId.TryGetValue(remoteId, out local) &&
+                    CustomerPhoneNormalizer.TryNormalize(remote.Mobile, out var normalizedPhone))
+                {
+                    byPhone.TryGetValue(normalizedPhone, out local);
+                }
+
+                if (local is not null &&
+                    !string.IsNullOrWhiteSpace(local.RahkaranCustomerId) &&
+                    !string.Equals(local.RahkaranCustomerId, remoteId, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Never merge two different Rahkaran identities solely because a phone matches.
+                    skipped++;
+                    continue;
+                }
+
+                var mobileIsValid = CustomerPhoneNormalizer.TryNormalize(remote.Mobile, out var phone);
+                if (local is null)
+                {
+                    // Customers without a valid mobile are still retained. The R-prefixed key
+                    // is deliberately outside the Iranian-mobile format and cannot match lookups.
+                    var normalizedKey = mobileIsValid ? phone : "R" + remote.Id.ToString();
+                    if (byPhone.ContainsKey(normalizedKey))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    local = new Customer
+                    {
+                        FirstName = remote.FirstName?.Trim() ?? string.Empty,
+                        LastName = remote.LastName?.Trim() ?? string.Empty,
+                        Phone = mobileIsValid ? phone : string.Empty,
+                        NormalizedPhone = normalizedKey,
+                        IsActive = true,
+                        CreatedAtUtc = now
+                    };
+                    db.Customers.Add(local);
+                    localCustomers.Add(local);
+                    byPhone[normalizedKey] = local;
+                    added++;
+                }
+                else
+                {
+                    updated++;
+                    if (mobileIsValid)
+                    {
+                        // Update the indexed mobile only when it is not owned by another local row.
+                        if (!byPhone.TryGetValue(phone, out var phoneOwner) || phoneOwner.Id == local.Id)
+                        {
+                            byPhone.Remove(local.NormalizedPhone);
+                            local.Phone = phone;
+                            local.NormalizedPhone = phone;
+                            byPhone[phone] = local;
+                        }
+                    }
+                }
+
+                local.RahkaranCustomerId = remoteId;
+                local.RahkaranPartyId = remote.PartyId ?? remote.PartyRef;
+                local.RahkaranCustomerNumber = remote.Number?.Trim();
+                local.RahkaranSecondCode = remote.SecondCode?.Trim();
+                local.RahkaranDLCode = remote.DLCode?.Trim();
+                local.RahkaranPartyName = remote.PartyName?.Trim();
+                local.CompanyName = remote.CompanyName?.Trim();
+                local.Email = remote.Email?.Trim();
+                local.Telephone = remote.Tel?.Trim();
+                local.Details = remote.Details;
+                local.NationalId = remote.NationalId?.Trim();
+                local.EconomicCode = remote.EconomicCode?.Trim();
+                local.RegistrationCode = remote.RegistrationCode?.Trim();
+                local.WebsiteUrl = remote.WebsiteUrl?.Trim();
+                local.RahkaranStateCode = remote.StateCode;
+                local.RahkaranStateTitle = remote.StateTitle?.Trim();
+                local.RahkaranTypeCode = remote.TypeCode;
+                local.RahkaranTypeTitle = remote.TypeTitle?.Trim();
+                local.RahkaranStatus = remote.Status;
+                local.RahkaranPartyType = remote.PartyType ?? remote.Type;
+                local.RahkaranCreatedAt = remote.CreationDate;
+                local.RahkaranLastModifiedAt = remote.LastModificationDate;
+                local.RahkaranRawDataJson = JsonSerializer.Serialize(remote);
+                local.LastRahkaranSyncAtUtc = now;
+                local.UpdatedAtUtc = now;
+
+                if (!string.IsNullOrWhiteSpace(local.RahkaranCustomerId))
+                    byRahkaranId[remoteId] = local;
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+
+            TempData["Success"] =
+                $"همگام‌سازی مشتریان راهکاران انجام شد؛ {added} مشتری جدید، {updated} مشتری به‌روزرسانی و {skipped} مورد به‌دلیل تعارض هویتی/شماره همراه رد شد. هیچ داده‌ای در راهکاران تغییر نکرد.";
+        }
+        catch (Exception ex)
+        {
+            // Keep details in server logs; never expose service responses or credentials in the UI.
+            HttpContext.RequestServices.GetRequiredService<ILogger<CustomersController>>()
+                .LogError(ex, "Read-only Rahkaran customer synchronization failed.");
+            TempData["Error"] = "همگام‌سازی مشتریان راهکاران ناموفق بود؛ اطلاعات قبلی حفظ شدند. جزئیات در لاگ برنامه ثبت شده است.";
+        }
+
+        return RedirectToAction(nameof(Index), "Home");
+    }
+
     [HttpGet]
     public async Task<IActionResult> LookupByPhone(string? phone, CancellationToken cancellationToken)
     {
