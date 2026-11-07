@@ -160,6 +160,55 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.ToTable("CashRegisters");
                 });
 
+            modelBuilder.Entity("CakeOrders.Domain.Entities.Customer", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NormalizedPhone")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("RahkaranCustomerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedPhone")
+                        .IsUnique();
+
+                    b.ToTable("Customers");
+                });
+
             modelBuilder.Entity("CakeOrders.Domain.Entities.Order", b =>
                 {
                     b.Property<long>("Id")
@@ -187,6 +236,9 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<string>("CreatedByUserId")
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<long?>("CustomerId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("CustomerName")
                         .HasMaxLength(200)
@@ -319,6 +371,8 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
 
                     b.HasIndex("OrderNumber")
                         .IsUnique();
@@ -1417,10 +1471,17 @@ namespace CakeOrders.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.Order", b =>
                 {
+                    b.HasOne("CakeOrders.Domain.Entities.Customer", "Customer")
+                        .WithMany("Orders")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("CakeOrders.Domain.Entities.Branch", "ProductionBranch")
                         .WithMany("ProductionOrders")
                         .HasForeignKey("ProductionBranchId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Customer");
 
                     b.Navigation("ProductionBranch");
                 });
