@@ -7,6 +7,7 @@ namespace CakeOrders.Infrastructure.Data;
 
 public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
+    public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<OrderStatusHistory> OrderStatusHistory => Set<OrderStatusHistory>();
@@ -53,6 +54,11 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
                 .OnDelete(DeleteBehavior.Restrict);
             entity.Property(x => x.CustomerName).HasMaxLength(200);
             entity.Property(x => x.CustomerPhone).HasMaxLength(30);
+            entity.HasIndex(x => x.CustomerId);
+            entity.HasOne(x => x.Customer)
+                .WithMany(x => x.Orders)
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
             entity.Property(x => x.OrderType).HasMaxLength(100).IsRequired();
             entity.Property(x => x.RequestedWeightKg).HasPrecision(8, 2);
             entity.Property(x => x.PricePerKg).HasPrecision(18, 2);
@@ -72,6 +78,17 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.OtherCost).HasPrecision(18, 2);
             entity.Property(x => x.Discount).HasPrecision(18, 2);
             entity.HasMany(x => x.StatusHistory).WithOne(x => x.Order).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.ToTable("Customers");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.LastName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Phone).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.NormalizedPhone).HasMaxLength(11).IsRequired();
+            entity.Property(x => x.RahkaranCustomerId).HasMaxLength(100);
+            entity.HasIndex(x => x.NormalizedPhone).IsUnique();
         });
         modelBuilder.Entity<Referrer>(entity =>
         {
