@@ -95,6 +95,9 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.CompanyName).HasMaxLength(300);
             entity.Property(x => x.Email).HasMaxLength(254);
             entity.Property(x => x.Telephone).HasMaxLength(50);
+            entity.Property(x => x.Fax).HasMaxLength(50);
+            entity.Property(x => x.PostalCode).HasMaxLength(30);
+            entity.Property(x => x.AddressesJson).HasColumnType("nvarchar(max)");
             entity.Property(x => x.NationalId).HasMaxLength(50);
             entity.Property(x => x.EconomicCode).HasMaxLength(50);
             entity.Property(x => x.RegistrationCode).HasMaxLength(50);
