@@ -22,11 +22,40 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
         try
         {
             // Full read-only import. No customer is created or modified in Rahkaran.
-            var remoteCustomers = await rahkaran.GetCustomersAsync(cancellationToken);
-            if (remoteCustomers.Count == 0)
+            var customerIndex = await rahkaran.GetCustomersAsync(cancellationToken);
+            if (customerIndex.Count == 0)
             {
                 TempData["Error"] = "راهکاران هیچ مشتری‌ای برنگرداند؛ برای جلوگیری از همگام‌سازی اشتباه، اطلاعات داخلی تغییر نکرد.";
                 return RedirectToAction(nameof(Index), "Home");
+            }
+
+            // GetCustomers is the lightweight index. GetCustomerList returns the richer
+            // customer record (DLCode, national/economic codes, company data and Addresses).
+            // Its documented MasterEntityID is the customer ID, so enrich each indexed row.
+            var remoteCustomers = new List<RahkaranCustomerDto>(customerIndex.Count);
+            var detailFailures = 0;
+            var fromDate = new DateTimeOffset(1900, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var toDate = DateTimeOffset.UtcNow;
+
+            foreach (var indexedCustomer in customerIndex.Where(x => x.Id > 0))
+            {
+                try
+                {
+                    var details = await rahkaran.GetCustomerChangesAsync(
+                        fromDate, toDate, indexedCustomer.Id, 1, 100, cancellationToken);
+                    var detailedCustomer = details.FirstOrDefault(x => x.Id == indexedCustomer.Id)
+                        ?? details.FirstOrDefault();
+                    remoteCustomers.Add(detailedCustomer ?? indexedCustomer);
+                }
+                catch (Exception ex)
+                {
+                    detailFailures++;
+                    HttpContext.RequestServices.GetRequiredService<ILogger<CustomersController>>()
+                        .LogWarning(ex,
+                            "Could not retrieve detailed Rahkaran customer data for CustomerID={CustomerId}; the basic customer record will be retained.",
+                            indexedCustomer.Id);
+                    remoteCustomers.Add(indexedCustomer);
+                }
             }
 
             var localCustomers = await db.Customers.ToListAsync(cancellationToken);
@@ -131,8 +160,8 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 local.RahkaranTypeTitle = remote.TypeTitle?.Trim();
                 local.RahkaranStatus = remote.Status;
                 local.RahkaranPartyType = remote.PartyType ?? remote.Type;
-                local.RahkaranCreatedAt = remote.CreationDate;
-                local.RahkaranLastModifiedAt = remote.LastModificationDate;
+                local.RahkaranCreatedAt = remote.CreationDate?.UtcDateTime;
+                local.RahkaranLastModifiedAt = remote.LastModificationDate?.UtcDateTime;
                 local.RahkaranRawDataJson = JsonSerializer.Serialize(remote);
                 local.LastRahkaranSyncAtUtc = now;
                 local.UpdatedAtUtc = now;
@@ -144,7 +173,7 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
             await db.SaveChangesAsync(cancellationToken);
 
             TempData["Success"] =
-                $"همگام‌سازی مشتریان راهکاران انجام شد؛ {added} مشتری جدید، {updated} مشتری به‌روزرسانی و {skipped} مورد به‌دلیل تعارض هویتی/شماره همراه رد شد. هیچ داده‌ای در راهکاران تغییر نکرد.";
+                $"همگام‌سازی مشتریان راهکاران انجام شد؛ {added} مشتری جدید، {updated} مشتری به‌روزرسانی و {skipped} مورد به‌دلیل تعارض هویتی/شماره همراه رد شد. دریافت جزئیات تکمیلی برای {detailFailures} مشتری ناموفق بود و اطلاعات پایه آن‌ها ذخیره شد. هیچ داده‌ای در راهکاران تغییر نکرد.";
         }
         catch (Exception ex)
         {
