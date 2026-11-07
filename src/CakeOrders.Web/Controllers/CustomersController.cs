@@ -2,6 +2,7 @@ using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
 using CakeOrders.Infrastructure.Rahkaran;
 using System.Text.Json;
+using System.Globalization;
 using CakeOrders.Web.Services;
 using CakeOrders.Web.ViewModels.Customers;
 using Microsoft.AspNetCore.Authorization;
@@ -75,7 +76,7 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
 
             foreach (var remote in remoteCustomers.Where(x => x.Id > 0))
             {
-                var remoteId = remote.Id.ToString();
+                var remoteId = remote.Id.ToString(CultureInfo.InvariantCulture);
                 Customer? local = null;
 
                 if (!byRahkaranId.TryGetValue(remoteId, out local) &&
@@ -98,7 +99,7 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 {
                     // Customers without a valid mobile are still retained. The R-prefixed key
                     // is deliberately outside the Iranian-mobile format and cannot match lookups.
-                    var normalizedKey = mobileIsValid ? phone : "R" + remote.Id.ToString();
+                    var normalizedKey = mobileIsValid ? phone : "R" + remote.Id.ToString(CultureInfo.InvariantCulture);
                     if (byPhone.ContainsKey(normalizedKey))
                     {
                         skipped++;
