@@ -37,6 +37,48 @@ public sealed class RahkaranReceiptOutboxWorker(
         }
     }
 
+    /// <summary>
+    /// Claims and dispatches exactly the requested pending receipt.
+    /// This administrative path is available while automatic dispatch is disabled.
+    /// The row is claimed under an update lock to prevent races with the background worker.
+    /// </summary>
+    public async Task<RahkaranReceiptSyncStatus?> DispatchSpecificAsync(
+        long outboxId,
+        CancellationToken cancellationToken = default)
+    {
+        if (outboxId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(outboxId));
+
+        await using (var scope = scopeFactory.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CakeOrdersDbContext>();
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+            var candidate = await db.RahkaranReceiptOutbox
+                .FromSqlInterpolated($@"SELECT * FROM [RahkaranReceiptOutbox] WITH (UPDLOCK, READPAST, ROWLOCK)
+                                        WHERE [Id] = {outboxId} AND [Status] = {(int)RahkaranReceiptSyncStatus.Pending}")
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (candidate is null)
+                return null;
+
+            candidate.Status = RahkaranReceiptSyncStatus.Processing;
+            candidate.ProcessingStartedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        await DispatchAsync(outboxId, cancellationToken);
+
+        await using var resultScope = scopeFactory.CreateAsyncScope();
+        var resultDb = resultScope.ServiceProvider.GetRequiredService<CakeOrdersDbContext>();
+        return await resultDb.RahkaranReceiptOutbox
+            .AsNoTracking()
+            .Where(x => x.Id == outboxId)
+            .Select(x => (RahkaranReceiptSyncStatus?)x.Status)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     private async Task ProcessOneAsync(CancellationToken ct)
     {
         long? outboxId = null;
