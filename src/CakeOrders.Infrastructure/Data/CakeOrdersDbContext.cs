@@ -86,7 +86,7 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
             entity.Property(x => x.LastName).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Phone).HasMaxLength(30).IsRequired();
-            entity.Property(x => x.NormalizedPhone).HasMaxLength(11).IsRequired();
+            entity.Property(x => x.NormalizedPhone).HasMaxLength(32).IsRequired();
             entity.Property(x => x.RahkaranCustomerId).HasMaxLength(100);
             entity.Property(x => x.RahkaranCustomerNumber).HasMaxLength(100);
             entity.Property(x => x.RahkaranSecondCode).HasMaxLength(100);
