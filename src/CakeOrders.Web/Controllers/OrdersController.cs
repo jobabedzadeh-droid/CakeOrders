@@ -235,6 +235,62 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             }
         }
 
+        // Every new order must already have all Rahkaran sales-request prerequisites.
+        // This prevents an order from entering the workflow with incomplete remote mappings.
+        var rahkaranSettings = await db.RahkaranIntegrationSettings
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == 1, cancellationToken);
+
+        if (selectedCustomer is not null)
+        {
+            if (!long.TryParse(selectedCustomer.RahkaranCustomerId, out var rahkaranCustomerId) ||
+                rahkaranCustomerId <= 0)
+            {
+                ModelState.AddModelError(nameof(model.CustomerId),
+                    "مشتری انتخاب‌شده باید ابتدا با مشتری متناظر در راهکاران تطبیق داده شود.");
+            }
+
+            if (string.IsNullOrWhiteSpace(selectedCustomer.RahkaranDLCode))
+            {
+                ModelState.AddModelError(nameof(model.CustomerId),
+                    "کد تفصیلی مشتری در راهکاران موجود نیست؛ اطلاعات مشتری را همگام‌سازی و تکمیل کنید.");
+            }
+        }
+
+        if (rahkaranSettings is null)
+        {
+            ModelState.AddModelError(string.Empty,
+                "تنظیمات درخواست فروش راهکاران هنوز ثبت نشده است؛ ابتدا نگاشت‌های راهکاران را تکمیل کنید.");
+        }
+        else
+        {
+            if (rahkaranSettings.SalesOfficeId is not > 0)
+                ModelState.AddModelError(string.Empty, "مرکز فروش راهکاران تعیین نشده است.");
+            if (rahkaranSettings.SalesAreaId is not > 0)
+                ModelState.AddModelError(string.Empty, "حوزه فروش راهکاران تعیین نشده است.");
+            if (rahkaranSettings.SalesTypeId is not > 0)
+                ModelState.AddModelError(string.Empty, "نحوه فروش راهکاران تعیین نشده است.");
+            if (rahkaranSettings.SalesInventoryId is not > 0)
+                ModelState.AddModelError(string.Empty, "انبار راهکاران تعیین نشده است.");
+            if (rahkaranSettings.SalesPlantId is not > 0)
+                ModelState.AddModelError(string.Empty, "مرکز نگهداری راهکاران تعیین نشده است.");
+            if (rahkaranSettings.SalesCurrencyId is not > 0)
+                ModelState.AddModelError(string.Empty, "ارز درخواست فروش راهکاران تعیین نشده است.");
+
+            var (rahkaranProductId, rahkaranUnitId) = model.CakeType switch
+            {
+                CakeType.Cream => (rahkaranSettings.CreamCakeProductId, rahkaranSettings.CreamCakeUnitId),
+                CakeType.SemiFondant => (rahkaranSettings.SemiFondantCakeProductId, rahkaranSettings.SemiFondantCakeUnitId),
+                CakeType.FullFondant => (rahkaranSettings.FullFondantCakeProductId, rahkaranSettings.FullFondantCakeUnitId),
+                _ => (null, null)
+            };
+
+            if (rahkaranProductId is not > 0)
+                ModelState.AddModelError(nameof(model.CakeType), "محصول متناظر این نوع کیک در راهکاران تعیین نشده است.");
+            if (rahkaranUnitId is not > 0)
+                ModelState.AddModelError(nameof(model.CakeType), "واحد سنجش کیلوگرم این محصول در راهکاران تعیین نشده است.");
+        }
+
         var selectedBranchExists = await db.Branches.AnyAsync(
             x => x.Id == model.ProductionBranchId && x.IsActive,
             cancellationToken);
