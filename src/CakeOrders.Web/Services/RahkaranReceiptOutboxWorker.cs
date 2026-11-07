@@ -116,7 +116,8 @@ public sealed class RahkaranReceiptOutboxWorker(
             }
 
             var customerMatches = customers.Where(x => x.Id == customerId).ToList();
-            if (customerMatches.Count != 1 || string.IsNullOrWhiteSpace(customerMatches[0].DLCode))
+            var matchedCustomer = customerMatches.Count == 1 ? customerMatches[0] : null;
+            if (matchedCustomer is null || string.IsNullOrWhiteSpace(matchedCustomer.DLCode))
                 throw new InvalidOperationException("کد تفصیلی مشتری از راهکاران به‌صورت یکتا دریافت نشد؛ ابتدا اطلاعات مشتری را بررسی کنید.");
 
             var settings = await db.RahkaranIntegrationSettings.AsNoTracking()
@@ -126,7 +127,7 @@ public sealed class RahkaranReceiptOutboxWorker(
             if (settings.BranchId is not > 0 || settings.CashId is not > 0)
                 throw new InvalidOperationException("شناسه شعبه و صندوق راهکاران باید در تنظیمات ثبت شود.");
 
-            var customerCode = customerMatches[0].DLCode.Trim();
+            var customerCode = matchedCustomer.DLCode.Trim();
             var localDate = new DateTimeOffset(DateTime.SpecifyKind(entry.CreatedAtUtc, DateTimeKind.Utc))
                 .ToOffset(TimeSpan.FromHours(3.5));
             var documentNumber = $"CO-{order.OrderNumber}-{(entry.OrderCashPaymentId ?? entry.PaymentTransactionId ?? entry.Id).ToString(CultureInfo.InvariantCulture)}";
