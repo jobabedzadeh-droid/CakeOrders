@@ -174,7 +174,7 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<string>("LastName").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
                     b.Property<DateTime?>("LastRahkaranSyncAtUtc").HasColumnType("datetime2");
                     b.Property<string>("NationalId").HasMaxLength(50).HasColumnType("nvarchar(50)");
-                    b.Property<string>("NormalizedPhone").IsRequired().HasMaxLength(11).HasColumnType("nvarchar(11)");
+                    b.Property<string>("NormalizedPhone").IsRequired().HasMaxLength(32).HasColumnType("nvarchar(32)");
                     b.Property<string>("Phone").IsRequired().HasMaxLength(30).HasColumnType("nvarchar(30)");
                     b.Property<string>("RahkaranCustomerId").HasMaxLength(100).HasColumnType("nvarchar(100)");
                     b.Property<string>("RahkaranCustomerNumber").HasMaxLength(100).HasColumnType("nvarchar(100)");
