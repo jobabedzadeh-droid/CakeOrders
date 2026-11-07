@@ -149,6 +149,9 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                 local.CompanyName = remote.CompanyName?.Trim();
                 local.Email = remote.Email?.Trim();
                 local.Telephone = remote.Tel?.Trim();
+                local.Fax = remote.Fax?.Trim();
+                local.PostalCode = remote.ZipCode?.Trim();
+                local.AddressesJson = remote.Addresses?.GetRawText();
                 local.Details = remote.Details;
                 local.NationalId = remote.NationalId?.Trim();
                 local.EconomicCode = remote.EconomicCode?.Trim();
