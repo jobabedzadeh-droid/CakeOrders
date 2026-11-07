@@ -16,8 +16,12 @@
             <small id="customerLookupMessage" class="customer-lookup-message" aria-live="polite">برای شناسایی مشتری، شماره موبایل را وارد کنید.</small>
         </div>
         <div class="field">
-            <label>نام و نام خانوادگی مشتری</label>
-            <input id="customerDisplayName" type="text" readonly placeholder="پس از شناسایی مشتری نمایش داده می‌شود" />
+            <label asp-for="CustomerFirstName">نام مشتری</label>
+            <input asp-for="CustomerFirstName" id="customerDisplayFirstName" readonly placeholder="پس از شناسایی مشتری نمایش داده می‌شود" />
+        </div>
+        <div class="field">
+            <label asp-for="CustomerLastName">نام خانوادگی مشتری</label>
+            <input asp-for="CustomerLastName" id="customerDisplayLastName" readonly placeholder="پس از شناسایی مشتری نمایش داده می‌شود" />
             <small>اگر مشتری در سیستم نباشد، فرم ثبت مشتری جدید باز می‌شود.</small>
         </div>
         <div class="field"><label asp-for="ProductionBranchId"></label><select asp-for="ProductionBranchId" asp-items="Model.ProductionBranches"><option value="0">انتخاب شعبه تولیدکننده</option></select><span asp-validation-for="ProductionBranchId"></span></div>
@@ -139,7 +143,10 @@ body.customer-modal-open { overflow:hidden; }
     const phoneInput = document.getElementById('CustomerPhone');
     const customerIdInput = document.getElementById('CustomerId');
     const customerNameInput = document.getElementById('CustomerName');
-    const customerDisplayName = document.getElementById('customerDisplayName');
+    const customerFirstNameInput = document.getElementById('CustomerFirstName');
+    const customerLastNameInput = document.getElementById('CustomerLastName');
+    const customerDisplayFirstName = document.getElementById('customerDisplayFirstName');
+    const customerDisplayLastName = document.getElementById('customerDisplayLastName');
     const lookupMessage = document.getElementById('customerLookupMessage');
     const customerModal = document.getElementById('customerModal');
     const modalPhone = document.getElementById('newCustomerPhone');
@@ -152,14 +159,20 @@ body.customer-modal-open { overflow:hidden; }
     function clearSelectedCustomer() {
         customerIdInput.value = '';
         customerNameInput.value = '';
-        customerDisplayName.value = '';
+        customerFirstNameInput.value = '';
+        customerLastNameInput.value = '';
+        customerDisplayFirstName.value = '';
+        customerDisplayLastName.value = '';
     }
 
     function selectCustomer(customer) {
         customerIdInput.value = customer.id;
         customerNameInput.value = customer.fullName;
+        customerFirstNameInput.value = customer.firstName;
+        customerLastNameInput.value = customer.lastName;
         phoneInput.value = customer.phone;
-        customerDisplayName.value = customer.fullName;
+        customerDisplayFirstName.value = customer.firstName;
+        customerDisplayLastName.value = customer.lastName;
         lookupMessage.textContent = 'مشتری با موفقیت شناسایی شد.';
         lookupMessage.className = 'customer-lookup-message is-found';
     }
@@ -302,7 +315,8 @@ body.customer-modal-open { overflow:hidden; }
     });
 
     if (customerIdInput.value && customerNameInput.value) {
-        customerDisplayName.value = customerNameInput.value;
+        customerDisplayFirstName.value = customerFirstNameInput.value;
+        customerDisplayLastName.value = customerLastNameInput.value;
         lookupMessage.textContent = 'مشتری انتخاب‌شده';
         lookupMessage.className = 'customer-lookup-message is-found';
     }
