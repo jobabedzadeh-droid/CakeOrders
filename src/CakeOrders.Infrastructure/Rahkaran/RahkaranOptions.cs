@@ -8,5 +8,6 @@ public sealed class RahkaranOptions
     public string Password { get; set; } = string.Empty;
     public int TimeoutSeconds { get; set; } = 30;
     public bool Enabled { get; set; }
+    public bool MasterDataEnabled { get; set; }
     public bool SalesRequestDispatchEnabled { get; set; }
 }
