@@ -116,6 +116,7 @@ public sealed class RahkaranDepositReceiptItem
         if (AccountingOperationID <= 0) throw new ArgumentOutOfRangeException(nameof(AccountingOperationID));
         if (Amount <= 0) throw new ArgumentOutOfRangeException(nameof(Amount));
         if (BankAccountID <= 0) throw new ArgumentOutOfRangeException(nameof(BankAccountID));
+        if (CashFlowFactorID is not > 0) throw new ArgumentOutOfRangeException(nameof(CashFlowFactorID));
         ArgumentException.ThrowIfNullOrWhiteSpace(CounterPartDLCode);
     }
 }
