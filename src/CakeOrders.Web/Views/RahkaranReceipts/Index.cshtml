@@ -1,0 +1,122 @@
+@model CakeOrders.Web.ViewModels.Integrations.Rahkaran.RahkaranReceiptOutboxListViewModel
+@using CakeOrders.Domain.Entities
+
+@{
+    ViewData["Title"] = "رسیدهای راهکاران";
+}
+
+<div class="page-header">
+    <div>
+        <h1>رسیدهای مالی راهکاران</h1>
+        <p>مشاهده صف رسیدها و ارسال دستی و کنترل‌شده هر رسید</p>
+    </div>
+</div>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success" role="alert">@success</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<div class="card" style="margin-bottom: 1rem;">
+    <div class="card-body">
+        <strong>حالت ارسال دستی</strong>
+        <p>
+            دکمه «ارسال همین رسید» فقط همان ردیف انتخاب‌شده را پردازش می‌کند؛
+            Worker خودکار همچنان تابع تنظیم <code>Rahkaran:Enabled</code> است.
+            نتیجه نامشخص یا خطا به‌صورت خودکار دوباره ارسال نمی‌شود و نیازمند بررسی دستی است.
+        </p>
+        <p class="text-muted">
+            ارسال دستی یک عملیات واقعی مالی در راهکاران است. پیش از تأیید، مبلغ، مشتری و نگاشت‌های مالی را بررسی کنید.
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        @if (Model.Items.Count == 0)
+        {
+            <p>هنوز رسیدی در صف ثبت نشده است.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>شناسه</th>
+                            <th>سفارش</th>
+                            <th>مشتری</th>
+                            <th>نوع</th>
+                            <th>مبلغ</th>
+                            <th>وضعیت</th>
+                            <th>شماره رسید راهکاران</th>
+                            <th>زمان ثبت</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>@item.Id</td>
+                            <td>
+                                <a asp-controller="Orders" asp-action="Details" asp-route-id="@item.OrderId">
+                                    @item.OrderNumber
+                                </a>
+                            </td>
+                            <td>
+                                @item.CustomerName
+                                <small class="d-block text-muted">@item.CustomerPhone</small>
+                            </td>
+                            <td>@(item.Source == RahkaranReceiptSource.Cash ? "نقدی" : "کارت‌خوان")</td>
+                            <td>@item.Amount.ToString("N0")</td>
+                            <td>
+                                @switch (item.Status)
+                                {
+                                    case RahkaranReceiptSyncStatus.Pending:
+                                        <span class="badge bg-warning text-dark">در انتظار ارسال</span>
+                                        break;
+                                    case RahkaranReceiptSyncStatus.Processing:
+                                        <span class="badge bg-info">در حال پردازش</span>
+                                        break;
+                                    case RahkaranReceiptSyncStatus.Succeeded:
+                                        <span class="badge bg-success">ثبت‌شده</span>
+                                        break;
+                                    case RahkaranReceiptSyncStatus.NeedsReview:
+                                        <span class="badge bg-danger">نیازمند بررسی</span>
+                                        break;
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.LastError))
+                                {
+                                    <small class="d-block text-danger" title="@item.LastError">جزئیات خطا ثبت شده است</small>
+                                }
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(item.RemoteReceiptNumber) ? "—" : item.RemoteReceiptNumber)</td>
+                            <td>@item.CreatedAtUtc.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</td>
+                            <td>
+                                @if (item.Status == RahkaranReceiptSyncStatus.Pending)
+                                {
+                                    <form asp-controller="RahkaranReceipts" asp-action="Dispatch" method="post"
+                                          onsubmit="return confirm('این رسید به‌صورت واقعی در راهکاران ثبت خواهد شد. آیا از صحت مبلغ، مشتری و تنظیمات مالی اطمینان دارید؟');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-primary btn-sm">ارسال همین رسید</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
