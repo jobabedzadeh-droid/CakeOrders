@@ -1008,6 +1008,9 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<long?>("PaymentTransactionId")
                         .HasColumnType("bigint");
 
+                    b.Property<DateTime?>("ProcessingStartedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("RemoteReceiptId")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
