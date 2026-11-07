@@ -14,8 +14,36 @@ public sealed class Customer
     // Used for reliable lookup and unique enforcement.
     public string NormalizedPhone { get; set; } = string.Empty;
 
-    // Populated when this customer is matched or created in Rahkaran.
+    // Rahkaran identifiers are deliberately stored separately: CustomerID is used by
+    // sales requests, PartyID identifies the shared party, and DLCode is used by finance.
     public string? RahkaranCustomerId { get; set; }
+    public long? RahkaranPartyId { get; set; }
+    public string? RahkaranCustomerNumber { get; set; }
+    public string? RahkaranSecondCode { get; set; }
+    public string? RahkaranDLCode { get; set; }
+
+    public string? RahkaranPartyName { get; set; }
+    public string? CompanyName { get; set; }
+    public string? Email { get; set; }
+    public string? Telephone { get; set; }
+    public string? Details { get; set; }
+    public string? NationalId { get; set; }
+    public string? EconomicCode { get; set; }
+    public string? RegistrationCode { get; set; }
+    public string? WebsiteUrl { get; set; }
+    public int? RahkaranStateCode { get; set; }
+    public string? RahkaranStateTitle { get; set; }
+    public int? RahkaranTypeCode { get; set; }
+    public string? RahkaranTypeTitle { get; set; }
+    public int? RahkaranStatus { get; set; }
+    public int? RahkaranPartyType { get; set; }
+    public DateTime? RahkaranCreatedAt { get; set; }
+    public DateTime? RahkaranLastModifiedAt { get; set; }
+
+    // Preserve complete source payload, including Addresses and fields added by Rahkaran,
+    // so synchronization never silently discards undocumented fields.
+    public string? RahkaranRawDataJson { get; set; }
+    public DateTime? LastRahkaranSyncAtUtc { get; set; }
 
     public bool IsActive { get; set; } = true;
 
