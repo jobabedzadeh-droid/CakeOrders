@@ -88,6 +88,24 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
             entity.Property(x => x.Phone).HasMaxLength(30).IsRequired();
             entity.Property(x => x.NormalizedPhone).HasMaxLength(11).IsRequired();
             entity.Property(x => x.RahkaranCustomerId).HasMaxLength(100);
+            entity.Property(x => x.RahkaranCustomerNumber).HasMaxLength(100);
+            entity.Property(x => x.RahkaranSecondCode).HasMaxLength(100);
+            entity.Property(x => x.RahkaranDLCode).HasMaxLength(100);
+            entity.Property(x => x.RahkaranPartyName).HasMaxLength(300);
+            entity.Property(x => x.CompanyName).HasMaxLength(300);
+            entity.Property(x => x.Email).HasMaxLength(254);
+            entity.Property(x => x.Telephone).HasMaxLength(50);
+            entity.Property(x => x.NationalId).HasMaxLength(50);
+            entity.Property(x => x.EconomicCode).HasMaxLength(50);
+            entity.Property(x => x.RegistrationCode).HasMaxLength(50);
+            entity.Property(x => x.WebsiteUrl).HasMaxLength(500);
+            entity.Property(x => x.RahkaranStateTitle).HasMaxLength(150);
+            entity.Property(x => x.RahkaranTypeTitle).HasMaxLength(150);
+            entity.Property(x => x.RahkaranRawDataJson).HasColumnType("nvarchar(max)");
+            entity.HasIndex(x => x.RahkaranCustomerId)
+                .IsUnique()
+                .HasFilter("[RahkaranCustomerId] IS NOT NULL");
+            entity.HasIndex(x => x.RahkaranDLCode);
             entity.HasIndex(x => x.NormalizedPhone).IsUnique();
         });
         modelBuilder.Entity<Referrer>(entity =>
