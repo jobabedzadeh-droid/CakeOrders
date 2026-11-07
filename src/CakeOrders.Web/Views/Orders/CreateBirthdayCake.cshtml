@@ -7,8 +7,19 @@
 <form asp-action="CreateBirthdayCake" method="post" enctype="multipart/form-data" class="order-form">
     <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
     <section class="form-panel"><h2>اطلاعات پایه</h2><div class="form-grid">
-        <div class="field"><label asp-for="CustomerName"></label><input asp-for="CustomerName" placeholder="نام و نام خانوادگی" /><span asp-validation-for="CustomerName"></span></div>
-        <div class="field"><label asp-for="CustomerPhone"></label><input asp-for="CustomerPhone" placeholder="09xxxxxxxxx" dir="ltr" /><span asp-validation-for="CustomerPhone"></span></div>
+        <input asp-for="CustomerId" type="hidden" />
+        <input asp-for="CustomerName" type="hidden" />
+        <div class="field">
+            <label asp-for="CustomerPhone">شماره موبایل مشتری</label>
+            <input asp-for="CustomerPhone" id="CustomerPhone" placeholder="09xxxxxxxxx" dir="ltr" autocomplete="tel" />
+            <span asp-validation-for="CustomerPhone"></span>
+            <small id="customerLookupMessage" class="customer-lookup-message" aria-live="polite">برای شناسایی مشتری، شماره موبایل را وارد کنید.</small>
+        </div>
+        <div class="field">
+            <label>نام و نام خانوادگی مشتری</label>
+            <input id="customerDisplayName" type="text" readonly placeholder="پس از شناسایی مشتری نمایش داده می‌شود" />
+            <small>اگر مشتری در سیستم نباشد، فرم ثبت مشتری جدید باز می‌شود.</small>
+        </div>
         <div class="field"><label asp-for="ProductionBranchId"></label><select asp-for="ProductionBranchId" asp-items="Model.ProductionBranches"><option value="0">انتخاب شعبه تولیدکننده</option></select><span asp-validation-for="ProductionBranchId"></span></div>
         <div class="field"><label asp-for="OrderType"></label><select asp-for="OrderType" asp-items="Model.OrderTypes"><option value="">انتخاب نوع سفارش</option></select><span asp-validation-for="OrderType"></span></div>
         <div class="field"><label asp-for="CakeType"></label><select asp-for="CakeType" asp-items="Html.GetEnumSelectList<CakeType>()"></select></div>
@@ -33,6 +44,60 @@
     </div><div class="calc-note">مبلغ کل سفارش از حاصل‌ضرب وزن درخواستی در قیمت هر کیلو محاسبه می‌شود. مبلغ نهایی هنگام ذخیره در سمت سرور محاسبه خواهد شد. کانال این فرم «حضوری» است.</div></section>
     <div class="form-actions"><a class="btn btn-light" asp-action="Index">انصراف</a><button class="btn btn-primary" type="submit">ثبت سفارش حضوری</button></div>
 </form>
+
+<div id="customerModal" class="customer-modal" hidden aria-hidden="true">
+    <div class="customer-modal__backdrop" data-customer-modal-close></div>
+    <section class="customer-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="customerModalTitle">
+        <div class="customer-modal__header">
+            <div>
+                <h2 id="customerModalTitle">ثبت مشتری جدید</h2>
+                <p>این شماره موبایل در فهرست مشتریان وجود ندارد.</p>
+            </div>
+            <button type="button" class="customer-modal__close" aria-label="بستن" data-customer-modal-close>&times;</button>
+        </div>
+        <div class="customer-modal__body">
+            <div class="field">
+                <label for="newCustomerPhone">شماره موبایل</label>
+                <input id="newCustomerPhone" type="text" dir="ltr" readonly />
+            </div>
+            <div class="field">
+                <label for="newCustomerFirstName">نام</label>
+                <input id="newCustomerFirstName" type="text" maxlength="100" autocomplete="given-name" />
+            </div>
+            <div class="field">
+                <label for="newCustomerLastName">نام خانوادگی</label>
+                <input id="newCustomerLastName" type="text" maxlength="100" autocomplete="family-name" />
+            </div>
+            <div id="customerModalError" class="customer-modal__error" role="alert" hidden></div>
+        </div>
+        <div class="customer-modal__footer">
+            <button type="button" class="btn btn-light" data-customer-modal-close>انصراف</button>
+            <button type="button" id="saveNewCustomerButton" class="btn btn-primary">ثبت و انتخاب مشتری</button>
+        </div>
+    </section>
+</div>
+<div id="customerAntiForgeryToken" hidden>@Html.AntiForgeryToken()</div>
+
+<style>
+.customer-lookup-message { display:block; margin-top:6px; color:#667085; font-size:.82rem; }
+.customer-lookup-message.is-found { color:#15803d; }
+.customer-lookup-message.is-missing { color:#b45309; }
+.customer-modal[hidden] { display:none !important; }
+.customer-modal { position:fixed; inset:0; z-index:11000; display:grid; place-items:center; padding:20px; }
+.customer-modal__backdrop { position:absolute; inset:0; background:rgba(15,23,42,.58); }
+.customer-modal__dialog { position:relative; width:min(100%,480px); max-height:calc(100vh - 40px); overflow:auto; background:#fff; color:#172033; border-radius:16px; box-shadow:0 24px 70px rgba(0,0,0,.25); }
+.customer-modal__header,.customer-modal__footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:18px 22px; }
+.customer-modal__header { border-bottom:1px solid #e5e7eb; }
+.customer-modal__header h2 { margin:0 0 5px; font-size:1.15rem; }
+.customer-modal__header p { margin:0; color:#667085; font-size:.88rem; }
+.customer-modal__close { border:0; background:transparent; color:#667085; font-size:1.7rem; cursor:pointer; }
+.customer-modal__body { display:grid; gap:14px; padding:20px 22px; }
+.customer-modal__body .field { display:grid; gap:6px; }
+.customer-modal__body input { width:100%; min-height:42px; padding:9px 11px; border:1px solid #d0d5dd; border-radius:8px; }
+.customer-modal__footer { border-top:1px solid #e5e7eb; justify-content:flex-start; }
+.customer-modal__error { color:#b42318; background:#fef3f2; padding:10px 12px; border-radius:8px; }
+body.customer-modal-open { overflow:hidden; }
+</style>
 @section Scripts {
 <script>
 (function () {
@@ -69,6 +134,173 @@
             target.appendChild(img);
         });
     });
+
+    const orderForm = document.querySelector('form.order-form');
+    const phoneInput = document.getElementById('CustomerPhone');
+    const customerIdInput = document.getElementById('CustomerId');
+    const customerNameInput = document.getElementById('CustomerName');
+    const customerDisplayName = document.getElementById('customerDisplayName');
+    const lookupMessage = document.getElementById('customerLookupMessage');
+    const customerModal = document.getElementById('customerModal');
+    const modalPhone = document.getElementById('newCustomerPhone');
+    const firstNameInput = document.getElementById('newCustomerFirstName');
+    const lastNameInput = document.getElementById('newCustomerLastName');
+    const modalError = document.getElementById('customerModalError');
+    const saveCustomerButton = document.getElementById('saveNewCustomerButton');
+    const antiForgeryToken = document.querySelector('#customerAntiForgeryToken input[name="__RequestVerificationToken"]')?.value;
+
+    function clearSelectedCustomer() {
+        customerIdInput.value = '';
+        customerNameInput.value = '';
+        customerDisplayName.value = '';
+    }
+
+    function selectCustomer(customer) {
+        customerIdInput.value = customer.id;
+        customerNameInput.value = customer.fullName;
+        phoneInput.value = customer.phone;
+        customerDisplayName.value = customer.fullName;
+        lookupMessage.textContent = 'مشتری با موفقیت شناسایی شد.';
+        lookupMessage.className = 'customer-lookup-message is-found';
+    }
+
+    function openCustomerModal(phone) {
+        modalPhone.value = phone;
+        firstNameInput.value = '';
+        lastNameInput.value = '';
+        modalError.hidden = true;
+        modalError.textContent = '';
+        customerModal.hidden = false;
+        customerModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('customer-modal-open');
+        window.setTimeout(() => firstNameInput.focus(), 0);
+    }
+
+    function closeCustomerModal() {
+        customerModal.hidden = true;
+        customerModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('customer-modal-open');
+    }
+
+    async function lookupCustomer(openWhenMissing) {
+        const phone = phoneInput.value.trim();
+        if (!phone) {
+            clearSelectedCustomer();
+            lookupMessage.textContent = 'برای شناسایی مشتری، شماره موبایل را وارد کنید.';
+            lookupMessage.className = 'customer-lookup-message';
+            return false;
+        }
+
+        lookupMessage.textContent = 'در حال جست‌وجوی مشتری…';
+        lookupMessage.className = 'customer-lookup-message';
+
+        try {
+            const response = await fetch('@Url.Action("LookupByPhone", "Customers")?phone=' + encodeURIComponent(phone), {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!response.ok) throw new Error('lookup-failed');
+
+            const result = await response.json();
+            if (result.found) {
+                selectCustomer(result.customer);
+                return true;
+            }
+
+            clearSelectedCustomer();
+
+            if (result.invalid) {
+                lookupMessage.textContent = 'شماره موبایل معتبر نیست؛ شماره را به‌صورت 09xxxxxxxxx وارد کنید.';
+                lookupMessage.className = 'customer-lookup-message is-missing';
+                return false;
+            }
+
+            if (result.inactive) {
+                lookupMessage.textContent = 'این شماره متعلق به مشتری غیرفعال است؛ امکان ثبت سفارش برای آن وجود ندارد.';
+                lookupMessage.className = 'customer-lookup-message is-missing';
+                return false;
+            }
+
+            lookupMessage.textContent = 'مشتری پیدا نشد؛ اطلاعات مشتری جدید را وارد کنید.';
+            lookupMessage.className = 'customer-lookup-message is-missing';
+            if (openWhenMissing) openCustomerModal(phone);
+            return false;
+        } catch {
+            lookupMessage.textContent = 'ارتباط با سرور برای جست‌وجوی مشتری برقرار نشد.';
+            lookupMessage.className = 'customer-lookup-message is-missing';
+            return false;
+        }
+    }
+
+    phoneInput.addEventListener('input', function () {
+        clearSelectedCustomer();
+        lookupMessage.textContent = 'برای جست‌وجو، پس از واردکردن شماره از فیلد خارج شوید.';
+        lookupMessage.className = 'customer-lookup-message';
+    });
+
+    phoneInput.addEventListener('blur', () => lookupCustomer(true));
+
+    orderForm.addEventListener('submit', async function (event) {
+        if (customerIdInput.value) return;
+        event.preventDefault();
+        await lookupCustomer(true);
+        if (customerIdInput.value) orderForm.requestSubmit();
+    });
+
+    document.querySelectorAll('[data-customer-modal-close]').forEach(button => {
+        button.addEventListener('click', closeCustomerModal);
+    });
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !customerModal.hidden) closeCustomerModal();
+    });
+
+    saveCustomerButton.addEventListener('click', async function () {
+        const firstName = firstNameInput.value.trim();
+        const lastName = lastNameInput.value.trim();
+        if (!firstName || !lastName) {
+            modalError.textContent = 'نام و نام خانوادگی را وارد کنید.';
+            modalError.hidden = false;
+            return;
+        }
+
+        const payload = new FormData();
+        payload.append('FirstName', firstName);
+        payload.append('LastName', lastName);
+        payload.append('Phone', modalPhone.value);
+        if (antiForgeryToken) payload.append('__RequestVerificationToken', antiForgeryToken);
+
+        saveCustomerButton.disabled = true;
+        saveCustomerButton.textContent = 'در حال ثبت…';
+        modalError.hidden = true;
+
+        try {
+            const response = await fetch('@Url.Action("Create", "Customers")', {
+                method: 'POST',
+                body: payload,
+                headers: { 'Accept': 'application/json' }
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'ثبت مشتری انجام نشد.');
+            }
+
+            selectCustomer(result.customer);
+            closeCustomerModal();
+        } catch (error) {
+            modalError.textContent = error.message || 'ثبت مشتری انجام نشد؛ دوباره تلاش کنید.';
+            modalError.hidden = false;
+        } finally {
+            saveCustomerButton.disabled = false;
+            saveCustomerButton.textContent = 'ثبت و انتخاب مشتری';
+        }
+    });
+
+    if (customerIdInput.value && customerNameInput.value) {
+        customerDisplayName.value = customerNameInput.value;
+        lookupMessage.textContent = 'مشتری انتخاب‌شده';
+        lookupMessage.className = 'customer-lookup-message is-found';
+    }
 
     const codeInput = document.getElementById('ReferrerCode');
     const nameOutput = document.getElementById('referrerName');
