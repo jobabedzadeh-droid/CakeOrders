@@ -1036,7 +1036,7 @@ namespace CakeOrders.Infrastructure.Data.Migrations
 
                     b.HasIndex("Status", "CreatedAtUtc");
 
-                    b.ToTable("RahkaranReceiptOutbox");
+                    b.ToTable("RahkaranReceiptOutbox", t => t.HasCheckConstraint("CK_RahkaranReceiptOutbox_SourcePayment", "([Amount] > 0) AND (([Source] = 1 AND [OrderCashPaymentId] IS NOT NULL AND [PaymentTransactionId] IS NULL) OR ([Source] = 2 AND [PaymentTransactionId] IS NOT NULL AND [OrderCashPaymentId] IS NULL))"));
                 });
 
             modelBuilder.Entity("CakeOrders.Domain.Entities.RahkaranSalesRequestOutbox", b =>

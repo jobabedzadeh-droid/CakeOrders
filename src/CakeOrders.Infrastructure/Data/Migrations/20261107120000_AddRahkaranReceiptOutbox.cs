@@ -34,6 +34,9 @@ public sealed class AddRahkaranReceiptOutbox : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_RahkaranReceiptOutbox", x => x.Id);
+                table.CheckConstraint(
+                    "CK_RahkaranReceiptOutbox_SourcePayment",
+                    "([Amount] > 0) AND (([Source] = 1 AND [OrderCashPaymentId] IS NOT NULL AND [PaymentTransactionId] IS NULL) OR ([Source] = 2 AND [PaymentTransactionId] IS NOT NULL AND [OrderCashPaymentId] IS NULL))");
                 table.ForeignKey("FK_RahkaranReceiptOutbox_Orders_OrderId", x => x.OrderId, "Orders", "Id", onDelete: ReferentialAction.Restrict);
                 table.ForeignKey("FK_RahkaranReceiptOutbox_OrderCashPayments_OrderCashPaymentId", x => x.OrderCashPaymentId, "OrderCashPayments", "Id", onDelete: ReferentialAction.Restrict);
                 table.ForeignKey("FK_RahkaranReceiptOutbox_PaymentTransactions_PaymentTransactionId", x => x.PaymentTransactionId, "PaymentTransactions", "Id", onDelete: ReferentialAction.Restrict);

@@ -412,7 +412,12 @@ public sealed class CakeOrdersDbContext(DbContextOptions<CakeOrdersDbContext> op
 
         modelBuilder.Entity<RahkaranReceiptOutbox>(entity =>
         {
-            entity.ToTable("RahkaranReceiptOutbox");
+            entity.ToTable("RahkaranReceiptOutbox", table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_RahkaranReceiptOutbox_SourcePayment",
+                    "([Amount] > 0) AND (([Source] = 1 AND [OrderCashPaymentId] IS NOT NULL AND [PaymentTransactionId] IS NULL) OR ([Source] = 2 AND [PaymentTransactionId] IS NOT NULL AND [OrderCashPaymentId] IS NULL))");
+            });
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Source).HasConversion<int>();
             entity.Property(x => x.Status).HasConversion<int>();
