@@ -225,7 +225,7 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<List<RahkaranCustomerDto>>(
-            cancellationToken: cancellationToken) ?? [];
+            JsonOptions, cancellationToken) ?? [];
     }
 
     private async Task<IReadOnlyList<T>> GetListAsync<T>(string relativePath, CancellationToken cancellationToken)
