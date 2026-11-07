@@ -76,10 +76,7 @@ INTO #OrderCustomerPhones
 FROM Orders o
 CROSS APPLY
 (
-    SELECT TRANSLATE(
-        COALESCE(o.CustomerPhone, ''),
-        N'۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩',
-        N'01234567890123456789') AS Digits
+    SELECT REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(o.CustomerPhone, ''), N'۰', N'0'), N'۱', N'1'), N'۲', N'2'), N'۳', N'3'), N'۴', N'4'), N'۵', N'5'), N'۶', N'6'), N'۷', N'7'), N'۸', N'8'), N'۹', N'9'), N'٠', N'0'), N'١', N'1'), N'٢', N'2'), N'٣', N'3'), N'٤', N'4'), N'٥', N'5'), N'٦', N'6'), N'٧', N'7'), N'٨', N'8'), N'٩', N'9') AS Digits
 ) translated
 CROSS APPLY
 (
