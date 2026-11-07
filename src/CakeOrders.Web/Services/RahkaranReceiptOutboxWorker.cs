@@ -190,7 +190,7 @@ public sealed class RahkaranReceiptOutboxWorker(
                                 CounterPartDLCode = customerCode,
                                 Date = localDate,
                                 Description = description,
-                                Description_En = $"Deposit for order {order.OrderNumber}",
+                                Description_En = $"Payment for order {order.OrderNumber}",
                                 Number = documentNumber
                             }
                         ]
