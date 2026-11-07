@@ -26,7 +26,10 @@ public sealed class Customer
     public string? CompanyName { get; set; }
     public string? Email { get; set; }
     public string? Telephone { get; set; }
+    public string? Fax { get; set; }
+    public string? PostalCode { get; set; }
     public string? Details { get; set; }
+    public string? AddressesJson { get; set; }
     public string? NationalId { get; set; }
     public string? EconomicCode { get; set; }
     public string? RegistrationCode { get; set; }
