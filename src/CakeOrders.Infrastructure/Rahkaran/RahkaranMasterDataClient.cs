@@ -224,8 +224,35 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
             cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadFromJsonAsync<List<RahkaranCustomerDto>>(
-            JsonOptions, cancellationToken) ?? [];
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        var payload = FindCustomerCollection(document.RootElement);
+
+        if (payload.ValueKind == JsonValueKind.Array)
+        {
+            var customers = new List<RahkaranCustomerDto>();
+            foreach (var item in payload.EnumerateArray())
+            {
+                var customerElement = FindCustomerCollection(item);
+                if (customerElement.ValueKind != JsonValueKind.Object)
+                    customerElement = item;
+
+                var customer = JsonSerializer.Deserialize<RahkaranCustomerDto>(
+                    customerElement.GetRawText(), JsonOptions);
+                if (customer is not null)
+                    customers.Add(customer);
+            }
+            return customers;
+        }
+
+        if (payload.ValueKind == JsonValueKind.Object)
+        {
+            var customer = JsonSerializer.Deserialize<RahkaranCustomerDto>(
+                payload.GetRawText(), JsonOptions);
+            return customer is null ? [] : [customer];
+        }
+
+        return [];
     }
 
     private async Task<IReadOnlyList<T>> GetListAsync<T>(string relativePath, CancellationToken cancellationToken)
