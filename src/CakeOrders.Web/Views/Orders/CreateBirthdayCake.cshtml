@@ -85,6 +85,7 @@
 <style>
 .customer-lookup-message { display:block; margin-top:6px; color:#667085; font-size:.82rem; }
 .customer-lookup-message.is-found { color:#15803d; }
+.customer-lookup-message.is-warning { color:#b45309; }
 .customer-lookup-message.is-missing { color:#b45309; }
 .customer-modal[hidden] { display:none !important; }
 .customer-modal { position:fixed; inset:0; z-index:11000; display:grid; place-items:center; padding:20px; }
@@ -173,8 +174,16 @@ body.customer-modal-open { overflow:hidden; }
         phoneInput.value = customer.phone;
         customerDisplayFirstName.value = customer.firstName;
         customerDisplayLastName.value = customer.lastName;
-        lookupMessage.textContent = 'مشتری با موفقیت شناسایی شد.';
-        lookupMessage.className = 'customer-lookup-message is-found';
+        if (!customer.isRahkaranLinked) {
+            lookupMessage.textContent = 'مشتری در سیستم داخلی شناسایی شد، اما هنوز به مشتری راهکاران متصل نیست. ثبت سفارش ممکن است؛ ارسال درخواست فروش تا تطبیق مشتری متوقف می‌ماند.';
+            lookupMessage.className = 'customer-lookup-message is-warning';
+        } else if (!customer.hasRahkaranDLCode) {
+            lookupMessage.textContent = 'مشتری به راهکاران متصل است، اما کد تفصیلی ندارد؛ ثبت سند مالی تا تکمیل کد تفصیلی متوقف می‌ماند.';
+            lookupMessage.className = 'customer-lookup-message is-warning';
+        } else {
+            lookupMessage.textContent = 'مشتری شناسایی و با اطلاعات راهکاران تطبیق داده شد.';
+            lookupMessage.className = 'customer-lookup-message is-found';
+        }
     }
 
     function openCustomerModal(phone) {
@@ -317,8 +326,8 @@ body.customer-modal-open { overflow:hidden; }
     if (customerIdInput.value && customerNameInput.value) {
         customerDisplayFirstName.value = customerFirstNameInput.value;
         customerDisplayLastName.value = customerLastNameInput.value;
-        lookupMessage.textContent = 'مشتری انتخاب‌شده';
-        lookupMessage.className = 'customer-lookup-message is-found';
+        lookupMessage.textContent = 'مشتری انتخاب‌شده؛ برای مشاهده وضعیت اتصال، شماره موبایل را دوباره جست‌وجو کنید.';
+        lookupMessage.className = 'customer-lookup-message';
     }
 
     const codeInput = document.getElementById('ReferrerCode');
