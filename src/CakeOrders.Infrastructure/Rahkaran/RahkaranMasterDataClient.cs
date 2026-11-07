@@ -212,7 +212,6 @@ public sealed class RahkaranMasterDataClient(HttpClient httpClient) : IRahkaranM
         {
             FromDate = fromDate,
             ToDate = toDate,
-            LastModificationDate = toDate,
             MasterEntityID = masterEntityId,
             PageIndex = pageIndex,
             PageSize = pageSize
@@ -342,9 +341,9 @@ public sealed class RahkaranCustomerDto
     public int? PartyType { get; init; }
 
     [JsonPropertyName("CreationDate")]
-    public DateTime? CreationDate { get; init; }
+    public DateTimeOffset? CreationDate { get; init; }
     [JsonPropertyName("LastModificationDate")]
-    public DateTime? LastModificationDate { get; init; }
+    public DateTimeOffset? LastModificationDate { get; init; }
 
     // Keep nested address records intact; their exact shape can vary by Rahkaran version.
     [JsonPropertyName("Addresses")]
@@ -358,7 +357,6 @@ public sealed class RahkaranCustomerListRequest
 {
     [JsonPropertyName("FromDate")] public DateTimeOffset FromDate { get; init; }
     [JsonPropertyName("ToDate")] public DateTimeOffset ToDate { get; init; }
-    [JsonPropertyName("LastModificationDate")] public DateTimeOffset LastModificationDate { get; init; }
     [JsonPropertyName("MasterEntityID")] public long MasterEntityID { get; init; }
     [JsonPropertyName("PageIndex")] public int PageIndex { get; init; }
     [JsonPropertyName("PageSize")] public int PageSize { get; init; }
