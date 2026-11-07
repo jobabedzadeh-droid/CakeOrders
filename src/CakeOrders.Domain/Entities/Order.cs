@@ -21,6 +21,9 @@ public sealed class Order
     public long? ProductionBranchId { get; set; }
     public Branch? ProductionBranch { get; set; }
     public DateTime DeliveryAt { get; set; }
+    public long? CustomerId { get; set; }
+    public Customer? Customer { get; set; }
+    // Customer name and phone are retained as order-time snapshots for historical records.
     public string? CustomerName { get; set; }
     public string? CustomerPhone { get; set; }
     public string OrderType { get; set; } = string.Empty;
