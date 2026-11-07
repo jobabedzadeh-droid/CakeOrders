@@ -63,7 +63,6 @@ public sealed class ExpandRahkaranCustomerData : Migration
             name: "IX_Customers_RahkaranCustomerId",
             table: "Customers",
             column: "RahkaranCustomerId",
-            unique: true,
             filter: "[RahkaranCustomerId] IS NOT NULL");
         migrationBuilder.CreateIndex(
             name: "IX_Customers_RahkaranDLCode",
