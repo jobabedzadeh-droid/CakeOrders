@@ -320,6 +320,8 @@ public sealed class RahkaranCustomerDto
     [JsonPropertyName("CompanyName")] public string? CompanyName { get; init; }
     [JsonPropertyName("Mobile")] public string? Mobile { get; init; }
     [JsonPropertyName("Tel")] public string? Tel { get; init; }
+    [JsonPropertyName("Fax")] public string? Fax { get; init; }
+    [JsonPropertyName("ZipCode")] public string? ZipCode { get; init; }
     [JsonPropertyName("Email")] public string? Email { get; init; }
     [JsonPropertyName("Details")] public string? Details { get; init; }
     [JsonPropertyName("NationalID")] public string? NationalId { get; init; }
