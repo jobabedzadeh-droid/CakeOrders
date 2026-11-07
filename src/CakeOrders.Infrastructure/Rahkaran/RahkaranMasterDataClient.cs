@@ -238,19 +238,56 @@ public sealed class RahkaranBankAccountDto
 
 public sealed class RahkaranCustomerDto
 {
-    [JsonPropertyName("id"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)] public long Id { get; init; }
-    [JsonPropertyName("PartyId"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)] public long? PartyId { get; init; }
+    // Rahkaran uses both id/ID and PartyId/PartyRef across its documented methods.
+    [JsonPropertyName("id"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long Id { get; init; }
+
+    [JsonPropertyName("PartyId"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long? PartyId { get; init; }
+
+    [JsonPropertyName("PartyRef"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public long? PartyRef { get; init; }
+
     [JsonPropertyName("number")] public string? Number { get; init; }
+    [JsonPropertyName("SecondCode")] public string? SecondCode { get; init; }
+    [JsonPropertyName("DLCode")] public string? DLCode { get; init; }
     [JsonPropertyName("PartyName")] public string? PartyName { get; init; }
     [JsonPropertyName("FirstName")] public string? FirstName { get; init; }
     [JsonPropertyName("LastName")] public string? LastName { get; init; }
+    [JsonPropertyName("CompanyName")] public string? CompanyName { get; init; }
     [JsonPropertyName("Mobile")] public string? Mobile { get; init; }
     [JsonPropertyName("Tel")] public string? Tel { get; init; }
     [JsonPropertyName("Email")] public string? Email { get; init; }
     [JsonPropertyName("Details")] public string? Details { get; init; }
-    [JsonPropertyName("DLCode")] public string? DLCode { get; init; }
-    [JsonPropertyName("Status")] public int? Status { get; init; }
-    [JsonPropertyName("Type")] public int? Type { get; init; }
+    [JsonPropertyName("NationalID")] public string? NationalId { get; init; }
+    [JsonPropertyName("EconomicCode")] public string? EconomicCode { get; init; }
+    [JsonPropertyName("RegistrationCode")] public string? RegistrationCode { get; init; }
+    [JsonPropertyName("WebsiteUrl")] public string? WebsiteUrl { get; init; }
+
+    [JsonPropertyName("StateCode"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int? StateCode { get; init; }
+    [JsonPropertyName("StateTitle")] public string? StateTitle { get; init; }
+    [JsonPropertyName("TypeCode"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int? TypeCode { get; init; }
+    [JsonPropertyName("TypeTitle")] public string? TypeTitle { get; init; }
+    [JsonPropertyName("Status"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int? Status { get; init; }
+    [JsonPropertyName("Type"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int? Type { get; init; }
+    [JsonPropertyName("PartyType"), JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public int? PartyType { get; init; }
+
+    [JsonPropertyName("CreationDate")]
+    public DateTime? CreationDate { get; init; }
+    [JsonPropertyName("LastModificationDate")]
+    public DateTime? LastModificationDate { get; init; }
+
+    // Keep nested address records intact; their exact shape can vary by Rahkaran version.
+    [JsonPropertyName("Addresses")]
+    public JsonElement? Addresses { get; init; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalFields { get; init; }
 }
 
 public sealed class RahkaranCustomerListRequest
