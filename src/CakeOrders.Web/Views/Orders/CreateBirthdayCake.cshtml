@@ -9,20 +9,23 @@
     <section class="form-panel"><h2>اطلاعات پایه</h2><div class="form-grid">
         <input asp-for="CustomerId" type="hidden" />
         <input asp-for="CustomerName" type="hidden" />
-        <div class="field">
+        <div class="field customer-search-field">
             <label asp-for="CustomerPhone">شماره موبایل مشتری</label>
-            <input asp-for="CustomerPhone" id="CustomerPhone" placeholder="09xxxxxxxxx" dir="ltr" autocomplete="tel" />
+            <input asp-for="CustomerPhone" id="CustomerPhone" placeholder="09xxxxxxxxx یا بخشی از شماره" dir="ltr" autocomplete="tel" />
+            <div id="customerPhoneResults" class="customer-search-results" role="listbox" hidden></div>
             <span asp-validation-for="CustomerPhone"></span>
-            <small id="customerLookupMessage" class="customer-lookup-message" aria-live="polite">برای شناسایی مشتری، شماره موبایل را وارد کنید.</small>
+            <small id="customerLookupMessage" class="customer-lookup-message" aria-live="polite">برای جست‌وجو می‌توانید شماره موبایل، نام یا نام خانوادگی را وارد کنید.</small>
         </div>
-        <div class="field">
+        <div class="field customer-search-field">
             <label asp-for="CustomerFirstName">نام مشتری</label>
-            <input asp-for="CustomerFirstName" id="customerDisplayFirstName" readonly placeholder="پس از شناسایی مشتری نمایش داده می‌شود" />
+            <input asp-for="CustomerFirstName" id="customerDisplayFirstName" placeholder="جست‌وجو بر اساس نام" autocomplete="given-name" />
+            <div id="customerFirstNameResults" class="customer-search-results" role="listbox" hidden></div>
         </div>
-        <div class="field">
+        <div class="field customer-search-field">
             <label asp-for="CustomerLastName">نام خانوادگی مشتری</label>
-            <input asp-for="CustomerLastName" id="customerDisplayLastName" readonly placeholder="پس از شناسایی مشتری نمایش داده می‌شود" />
-            <small>اگر مشتری در سیستم نباشد، فرم ثبت مشتری جدید باز می‌شود.</small>
+            <input asp-for="CustomerLastName" id="customerDisplayLastName" placeholder="جست‌وجو بر اساس نام خانوادگی" autocomplete="family-name" />
+            <div id="customerLastNameResults" class="customer-search-results" role="listbox" hidden></div>
+            <small>با تایپ حداقل دو حرف، مشتریان مطابق نمایش داده می‌شوند.</small>
         </div>
         <div class="field"><label asp-for="ProductionBranchId"></label><select asp-for="ProductionBranchId" asp-items="Model.ProductionBranches"><option value="0">انتخاب شعبه تولیدکننده</option></select><span asp-validation-for="ProductionBranchId"></span></div>
         <div class="field"><label asp-for="OrderType"></label><select asp-for="OrderType" asp-items="Model.OrderTypes"><option value="">انتخاب نوع سفارش</option></select><span asp-validation-for="OrderType"></span></div>
@@ -83,6 +86,12 @@
 <div id="customerAntiForgeryToken" hidden>@Html.AntiForgeryToken()</div>
 
 <style>
+.customer-search-field { position:relative; }
+.customer-search-results { position:absolute; z-index:30; top:100%; inset-inline:0; max-height:260px; overflow:auto; margin-top:4px; padding:5px; background:#fff; border:1px solid #d0d5dd; border-radius:10px; box-shadow:0 12px 30px rgba(16,24,40,.14); }
+.customer-search-results[hidden] { display:none !important; }
+.customer-search-result { display:flex; flex-direction:column; gap:3px; width:100%; padding:9px 11px; border:0; border-radius:7px; background:transparent; color:#172033; text-align:right; cursor:pointer; }
+.customer-search-result:hover,.customer-search-result:focus { background:#f2f4f7; outline:0; }
+.customer-search-result small { color:#667085; direction:ltr; text-align:right; }
 .customer-lookup-message { display:block; margin-top:6px; color:#667085; font-size:.82rem; }
 .customer-lookup-message.is-found { color:#15803d; }
 .customer-lookup-message.is-warning { color:#b45309; }
@@ -156,6 +165,97 @@ body.customer-modal-open { overflow:hidden; }
     const modalError = document.getElementById('customerModalError');
     const saveCustomerButton = document.getElementById('saveNewCustomerButton');
     const antiForgeryToken = document.querySelector('#customerAntiForgeryToken input[name="__RequestVerificationToken"]')?.value;
+    const firstNameSearch = customerDisplayFirstName;
+    const lastNameSearch = customerDisplayLastName;
+    const searchBoxes = [
+        { input: phoneInput, results: document.getElementById('customerPhoneResults') },
+        { input: firstNameSearch, results: document.getElementById('customerFirstNameResults') },
+        { input: lastNameSearch, results: document.getElementById('customerLastNameResults') }
+    ];
+    let customerSearchTimer;
+    let customerSearchVersion = 0;
+
+    function hideCustomerResults(except) {
+        searchBoxes.forEach(box => {
+            if (box.results !== except) {
+                box.results.hidden = true;
+                box.results.replaceChildren();
+            }
+        });
+    }
+
+    function renderCustomerResults(container, customers) {
+        container.replaceChildren();
+        if (!customers.length) {
+            const empty = document.createElement('div');
+            empty.className = 'customer-search-result';
+            empty.textContent = 'مشتری‌ای با این مشخصات پیدا نشد';
+            container.appendChild(empty);
+        } else {
+            customers.forEach(customer => {
+                const option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'customer-search-result';
+                option.setAttribute('role', 'option');
+                const name = document.createElement('span');
+                name.textContent = customer.fullName;
+                const phone = document.createElement('small');
+                phone.textContent = customer.phone || 'شماره موبایل ثبت نشده';
+                option.append(name, phone);
+                option.addEventListener('click', () => {
+                    customerSearchVersion++;
+                    clearTimeout(customerSearchTimer);
+                    selectCustomer(customer);
+                    hideCustomerResults();
+                });
+                container.appendChild(option);
+            });
+        }
+        container.hidden = false;
+    }
+
+    function bindCustomerSearch(box) {
+        box.input.addEventListener('input', () => {
+            customerSearchVersion++;
+            const version = customerSearchVersion;
+            clearSelectedCustomer();
+            hideCustomerResults();
+            const term = box.input.value.trim();
+            if (term.length < 2) return;
+
+            clearTimeout(customerSearchTimer);
+            customerSearchTimer = window.setTimeout(async () => {
+                try {
+                    const response = await fetch('@Url.Action("Search", "Customers")?term=' + encodeURIComponent(term), {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (!response.ok) throw new Error('search-failed');
+                    const result = await response.json();
+                    if (version !== customerSearchVersion) return;
+                    renderCustomerResults(box.results, result.results || []);
+                } catch {
+                    if (version !== customerSearchVersion) return;
+                    box.results.replaceChildren();
+                    const error = document.createElement('div');
+                    error.className = 'customer-search-result';
+                    error.textContent = 'جست‌وجوی مشتری انجام نشد';
+                    box.results.appendChild(error);
+                    box.results.hidden = false;
+                }
+            }, 250);
+        });
+
+        box.input.addEventListener('focus', () => {
+            if (box.input.value.trim().length >= 2)
+                box.input.dispatchEvent(new Event('input'));
+        });
+    }
+
+    searchBoxes.forEach(bindCustomerSearch);
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.customer-search-field'))
+            hideCustomerResults();
+    });
 
     function clearSelectedCustomer() {
         customerIdInput.value = '';
