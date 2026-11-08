@@ -15,7 +15,7 @@ public enum RahkaranReceiptSyncStatus
 }
 
 /// <summary>
-/// One durable Rahkaran receipt operation per successful deposit payment.
+/// One durable Rahkaran receipt operation per successful deposit or settlement payment.
 /// A source payment is never automatically posted twice after an ambiguous result.
 /// </summary>
 public sealed class RahkaranReceiptOutbox
