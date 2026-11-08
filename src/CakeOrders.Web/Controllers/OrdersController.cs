@@ -190,7 +190,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         if (!model.CustomerId.HasValue || model.CustomerId.Value <= 0)
         {
-            ModelState.AddModelError(nameof(model.CustomerId), "ابتدا مشتری را با شماره موبایل انتخاب یا ثبت کنید.");
+            ModelState.AddModelError(nameof(model.CustomerId), "ابتدا مشتری را با جست‌وجوی نام، نام خانوادگی یا شماره موبایل انتخاب کنید.");
         }
         else
         {
@@ -199,35 +199,22 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
             if (selectedCustomer is null)
             {
-                ModelState.AddModelError(string.Empty, "مشتری انتخاب‌شده معتبر یا فعال نیست.");
-                model.CustomerId = null;
-                model.CustomerName = null;
-                model.CustomerFirstName = null;
-                model.CustomerLastName = null;
-                ModelState.Remove(nameof(model.CustomerId));
-                ModelState.Remove(nameof(model.CustomerName));
-                ModelState.Remove(nameof(model.CustomerFirstName));
-                ModelState.Remove(nameof(model.CustomerLastName));
+                ModelState.AddModelError(nameof(model.CustomerId), "مشتری انتخاب‌شده معتبر یا فعال نیست؛ دوباره جست‌وجو و انتخاب کنید.");
+                selectedCustomer = null;
             }
-            else if (!CustomerPhoneNormalizer.TryNormalize(model.CustomerPhone, out var normalizedPhone) ||
-                     !string.Equals(normalizedPhone, selectedCustomer.NormalizedPhone, StringComparison.Ordinal))
+            else if (!string.IsNullOrWhiteSpace(selectedCustomer.Phone) &&
+                     (!CustomerPhoneNormalizer.TryNormalize(model.CustomerPhone, out var normalizedPhone) ||
+                      !string.Equals(normalizedPhone, selectedCustomer.NormalizedPhone, StringComparison.Ordinal)))
             {
-                ModelState.AddModelError(nameof(model.CustomerPhone), "شماره موبایل با مشتری انتخاب‌شده مطابقت ندارد؛ دوباره جست‌وجو کنید.");
-                model.CustomerId = null;
-                model.CustomerName = null;
-                model.CustomerFirstName = null;
-                model.CustomerLastName = null;
-                ModelState.Remove(nameof(model.CustomerId));
-                ModelState.Remove(nameof(model.CustomerName));
-                ModelState.Remove(nameof(model.CustomerFirstName));
-                ModelState.Remove(nameof(model.CustomerLastName));
+                ModelState.AddModelError(nameof(model.CustomerPhone), "شماره موبایل با مشتری انتخاب‌شده مطابقت ندارد؛ دوباره مشتری را جست‌وجو و انتخاب کنید.");
+                selectedCustomer = null;
             }
             else
             {
                 model.CustomerName = selectedCustomer.FullName;
                 model.CustomerFirstName = selectedCustomer.FirstName;
                 model.CustomerLastName = selectedCustomer.LastName;
-                model.CustomerPhone = selectedCustomer.Phone;
+                model.CustomerPhone = string.IsNullOrWhiteSpace(selectedCustomer.Phone) ? string.Empty : selectedCustomer.Phone;
                 ModelState.Remove(nameof(model.CustomerName));
                 ModelState.Remove(nameof(model.CustomerFirstName));
                 ModelState.Remove(nameof(model.CustomerLastName));
@@ -293,6 +280,17 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
                 ModelState.AddModelError(string.Empty, "عملیات حسابداری کارت‌خوان راهکاران تعیین نشده است.");
             if (rahkaranSettings.PosCashFlowFactorId is not > 0)
                 ModelState.AddModelError(string.Empty, "عامل گردش نقدینگی کارت‌خوان راهکاران تعیین نشده است.");
+
+            if (rahkaranSettings.SettlementCashAccountingOperationId is not > 0)
+                ModelState.AddModelError(string.Empty, "عملیات حسابداری تسویه نقدی راهکاران تعیین نشده است.");
+            if (rahkaranSettings.SettlementCashFlowFactorId is not > 0)
+                ModelState.AddModelError(string.Empty, "عامل گردش نقدینگی تسویه نقدی راهکاران تعیین نشده است.");
+            if (rahkaranSettings.SettlementPosBankAccountId is not > 0)
+                ModelState.AddModelError(string.Empty, "حساب بانکی مقصد تسویه کارت‌خوان راهکاران تعیین نشده است.");
+            if (rahkaranSettings.SettlementPosAccountingOperationId is not > 0)
+                ModelState.AddModelError(string.Empty, "عملیات حسابداری تسویه کارت‌خوان راهکاران تعیین نشده است.");
+            if (rahkaranSettings.SettlementPosCashFlowFactorId is not > 0)
+                ModelState.AddModelError(string.Empty, "عامل گردش نقدینگی تسویه کارت‌خوان راهکاران تعیین نشده است.");
 
             var (rahkaranProductId, rahkaranUnitId) = model.CakeType switch
             {
