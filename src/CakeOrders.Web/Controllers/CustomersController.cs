@@ -355,15 +355,18 @@ public sealed class CustomersController(
         else
         {
             // A phone-less customer with an unresolved remote-create marker is reused on retry.
-            customer = await db.Customers
+            var phoneLessMatches = await db.Customers
                 .Where(x => x.FirstName == model.FirstName.Trim() &&
                             x.LastName == model.LastName.Trim() &&
-                            x.Phone == string.Empty &&
-                            x.RahkaranCustomerId == null &&
-                            x.RahkaranRawDataJson != null &&
-                            x.RahkaranRawDataJson.Contains("\"createAttemptPending\":true"))
+                            x.Phone == string.Empty)
                 .OrderByDescending(x => x.CreatedAtUtc)
-                .FirstOrDefaultAsync(cancellationToken);
+                .Take(2)
+                .ToListAsync(cancellationToken);
+
+            if (phoneLessMatches.Count > 1)
+                return Conflict(new { success = false, message = "چند مشتری بدون شماره موبایل با این نام وجود دارد؛ برای جلوگیری از اتصال یا ایجاد مشتری اشتباه، لطفاً شماره موبایل وارد کنید یا ابتدا سوابق را بررسی کنید." });
+
+            customer = phoneLessMatches.SingleOrDefault();
         }
 
         if (customer is not null && !customer.IsActive)
