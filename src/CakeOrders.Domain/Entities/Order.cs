@@ -3,7 +3,7 @@
 namespace CakeOrders.Domain.Entities;
 
 public enum OrderChannel { [Display(Name = "حضوری")] InPerson = 1, [Display(Name = "آنلاین")] Online = 2 }
-public enum OrderStatus { [Display(Name = "در انتظار بررسی")] PendingReview = 1, [Display(Name = "تأیید شده")] Confirmed = 2, [Display(Name = "رد شده")] Rejected = 3, [Display(Name = "در حال تولید")] InProduction = 4, [Display(Name = "آماده تحویل")] ReadyForDelivery = 5, [Display(Name = "تحویل شده")] Delivered = 6, [Display(Name = "لغو شده")] Cancelled = 7 }
+public enum OrderStatus { [Display(Name = "در انتظار بررسی")] PendingReview = 1, [Display(Name = "تأیید شده")] Confirmed = 2, [Display(Name = "رد شده")] Rejected = 3, [Display(Name = "در حال تولید")] InProduction = 4, [Display(Name = "آماده تحویل")] ReadyForDelivery = 5, [Display(Name = "تحویل شده")] Delivered = 6, [Display(Name = "لغو شده")] Cancelled = 7, [Display(Name = "ارسال‌شده به کارگاه")] SentToWorkshop = 8 }
 public enum CakeType { [Display(Name = "خامه‌ای")] Cream = 1, [Display(Name = "نیمه فوندانت")] SemiFondant = 2, [Display(Name = "تمام فوندانت")] FullFondant = 3 }
 public enum OrderKind { [Display(Name = "کیک تولد")] BirthdayCake = 1, [Display(Name = "شیرینی")] Sweets = 2 }
 
