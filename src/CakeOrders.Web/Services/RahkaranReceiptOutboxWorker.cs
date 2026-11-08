@@ -166,9 +166,9 @@ public sealed class RahkaranReceiptOutboxWorker(
             var localDate = new DateTimeOffset(DateTime.SpecifyKind(entry.CreatedAtUtc, DateTimeKind.Utc))
                 .ToOffset(TimeSpan.FromHours(3.5));
             var documentNumber = $"CO-{order.OrderNumber}-{(entry.OrderCashPaymentId ?? entry.PaymentTransactionId ?? entry.Id).ToString(CultureInfo.InvariantCulture)}";
-            var description = $"دریافت سفارش {order.OrderNumber} - {(entry.Source == RahkaranReceiptSource.Cash ? "نقدی" : "کارت‌خوان")}";
-
             var isSettlement = entry.Purpose == PaymentPurpose.Settlement;
+            var paymentPurposeTitle = isSettlement ? "تسویه" : "بیعانه";
+            var description = $"دریافت {paymentPurposeTitle} سفارش {order.OrderNumber} - {(entry.Source == RahkaranReceiptSource.Cash ? "نقدی" : "کارت‌خوان")}";
             var cashOperationId = isSettlement
                 ? settings.SettlementCashAccountingOperationId
                 : settings.CashAccountingOperationId;
@@ -184,7 +184,6 @@ public sealed class RahkaranReceiptOutboxWorker(
             var posCashFlowFactorId = isSettlement
                 ? settings.SettlementPosCashFlowFactorId
                 : settings.PosCashFlowFactorId;
-            var paymentPurposeTitle = isSettlement ? "تسویه" : "بیعانه";
 
             RahkaranReceiptResult result;
             if (entry.Source == RahkaranReceiptSource.Cash)
