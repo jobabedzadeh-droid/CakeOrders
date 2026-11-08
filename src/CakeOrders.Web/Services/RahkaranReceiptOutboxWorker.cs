@@ -168,11 +168,29 @@ public sealed class RahkaranReceiptOutboxWorker(
             var documentNumber = $"CO-{order.OrderNumber}-{(entry.OrderCashPaymentId ?? entry.PaymentTransactionId ?? entry.Id).ToString(CultureInfo.InvariantCulture)}";
             var description = $"دریافت سفارش {order.OrderNumber} - {(entry.Source == RahkaranReceiptSource.Cash ? "نقدی" : "کارت‌خوان")}";
 
+            var isSettlement = entry.Purpose == PaymentPurpose.Settlement;
+            var cashOperationId = isSettlement
+                ? settings.SettlementCashAccountingOperationId
+                : settings.CashAccountingOperationId;
+            var cashFlowFactorId = isSettlement
+                ? settings.SettlementCashFlowFactorId
+                : settings.CashFlowFactorId;
+            var posBankAccountId = isSettlement
+                ? settings.SettlementPosBankAccountId
+                : settings.PosBankAccountId;
+            var posOperationId = isSettlement
+                ? settings.SettlementPosAccountingOperationId
+                : settings.PosAccountingOperationId;
+            var posCashFlowFactorId = isSettlement
+                ? settings.SettlementPosCashFlowFactorId
+                : settings.PosCashFlowFactorId;
+            var paymentPurposeTitle = isSettlement ? "تسویه" : "بیعانه";
+
             RahkaranReceiptResult result;
             if (entry.Source == RahkaranReceiptSource.Cash)
             {
-                if (settings.CashAccountingOperationId is not > 0 || settings.CashFlowFactorId is not > 0)
-                    throw new InvalidOperationException("عملیات حسابداری و عامل گردش نقدینگی دریافت نقدی در تنظیمات راهکاران تکمیل نشده است.");
+                if (cashOperationId is not > 0 || cashFlowFactorId is not > 0)
+                    throw new InvalidOperationException($"عملیات حسابداری و عامل گردش نقدینگی دریافت نقدی {paymentPurposeTitle} در تنظیمات راهکاران تکمیل نشده است.");
 
                 result = await cashClient.RegisterCashReceiptAsync(_options.ServiceBaseUrl,
                     new RahkaranCashReceiptRequest
@@ -189,9 +207,9 @@ public sealed class RahkaranReceiptOutboxWorker(
                         [
                             new RahkaranCashReceiptItem
                             {
-                                AccountingOperationID = settings.CashAccountingOperationId.Value,
+                                AccountingOperationID = cashOperationId.Value,
                                 Amount = entry.Amount,
-                                CashFlowFactorID = settings.CashFlowFactorId.Value,
+                                CashFlowFactorID = cashFlowFactorId.Value,
                                 CounterPartDLCode = customerCode,
                                 Description = description,
                                 Description_En = $"Payment for order {order.OrderNumber}"
@@ -199,14 +217,14 @@ public sealed class RahkaranReceiptOutboxWorker(
                         ]
                     }, ct);
             }
-            else
+            else if (entry.Source == RahkaranReceiptSource.PointOfSale)
             {
-                if (settings.PosBankAccountId is not > 0 ||
-                    settings.PosAccountingOperationId is not > 0 ||
-                    settings.PosCashFlowFactorId is not > 0)
+                if (posBankAccountId is not > 0 ||
+                    posOperationId is not > 0 ||
+                    posCashFlowFactorId is not > 0)
                 {
                     throw new InvalidOperationException(
-                        "حساب بانکی، عملیات حسابداری و عامل جریان نقدی کارت‌خوان باید در تنظیمات راهکاران تکمیل شوند.");
+                        $"حساب بانکی، عملیات حسابداری و عامل گردش نقدینگی کارت‌خوان {paymentPurposeTitle} باید در تنظیمات راهکاران تکمیل شوند.");
                 }
 
                 result = await posClient.RegisterDepositReceiptAsync(_options.ServiceBaseUrl,
@@ -224,10 +242,10 @@ public sealed class RahkaranReceiptOutboxWorker(
                         [
                             new RahkaranDepositReceiptItem
                             {
-                                AccountingOperationID = settings.PosAccountingOperationId.Value,
+                                AccountingOperationID = posOperationId.Value,
                                 Amount = entry.Amount,
-                                BankAccountID = settings.PosBankAccountId.Value,
-                                CashFlowFactorID = settings.PosCashFlowFactorId,
+                                BankAccountID = posBankAccountId.Value,
+                                CashFlowFactorID = posCashFlowFactorId.Value,
                                 CounterPartDLCode = customerCode,
                                 Date = localDate,
                                 Description = description,
@@ -236,6 +254,10 @@ public sealed class RahkaranReceiptOutboxWorker(
                             }
                         ]
                     }, ct);
+            }
+            else
+            {
+                throw new InvalidOperationException("روش دریافت وجه در صف راهکاران معتبر نیست.");
             }
 
             if (!result.Succeeded || result.ReceiptId is not > 0)
