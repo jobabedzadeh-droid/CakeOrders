@@ -123,19 +123,21 @@ public sealed class WorkshopPanelController(
         if (!await CanManageWorkshopAsync(actorId, task.WorkshopId, cancellationToken))
             return Forbid();
 
-        if (task.Status != expectedStatus)
+        if (task.Status != expectedStatus &&
+            !(newStatus == ProductionTaskStatus.Completed && task.Status == ProductionTaskStatus.Pending))
         {
             TempData["Error"] = "وضعیت فعلی وظیفه با این عملیات سازگار نیست.";
             return RedirectToAction(nameof(Index));
         }
 
         var now = DateTime.UtcNow;
+        var previousTaskStatus = task.Status;
         task.Status = newStatus;
         task.UpdatedAtUtc = now;
         task.UpdatedByUserId = actorId;
         task.History.Add(new ProductionTaskHistory
         {
-            PreviousStatus = expectedStatus,
+            PreviousStatus = previousTaskStatus,
             NewStatus = newStatus,
             ChangedAtUtc = now,
             ChangedByUserId = actorId,
