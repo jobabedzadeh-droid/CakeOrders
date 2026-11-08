@@ -345,45 +345,23 @@ public sealed class BridgeController(CakeOrdersDbContext db, IOrderProductionRou
                     CreatedAtUtc = DateTime.UtcNow
                 });
 
-                if (payment.Purpose == PaymentPurpose.Deposit)
+                if (payment.Order.Status == OrderStatus.PendingReview &&
+                    ((payment.Order.RequestedDepositAmount > 0 &&
+                      payment.Order.DepositAmount >= payment.Order.RequestedDepositAmount) ||
+                     (payment.Order.RequestedDepositAmount == 0 &&
+                      !string.IsNullOrWhiteSpace(payment.Order.ReferrerCode))))
                 {
-                    // Only a fully paid requested deposit triggers automatic confirmation.
-                    if (payment.Order.Status == OrderStatus.PendingReview &&
-                        payment.Order.RequestedDepositAmount > 0 &&
-                        payment.Order.DepositAmount >= payment.Order.RequestedDepositAmount)
+                    var now = DateTime.UtcNow;
+                    var routed = await productionRouting.TryRouteBirthdayCakeAsync(
+                        payment.Order, null, now, cancellationToken);
+                    if (!routed)
                     {
-                        var now = DateTime.UtcNow;
-                        var canConfirm = await productionRouting.EnsureBirthdayCakeTaskAsync(payment.Order, null, now, cancellationToken);
-
-                        if (canConfirm)
-                        {
-                            var previousOrderStatus = payment.Order.Status;
-                            payment.Order.Status = OrderStatus.Confirmed;
-                            payment.Order.UpdatedByUserId = null;
-
-                            await RahkaranSalesRequestOutboxEnqueuer.EnqueueIfMissingAsync(
-                                db, payment.Order.Id, now, cancellationToken);
-                            payment.Order.StatusHistory.Add(new OrderStatusHistory
-                            {
-                                PreviousStatus = previousOrderStatus,
-                                NewStatus = OrderStatus.Confirmed,
-                                ChangedAtUtc = now,
-                                ChangedByUserId = null,
-                                Note = "تأیید خودکار سیستمی: بیعانه درخواستی به‌طور کامل پرداخت و پاسخ موفق قطعی کارت‌خوان دریافت شد."
-                            });
-                        }
-                        else
-                        {
-                            // The POS charge is real and remains credited, but the order must
-                            // stay pending until its production task can be safely routed.
-                            payment.ResponseMessage = Limit(
-                                (payment.ResponseMessage ?? "") +
-                                " | مبلغ با موفقیت دریافت شد اما کارگاه فعال کیک‌سازی پیدا نشد؛ سفارش برای بررسی دستی در انتظار تأیید باقی ماند.",
-                                1000);
-                        }
+                        payment.ResponseMessage = Limit(
+                            (payment.ResponseMessage ?? "") +
+                            " | پرداخت موفق ثبت شد؛ اما ارجاع خودکار به کارگاه انجام نشد و پس از تکمیل اطلاعات معرف/کارگاه دوباره بررسی می‌شود.",
+                            1000);
                     }
-                }
-            }
+                }            }
         }
         else if (isDefinitiveCancellation)
         {
