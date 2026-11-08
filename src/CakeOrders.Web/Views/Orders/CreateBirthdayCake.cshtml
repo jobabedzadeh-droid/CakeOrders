@@ -60,7 +60,7 @@
         <div class="customer-modal__header">
             <div>
                 <h2 id="customerModalTitle">ثبت مشتری جدید</h2>
-                <p>اطلاعات مشتری را وارد کنید. شماره موبایل الزامی نیست.</p>
+                <p>اطلاعات مشتری را وارد کنید. شماره موبایل الزامی نیست؛ مشتری جدید بدون موبایل باید پیش از ثبت سفارش با راهکاران تطبیق داده شود.</p>
             </div>
             <button type="button" class="customer-modal__close" aria-label="بستن" data-customer-modal-close>&times;</button>
         </div>
@@ -339,6 +339,9 @@ body.customer-modal-open { overflow:hidden; }
         } else if (!customer.hasRahkaranDLCode) {
             lookupMessage.textContent = 'مشتری به راهکاران متصل است، اما کد تفصیلی ندارد؛ تا تکمیل کد تفصیلی امکان ثبت سفارش وجود ندارد.';
             lookupMessage.className = 'customer-lookup-message is-warning';
+        } else if (!customer.phone) {
+            lookupMessage.textContent = 'مشتری بدون شماره موبایل شناسایی شد و شناسه و کد تفصیلی راهکاران معتبر است؛ ثبت سفارش امکان‌پذیر است.';
+            lookupMessage.className = 'customer-lookup-message is-found';
         } else {
             lookupMessage.textContent = 'مشتری شناسایی و با اطلاعات راهکاران تطبیق داده شد.';
             lookupMessage.className = 'customer-lookup-message is-found';
