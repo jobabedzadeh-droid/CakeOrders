@@ -334,6 +334,9 @@ public sealed class BridgeController(CakeOrdersDbContext db, IOrderProductionRou
                 if (payment.Purpose == PaymentPurpose.Deposit)
                     payment.Order.DepositAmount += payment.Amount;
 
+                productionRouting.MarkDeliveredIfSettled(
+                    payment.Order, null, DateTime.UtcNow);
+
                 db.RahkaranReceiptOutbox.Add(new RahkaranReceiptOutbox
                 {
                     OrderId = payment.OrderId,
@@ -361,7 +364,8 @@ public sealed class BridgeController(CakeOrdersDbContext db, IOrderProductionRou
                             " | پرداخت موفق ثبت شد؛ اما ارجاع خودکار به کارگاه انجام نشد و پس از تکمیل اطلاعات معرف/کارگاه دوباره بررسی می‌شود.",
                             1000);
                     }
-                }            }
+                }
+            }
         }
         else if (isDefinitiveCancellation)
         {
