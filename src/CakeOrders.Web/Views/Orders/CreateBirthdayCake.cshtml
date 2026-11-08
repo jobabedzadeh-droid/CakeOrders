@@ -58,14 +58,14 @@
         <div class="customer-modal__header">
             <div>
                 <h2 id="customerModalTitle">ثبت مشتری جدید</h2>
-                <p>این شماره موبایل در فهرست مشتریان وجود ندارد.</p>
+                <p>اطلاعات مشتری را وارد کنید. شماره موبایل الزامی نیست.</p>
             </div>
             <button type="button" class="customer-modal__close" aria-label="بستن" data-customer-modal-close>&times;</button>
         </div>
         <div class="customer-modal__body">
             <div class="field">
                 <label for="newCustomerPhone">شماره موبایل</label>
-                <input id="newCustomerPhone" type="text" dir="ltr" readonly />
+                <input id="newCustomerPhone" type="text" dir="ltr" placeholder="اختیاری؛ در صورت نداشتن موبایل خالی بگذارید" />
             </div>
             <div class="field">
                 <label for="newCustomerFirstName">نام</label>
@@ -184,13 +184,25 @@ body.customer-modal-open { overflow:hidden; }
         });
     }
 
-    function renderCustomerResults(container, customers) {
+    function renderCustomerResults(container, customers, sourceInput) {
         container.replaceChildren();
         if (!customers.length) {
             const empty = document.createElement('div');
             empty.className = 'customer-search-result';
             empty.textContent = 'مشتری‌ای با این مشخصات پیدا نشد';
             container.appendChild(empty);
+
+            const createButton = document.createElement('button');
+            createButton.type = 'button';
+            createButton.className = 'customer-search-result';
+            createButton.textContent = 'ثبت مشتری جدید';
+            createButton.addEventListener('click', () => {
+                const currentPhone = phoneInput.value.trim();
+                openCustomerModal(currentPhone);
+                if (sourceInput === firstNameSearch) firstNameInput.value = sourceInput.value.trim();
+                if (sourceInput === lastNameSearch) lastNameInput.value = sourceInput.value.trim();
+            });
+            container.appendChild(createButton);
         } else {
             customers.forEach(customer => {
                 const option = document.createElement('button');
@@ -234,7 +246,7 @@ body.customer-modal-open { overflow:hidden; }
                     if (!response.ok) throw new Error('search-failed');
                     const result = await response.json();
                     if (version !== customerSearchVersion) return;
-                    renderCustomerResults(box.results, result.results || []);
+                    renderCustomerResults(box.results, result.results || [], box.input);
                 } catch {
                     if (version !== customerSearchVersion) return;
                     box.results.replaceChildren();
@@ -289,7 +301,7 @@ body.customer-modal-open { overflow:hidden; }
     }
 
     function openCustomerModal(phone) {
-        modalPhone.value = phone;
+        modalPhone.value = phone || '';
         firstNameInput.value = '';
         lastNameInput.value = '';
         modalError.hidden = true;
@@ -395,7 +407,7 @@ body.customer-modal-open { overflow:hidden; }
         const payload = new FormData();
         payload.append('FirstName', firstName);
         payload.append('LastName', lastName);
-        payload.append('Phone', modalPhone.value);
+        payload.append('Phone', modalPhone.value.trim());
         if (antiForgeryToken) payload.append('__RequestVerificationToken', antiForgeryToken);
 
         saveCustomerButton.disabled = true;
