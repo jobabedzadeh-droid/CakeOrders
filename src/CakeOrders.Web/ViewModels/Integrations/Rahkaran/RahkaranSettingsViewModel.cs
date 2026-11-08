@@ -12,6 +12,12 @@ public sealed class RahkaranSettingsViewModel
     public long? PosAccountingOperationId { get; set; }
     public long? PosCashFlowFactorId { get; set; }
 
+    public long? SettlementCashAccountingOperationId { get; set; }
+    public long? SettlementCashFlowFactorId { get; set; }
+    public long? SettlementPosBankAccountId { get; set; }
+    public long? SettlementPosAccountingOperationId { get; set; }
+    public long? SettlementPosCashFlowFactorId { get; set; }
+
     public long? SalesOfficeId { get; set; }
     public long? SalesAreaId { get; set; }
     public long? SalesTypeId { get; set; }
