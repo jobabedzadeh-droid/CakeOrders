@@ -211,6 +211,69 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
     }
 
     [HttpGet]
+    public async Task<IActionResult> Search(string? term, CancellationToken cancellationToken)
+    {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
+        term = NormalizeSearchTerm(term);
+        if (term.Length < 2)
+            return Json(new { results = Array.Empty<object>() });
+
+        var matches = await db.Customers
+            .AsNoTracking()
+            .Where(x => x.IsActive &&
+                (x.FirstName.Contains(term) ||
+                 x.LastName.Contains(term) ||
+                 x.Phone.Contains(term) ||
+                 x.NormalizedPhone.Contains(term)))
+            .OrderBy(x => x.LastName)
+            .ThenBy(x => x.FirstName)
+            .Take(12)
+            .Select(x => new
+            {
+                x.Id,
+                x.FirstName,
+                x.LastName,
+                x.Phone,
+                IsRahkaranLinked = x.RahkaranCustomerId != null && x.RahkaranCustomerId != "",
+                HasRahkaranDLCode = x.RahkaranDLCode != null && x.RahkaranDLCode != ""
+            })
+            .ToListAsync(cancellationToken);
+
+        return Json(new
+        {
+            results = matches.Select(x => new
+            {
+                x.Id,
+                x.FirstName,
+                x.LastName,
+                x.Phone,
+                FullName = (x.FirstName + " " + x.LastName).Trim(),
+                x.IsRahkaranLinked,
+                x.HasRahkaranDLCode
+            })
+        });
+    }
+
+    private static string NormalizeSearchTerm(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        return value.Trim()
+            .Replace('ي', 'ی')
+            .Replace('ك', 'ک')
+            .Replace('٠', '0').Replace('١', '1').Replace('٢', '2')
+            .Replace('٣', '3').Replace('٤', '4').Replace('٥', '5')
+            .Replace('٦', '6').Replace('٧', '7').Replace('٨', '8')
+            .Replace('٩', '9').Replace('۰', '0').Replace('۱', '1')
+            .Replace('۲', '2').Replace('۳', '3').Replace('۴', '4')
+            .Replace('۵', '5').Replace('۶', '6').Replace('۷', '7')
+            .Replace('۸', '8').Replace('۹', '9');
+    }
+
+    [HttpGet]
     public async Task<IActionResult> LookupByPhone(string? phone, CancellationToken cancellationToken)
     {
         if (await IsWorkshopMemberAsync(cancellationToken))
