@@ -4,8 +4,8 @@
     ViewData["Title"] = "ثبت سفارش جدید";
 }
 <div class="page-heading"><div><h1>ثبت سفارش جدید</h1><p>این فرم برای ثبت دستی سفارش حضوری است؛ مبلغ نهایی در سمت سرور محاسبه می‌شود.</p></div><a class="btn btn-light" asp-action="Index">بازگشت به سفارش‌ها</a></div>
-<form asp-action="CreateBirthdayCake" method="post" enctype="multipart/form-data" class="order-form">
-    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+<form asp-action="CreateBirthdayCake" method="post" enctype="multipart/form-data" class="order-form" data-draft-image-base-url="@Model.DraftImageBaseUrl">
+    <div asp-validation-summary="All" class="validation-summary" role="alert" aria-live="assertive"></div>
     <section class="form-panel"><h2>اطلاعات پایه</h2><div class="form-grid">
         <input asp-for="CustomerId" type="hidden" />
         <input asp-for="CustomerName" type="hidden" />
@@ -41,8 +41,10 @@
         <div class="field"><label asp-for="WritingLocation"></label><select asp-for="WritingLocation" asp-items="Model.WritingLocations"><option value="">انتخاب محل نوشته</option></select></div>
         <div class="field"><label>فیلینگ</label><div class="check-row"><label><input asp-for="HasBananaFilling" /> موز</label><label><input asp-for="HasWalnutFilling" /> گردو</label></div></div>
         <div class="field full"><label asp-for="CakeText"></label><textarea asp-for="CakeText" rows="2" maxlength="500" placeholder="متنی که باید روی کیک نوشته شود"></textarea><span asp-validation-for="CakeText"></span></div>
-        <div class="field"><label asp-for="SampleImage"></label><input asp-for="SampleImage" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" data-preview-target="samplePreview" /><span asp-validation-for="SampleImage"></span><small>حداکثر ۵ مگابایت؛ JPG، PNG یا WebP</small><div class="image-preview" id="samplePreview"><span>پیش‌نمایش تصویر نمونه کیک</span></div></div>
-        <div class="field"><label asp-for="PrintImage"></label><input asp-for="PrintImage" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" data-preview-target="printPreview" /><span asp-validation-for="PrintImage"></span><small>تصویری که باید روی کیک چاپ شود</small><div class="image-preview" id="printPreview"><span>پیش‌نمایش تصویر چاپی</span></div></div>
+        <div class="field"><label asp-for="SampleImage"></label><input asp-for="SampleImage" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" data-preview-target="samplePreview" />
+            <input asp-for="SampleImageDraftToken" type="hidden" /><span asp-validation-for="SampleImage"></span><small>حداکثر ۵ مگابایت؛ JPG، PNG یا WebP</small><div class="image-preview" id="samplePreview"><span>پیش‌نمایش تصویر نمونه کیک</span></div></div>
+        <div class="field"><label asp-for="PrintImage"></label><input asp-for="PrintImage" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" data-preview-target="printPreview" />
+            <input asp-for="PrintImageDraftToken" type="hidden" /><span asp-validation-for="PrintImage"></span><small>تصویری که باید روی کیک چاپ شود</small><div class="image-preview" id="printPreview"><span>پیش‌نمایش تصویر چاپی</span></div></div>
         <div class="field full"><label asp-for="DesignNotes"></label><textarea asp-for="DesignNotes" rows="3" placeholder="توضیحات تکمیلی سفارش و جزئیات طرح"></textarea><span asp-validation-for="DesignNotes"></span></div>
     </div></section>
     <section class="form-panel"><h2>پرداخت</h2><div class="form-grid">
@@ -134,22 +136,64 @@ body.customer-modal-open { overflow:hidden; }
         jalaliInput.placeholder = 'تقویم شمسی بارگذاری نشد؛ اتصال اینترنت را بررسی کنید';
     }
 
+    const orderForm = document.querySelector('form.order-form');
+    const antiForgeryToken = document.querySelector('#customerAntiForgeryToken input[name="__RequestVerificationToken"]')?.value;
+    const pendingImageUploads = [];
+
+    function showDraftPreview(target, url) {
+        target.replaceChildren();
+        const img = document.createElement('img');
+        img.alt = 'پیش‌نمایش تصویر بارگذاری‌شده';
+        img.src = url;
+        target.appendChild(img);
+    }
+
+    async function uploadDraftImage(input) {
+        const file = input.files && input.files[0];
+        if (!file) return true;
+
+        const target = document.getElementById(input.dataset.previewTarget);
+        const tokenField = document.getElementById(input.id + 'DraftToken');
+        target.textContent = 'در حال بارگذاری تصویر برای حفظ آن در صورت بروز خطا…';
+        input.disabled = true;
+
+        try {
+            const payload = new FormData();
+            payload.append('file', file);
+            if (antiForgeryToken) payload.append('__RequestVerificationToken', antiForgeryToken);
+            const response = await fetch('@Url.Action("UploadDraftImage", "Orders")', {
+                method: 'POST',
+                body: payload,
+                headers: { 'Accept': 'application/json' }
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success)
+                throw new Error(result.message || 'بارگذاری تصویر انجام نشد.');
+
+            tokenField.value = result.token;
+            showDraftPreview(target, result.url);
+            return true;
+        } catch (error) {
+            target.textContent = error.message || 'بارگذاری تصویر ناموفق بود؛ دوباره تصویر را انتخاب کنید.';
+            return false;
+        } finally {
+            input.disabled = false;
+        }
+    }
+
     document.querySelectorAll('input[type=file][data-preview-target]').forEach(input => {
-        input.addEventListener('change', function () {
-            const target = document.getElementById(this.dataset.previewTarget);
-            target.replaceChildren();
-            const file = this.files && this.files[0];
-            if (!file) { target.textContent = 'تصویری انتخاب نشده است'; return; }
-            if (!file.type.startsWith('image/')) { target.textContent = 'فایل انتخاب‌شده تصویر نیست'; return; }
-            const img = document.createElement('img');
-            img.alt = 'پیش‌نمایش تصویر انتخاب‌شده';
-            img.src = URL.createObjectURL(file);
-            img.onload = () => URL.revokeObjectURL(img.src);
-            target.appendChild(img);
+        input.addEventListener('change', () => {
+            const task = uploadDraftImage(input);
+            pendingImageUploads.push(task);
         });
+
+        const token = document.getElementById(input.id + 'DraftToken')?.value;
+        if (token) {
+            const target = document.getElementById(input.dataset.previewTarget);
+            showDraftPreview(target, orderForm.dataset.draftImageBaseUrl + token);
+        }
     });
 
-    const orderForm = document.querySelector('form.order-form');
     const phoneInput = document.getElementById('CustomerPhone');
     const customerIdInput = document.getElementById('CustomerId');
     const customerNameInput = document.getElementById('CustomerName');
@@ -380,11 +424,28 @@ body.customer-modal-open { overflow:hidden; }
 
     phoneInput.addEventListener('blur', () => lookupCustomer(true));
 
+    let isSubmittingOrder = false;
     orderForm.addEventListener('submit', async function (event) {
-        if (customerIdInput.value) return;
+        if (isSubmittingOrder) return;
         event.preventDefault();
-        await lookupCustomer(true);
-        if (customerIdInput.value) orderForm.requestSubmit();
+
+        if (pendingImageUploads.length) {
+            const uploadResults = await Promise.all(pendingImageUploads.splice(0));
+            if (uploadResults.some(success => !success)) {
+                lookupMessage.textContent = 'ثبت سفارش متوقف شد؛ بارگذاری یکی از تصاویر ناموفق بود. پیام زیر پیش‌نمایش تصویر را بررسی کنید.';
+                lookupMessage.className = 'customer-lookup-message is-missing';
+                return;
+            }
+        }
+
+        if (!customerIdInput.value) {
+            lookupMessage.textContent = 'ابتدا مشتری را از نتایج جست‌وجوی نام، نام خانوادگی یا موبایل انتخاب کنید.';
+            lookupMessage.className = 'customer-lookup-message is-missing';
+            return;
+        }
+
+        isSubmittingOrder = true;
+        orderForm.requestSubmit();
     });
 
     document.querySelectorAll('[data-customer-modal-close]').forEach(button => {
