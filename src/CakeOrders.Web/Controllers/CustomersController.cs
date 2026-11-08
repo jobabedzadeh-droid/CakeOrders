@@ -479,6 +479,33 @@ public sealed class CustomersController(
             settings.SalesCurrencyId is not long currencyId)
             return "برای ایجاد مشتری در راهکاران، «مرکز فروش» و «ارز فروش» را در تنظیمات راهکاران تکمیل کنید.";
 
+        // Claim this local customer row before any remote create call. The SQL row lock
+        // prevents two simultaneous requests from creating two Rahkaran customers.
+        await using (var claimTransaction = await db.Database.BeginTransactionAsync(cancellationToken))
+        {
+            var lockedCustomer = await db.Customers
+                .FromSqlInterpolated($"SELECT * FROM [Customers] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {customer.Id}")
+                .SingleAsync(cancellationToken);
+            await db.Entry(customer).ReloadAsync(cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(customer.RahkaranCustomerId))
+            {
+                await claimTransaction.CommitAsync(cancellationToken);
+                return await RefreshRahkaranCustomerDetailsAsync(customer, cancellationToken);
+            }
+
+            if (customer.RahkaranRawDataJson?.Contains("\"createAttemptPending\":true", StringComparison.Ordinal) == true)
+            {
+                await claimTransaction.CommitAsync(cancellationToken);
+                return "درخواست ایجاد این مشتری در حال انجام یا در انتظار تطبیق است؛ برای جلوگیری از ثبت تکراری، درخواست جدید ارسال نشد. چند لحظه بعد دوباره تلاش کنید.";
+            }
+
+            customer.RahkaranRawDataJson = "{\"createAttemptPending\":true}";
+            customer.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+            await claimTransaction.CommitAsync(cancellationToken);
+        }
+
         // Reconcile by mobile before creating a new remote record.
         if (!string.IsNullOrWhiteSpace(customer.Phone))
         {
@@ -510,12 +537,6 @@ public sealed class CustomersController(
                 return await RefreshRahkaranCustomerDetailsAsync(customer, cancellationToken);
             }
         }
-
-        // Persist the pending marker before the remote call. If the response is lost,
-        // retries cannot blindly create a second customer.
-        customer.RahkaranRawDataJson = "{\"createAttemptPending\":true}";
-        customer.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
 
         RahkaranCreateCustomerResult created;
         try
