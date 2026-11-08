@@ -33,6 +33,8 @@ public sealed class WorkshopPanelController(
 
         var task = await db.ProductionTasks
             .Include(x => x.Workshop)
+            .Include(x => x.Order)
+                .ThenInclude(x => x.StatusHistory)
             .FirstOrDefaultAsync(x => x.Id == taskId, cancellationToken);
 
         if (task is null)
@@ -48,35 +50,40 @@ public sealed class WorkshopPanelController(
         }
 
         var now = DateTime.UtcNow;
-        task.Status = ProductionTaskStatus.Pending;
+        task.Status = ProductionTaskStatus.InProgress;
         task.UpdatedAtUtc = now;
         task.UpdatedByUserId = actorId;
         task.History.Add(new ProductionTaskHistory
         {
             PreviousStatus = ProductionTaskStatus.AwaitingWorkshopReview,
-            NewStatus = ProductionTaskStatus.Pending,
+            NewStatus = ProductionTaskStatus.InProgress,
             ChangedAtUtc = now,
             ChangedByUserId = actorId,
-            Note = "وظیفه تولید توسط مسئول کارگاه پذیرفته شد."
+            Note = "وظیفه تولید توسط مسئول کارگاه پذیرفته و تولید آغاز شد."
+        });
+
+        var orderPreviousStatus = task.Order.Status;
+        task.Order.Status = OrderStatus.InProduction;
+        task.Order.UpdatedByUserId = actorId;
+        task.Order.StatusHistory.Add(new OrderStatusHistory
+        {
+            PreviousStatus = orderPreviousStatus,
+            NewStatus = OrderStatus.InProduction,
+            ChangedAtUtc = now,
+            ChangedByUserId = actorId,
+            Note = "سفارش توسط مسئول کارگاه پذیرفته شد و تولید آغاز گردید."
         });
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        TempData["Success"] = "وظیفه تولید پذیرفته شد.";
+        TempData["Success"] = "وظیفه پذیرفته شد و وضعیت سفارش به «در حال تولید» تغییر کرد.";
         return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public Task<IActionResult> StartProduction(long taskId, CancellationToken cancellationToken) =>
-        ChangeTaskStatusAsync(
-            taskId,
-            ProductionTaskStatus.Pending,
-            ProductionTaskStatus.InProgress,
-            "شروع تولید توسط مسئول کارگاه ثبت شد.",
-            "وضعیت وظیفه به «در حال تولید» تغییر کرد.",
-            cancellationToken);
+    public IActionResult StartProduction(long taskId) => BadRequest("شروع تولید هم‌زمان با پذیرش وظیفه ثبت می‌شود.");
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -106,6 +113,8 @@ public sealed class WorkshopPanelController(
 
         var task = await db.ProductionTasks
             .Include(x => x.History)
+            .Include(x => x.Order)
+                .ThenInclude(x => x.StatusHistory)
             .FirstOrDefaultAsync(x => x.Id == taskId, cancellationToken);
 
         if (task is null)
@@ -132,6 +141,28 @@ public sealed class WorkshopPanelController(
             ChangedByUserId = actorId,
             Note = historyNote
         });
+
+        if (newStatus == ProductionTaskStatus.Completed)
+        {
+            var nextOrderStatus = task.Order.RemainingAmount <= 0
+                ? OrderStatus.Delivered
+                : OrderStatus.ReadyForDelivery;
+            var orderNote = nextOrderStatus == OrderStatus.Delivered
+                ? "تولید تکمیل شد و به‌دلیل تسویه کامل، سفارش به‌صورت خودکار تحویل‌شده ثبت شد."
+                : "اتمام تولید توسط مسئول کارگاه ثبت شد؛ سفارش آماده تحویل است.";
+
+            var previousOrderStatus = task.Order.Status;
+            task.Order.Status = nextOrderStatus;
+            task.Order.UpdatedByUserId = actorId;
+            task.Order.StatusHistory.Add(new OrderStatusHistory
+            {
+                PreviousStatus = previousOrderStatus,
+                NewStatus = nextOrderStatus,
+                ChangedAtUtc = now,
+                ChangedByUserId = actorId,
+                Note = orderNote
+            });
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
