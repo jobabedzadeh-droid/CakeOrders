@@ -1,6 +1,7 @@
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
 using CakeOrders.Infrastructure.Rahkaran;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -15,7 +16,12 @@ using System.Security.Claims;
 namespace CakeOrders.Web.Controllers;
 
 [Authorize(Roles = "Admin,User")]
-public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterDataClient rahkaran) : Controller
+public sealed class CustomersController(
+    CakeOrdersDbContext db,
+    IRahkaranMasterDataClient rahkaran,
+    IRahkaranCustomerClient rahkaranCustomer,
+    IOptions<RahkaranOptions> rahkaranOptions,
+    ILogger<CustomersController> logger) : Controller
 {
     [HttpPost]
     [Authorize(Roles = "Admin")]
@@ -340,72 +346,251 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                     .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "اطلاعات مشتری معتبر نیست."
             });
 
+        Customer? customer = null;
         if (hasMobile)
         {
-            var existing = await db.Customers
+            customer = await db.Customers
                 .SingleOrDefaultAsync(x => x.NormalizedPhone == normalizedPhone, cancellationToken);
+        }
+        else
+        {
+            // A phone-less customer with an unresolved remote-create marker is reused on retry.
+            customer = await db.Customers
+                .Where(x => x.FirstName == model.FirstName.Trim() &&
+                            x.LastName == model.LastName.Trim() &&
+                            x.Phone == string.Empty &&
+                            x.RahkaranCustomerId == null &&
+                            x.RahkaranRawDataJson != null &&
+                            x.RahkaranRawDataJson.Contains("\"createAttemptPending\":true"))
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
 
-            if (existing is not null)
+        if (customer is not null && !customer.IsActive)
+            return Conflict(new { success = false, message = "این مشخصات متعلق به مشتری غیرفعال است؛ ابتدا وضعیت مشتری را بررسی کنید." });
+
+        var isNew = customer is null;
+        if (customer is null)
+        {
+            customer = new Customer
             {
-                if (!existing.IsActive)
-                    return Conflict(new { success = false, message = "این شماره متعلق به مشتری غیرفعال است؛ ابتدا وضعیت مشتری را بررسی کنید." });
-
-                return Json(new
-                {
-                    success = true,
-                    alreadyExists = true,
-                    customer = ToCustomerResponse(existing)
-                });
+                FirstName = model.FirstName.Trim(),
+                LastName = model.LastName.Trim(),
+                Phone = hasMobile ? normalizedPhone : string.Empty,
+                NormalizedPhone = hasMobile
+                    ? normalizedPhone
+                    : "N" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(),
+                IsActive = true,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+            db.Customers.Add(customer);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException) when (hasMobile)
+            {
+                customer = await db.Customers
+                    .SingleOrDefaultAsync(x => x.NormalizedPhone == normalizedPhone, cancellationToken);
+                if (customer is null)
+                    throw;
+                if (!customer.IsActive)
+                    return Conflict(new { success = false, message = "این شماره متعلق به مشتری غیرفعال است." });
+                isNew = false;
             }
         }
 
-        // Phone-less local customers receive a unique internal key that cannot be
-        // mistaken for an Iranian mobile number or matched by the phone lookup.
-        var customer = new Customer
-        {
-            FirstName = model.FirstName.Trim(),
-            LastName = model.LastName.Trim(),
-            Phone = hasMobile ? normalizedPhone : string.Empty,
-            NormalizedPhone = hasMobile
-                ? normalizedPhone
-                : "N" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(),
-            IsActive = true,
-            CreatedAtUtc = DateTime.UtcNow
-        };
+        var linkError = await EnsureRahkaranCustomerAsync(customer, cancellationToken);
+        if (linkError is not null)
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                success = false,
+                localCustomerSaved = true,
+                message = linkError,
+                customerId = customer.Id
+            });
 
-        db.Customers.Add(customer);
+        return StatusCode(isNew ? StatusCodes.Status201Created : StatusCodes.Status200OK, new
+        {
+            success = true,
+            alreadyExists = !isNew,
+            customer = ToCustomerResponse(customer)
+        });
+    }
+
+    private async Task<string?> EnsureRahkaranCustomerAsync(
+        Customer customer,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(customer.RahkaranCustomerId))
+            return await RefreshRahkaranCustomerDetailsAsync(customer, cancellationToken);
+
+        // A previous request may have reached Rahkaran but lost its response.
+        // Never issue a second PlaceCustomer call until that attempt is reconciled.
+        if (customer.RahkaranRawDataJson?.Contains("\"createAttemptPending\":true", StringComparison.Ordinal) == true)
+            return "درخواست قبلی ایجاد مشتری ممکن است در راهکاران ثبت شده باشد، اما پاسخ آن دریافت نشده است. برای جلوگیری از ایجاد مشتری تکراری، ارسال مجدد خودکار متوقف شده است؛ ابتدا مشتری را در راهکاران با شماره موبایل/نام بررسی کنید.";
+
+        var settings = await db.RahkaranIntegrationSettings
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == 1, cancellationToken);
+
+        if (settings?.SalesOfficeId is not long salesOfficeId ||
+            settings.SalesCurrencyId is not long currencyId)
+            return "برای ایجاد مشتری در راهکاران، «مرکز فروش» و «ارز فروش» را در تنظیمات راهکاران تکمیل کنید.";
+
+        // Reconcile by mobile before creating a new remote record.
+        if (!string.IsNullOrWhiteSpace(customer.Phone))
+        {
+            IReadOnlyList<RahkaranCustomerDto> remoteCustomers;
+            try
+            {
+                remoteCustomers = await rahkaran.GetCustomersAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not search Rahkaran customers before creating customer {LocalCustomerId}.", customer.Id);
+                return "جست‌وجوی مشتری در راهکاران ناموفق بود؛ برای جلوگیری از ایجاد رکورد تکراری، مشتری جدید ارسال نشد.";
+            }
+
+            var matches = remoteCustomers
+                .Where(x => CustomerPhoneNormalizer.TryNormalize(x.Mobile, out var mobile) &&
+                            mobile == customer.Phone)
+                .ToList();
+
+            if (matches.Count > 1)
+                return "چند مشتری با این شماره در راهکاران پیدا شد؛ برای جلوگیری از اتصال اشتباه، انتخاب خودکار انجام نشد.";
+
+            if (matches.Count == 1)
+            {
+                customer.RahkaranCustomerId = matches[0].Id.ToString(CultureInfo.InvariantCulture);
+                customer.RahkaranPartyId = matches[0].PartyId ?? matches[0].PartyRef;
+                customer.UpdatedAtUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
+                return await RefreshRahkaranCustomerDetailsAsync(customer, cancellationToken);
+            }
+        }
+
+        // Persist the pending marker before the remote call. If the response is lost,
+        // retries cannot blindly create a second customer.
+        customer.RahkaranRawDataJson = "{\"createAttemptPending\":true}";
+        customer.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+
+        RahkaranCreateCustomerResult created;
+        try
+        {
+            created = await rahkaranCustomer.PlaceCustomerAsync(
+                new RahkaranPlaceCustomerRequest
+                {
+                    CurrencyRef = currencyId,
+                    DeclarationDate = DateTimeOffset.UtcNow,
+                    SalesOfficeIDs = [salesOfficeId],
+                    Party = new RahkaranPartyData
+                    {
+                        Type = 0,
+                        FirstName = customer.FirstName,
+                        LastName = customer.LastName,
+                        Mobile = string.IsNullOrWhiteSpace(customer.Phone) ? null : customer.Phone
+                    }
+                },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Rahkaran PlaceCustomer failed for local customer {LocalCustomerId}; create attempt remains protected from duplicate retries.", customer.Id);
+            return "ارتباط با راهکاران هنگام ایجاد مشتری قطع شد. وضعیت درخواست نامشخص است و برای جلوگیری از ثبت تکراری، ارسال مجدد خودکار انجام نمی‌شود؛ ابتدا راهکاران را بررسی کنید.";
+        }
+
+        if (!created.Succeeded || created.CustomerId is not long remoteCustomerId)
+        {
+            if (created.HttpStatusCode is >= 400 and < 500)
+            {
+                customer.RahkaranRawDataJson = null;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
+            logger.LogWarning(
+                "Rahkaran customer creation was not confirmed. LocalCustomerId={LocalCustomerId}, HttpStatusCode={StatusCode}.",
+                customer.Id,
+                created.HttpStatusCode);
+            return created.HttpStatusCode is >= 400 and < 500
+                ? "راهکاران اطلاعات مشتری را نپذیرفت. تنظیمات و اطلاعات ارسالی را بررسی کنید."
+                : "پاسخ قطعی از راهکاران برای ایجاد مشتری دریافت نشد؛ برای جلوگیری از ایجاد رکورد تکراری، ارسال مجدد خودکار متوقف شده است.";
+        }
+
+        // Save the remote identifiers immediately. A later DLCode/detail failure must
+        // never cause another PlaceCustomer call.
+        customer.RahkaranCustomerId = remoteCustomerId.ToString(CultureInfo.InvariantCulture);
+        customer.RahkaranPartyId = created.PartyId;
+        customer.RahkaranRawDataJson = null;
+        customer.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await RefreshRahkaranCustomerDetailsAsync(customer, cancellationToken);
+    }
+
+    private async Task<string?> RefreshRahkaranCustomerDetailsAsync(
+        Customer customer,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(customer.RahkaranCustomerId, NumberStyles.None,
+                CultureInfo.InvariantCulture, out var remoteCustomerId))
+            return "شناسه مشتری راهکاران معتبر نیست؛ اطلاعات اتصال باید بررسی شود.";
 
         try
         {
+            var details = await rahkaran.GetCustomerChangesAsync(
+                new DateTimeOffset(1900, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                DateTimeOffset.UtcNow,
+                remoteCustomerId,
+                1,
+                100,
+                cancellationToken);
+
+            var remote = details.FirstOrDefault(x => x.Id == remoteCustomerId)
+                ?? details.FirstOrDefault();
+            if (remote is null)
+                return "مشتری در راهکاران ایجاد/شناسایی شد و شناسه آن ذخیره شد، اما دریافت جزئیات و کد تفصیلی هنوز موفق نبود. دوباره تلاش کنید.";
+
+            customer.RahkaranPartyId = remote.PartyId ?? remote.PartyRef ?? customer.RahkaranPartyId;
+            customer.RahkaranCustomerNumber = remote.Number?.Trim();
+            customer.RahkaranSecondCode = remote.SecondCode?.Trim();
+            customer.RahkaranDLCode = remote.DLCode?.Trim();
+            customer.RahkaranPartyName = remote.PartyName?.Trim();
+            customer.CompanyName = remote.CompanyName?.Trim();
+            customer.Email = remote.Email?.Trim();
+            customer.Telephone = remote.Tel?.Trim();
+            customer.Fax = remote.Fax?.Trim();
+            customer.PostalCode = remote.ZipCode?.Trim();
+            customer.Details = remote.Details;
+            customer.NationalId = remote.NationalId?.Trim();
+            customer.EconomicCode = remote.EconomicCode?.Trim();
+            customer.RegistrationCode = remote.RegistrationCode?.Trim();
+            customer.WebsiteUrl = remote.WebsiteUrl?.Trim();
+            customer.RahkaranStateCode = remote.StateCode;
+            customer.RahkaranStateTitle = remote.StateTitle?.Trim();
+            customer.RahkaranTypeCode = remote.Type;
+            customer.RahkaranTypeTitle = remote.TypeTitle?.Trim();
+            customer.RahkaranStatus = remote.Status;
+            customer.RahkaranPartyType = remote.PartyType ?? remote.Type;
+            customer.RahkaranCreatedAt = remote.CreationDate?.UtcDateTime;
+            customer.RahkaranLastModifiedAt = remote.LastModificationDate?.UtcDateTime;
+            customer.RahkaranRawDataJson = JsonSerializer.Serialize(remote);
+            customer.AddressesJson = remote.Addresses?.GetRawText();
+            customer.LastRahkaranSyncAtUtc = DateTime.UtcNow;
+            customer.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
+
+            return string.IsNullOrWhiteSpace(customer.RahkaranDLCode)
+                ? "مشتری در راهکاران ایجاد و شناسه‌های آن ذخیره شد، اما کد تفصیلی هنوز در پاسخ راهکاران موجود نیست. با تلاش مجدد فقط دریافت جزئیات تکرار می‌شود و مشتری جدیدی ایجاد نخواهد شد."
+                : null;
         }
-        catch (DbUpdateException) when (hasMobile)
+        catch (Exception ex)
         {
-            // A concurrent request may have registered the same phone after the lookup.
-            var concurrentCustomer = await db.Customers
-                .AsNoTracking()
-                .SingleOrDefaultAsync(x => x.NormalizedPhone == normalizedPhone, cancellationToken);
-
-            if (concurrentCustomer is null)
-                throw;
-
-            if (!concurrentCustomer.IsActive)
-                return Conflict(new { success = false, message = "این شماره متعلق به مشتری غیرفعال است؛ ابتدا وضعیت مشتری را بررسی کنید." });
-
-            return Json(new
-            {
-                success = true,
-                alreadyExists = true,
-                customer = ToCustomerResponse(concurrentCustomer)
-            });
+            logger.LogError(ex, "Could not retrieve Rahkaran details/DLCode for local customer {LocalCustomerId}, remote customer {RahkaranCustomerId}.",
+                customer.Id, customer.RahkaranCustomerId);
+            return "شناسه مشتری راهکاران ذخیره شد، اما دریافت کد تفصیلی ناموفق بود. دوباره تلاش کنید؛ مشتری تکراری ایجاد نخواهد شد.";
         }
-
-        return StatusCode(StatusCodes.Status201Created, new
-        {
-            success = true,
-            alreadyExists = false,
-            customer = ToCustomerResponse(customer)
-        });
     }
 
     private async Task<bool> IsWorkshopMemberAsync(CancellationToken cancellationToken)
