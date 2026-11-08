@@ -12,7 +12,6 @@ public sealed class CustomerCreateRequest
     [StringLength(100)]
     public string LastName { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "شماره موبایل را وارد کنید.")]
     [StringLength(30)]
-    public string Phone { get; set; } = string.Empty;
+    public string? Phone { get; set; }
 }
