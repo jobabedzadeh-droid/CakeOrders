@@ -483,7 +483,7 @@ public sealed class CustomersController(
         // prevents two simultaneous requests from creating two Rahkaran customers.
         await using (var claimTransaction = await db.Database.BeginTransactionAsync(cancellationToken))
         {
-            var lockedCustomer = await db.Customers
+            await db.Customers
                 .FromSqlInterpolated($"SELECT * FROM [Customers] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {customer.Id}")
                 .SingleAsync(cancellationToken);
             await db.Entry(customer).ReloadAsync(cancellationToken);
@@ -517,7 +517,9 @@ public sealed class CustomersController(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Could not search Rahkaran customers before creating customer {LocalCustomerId}.", customer.Id);
-                return "جست‌وجوی مشتری در راهکاران ناموفق بود؛ برای جلوگیری از ایجاد رکورد تکراری، مشتری جدید ارسال نشد.";
+                customer.RahkaranRawDataJson = "{\"createAttemptFailed\":true}";
+                await db.SaveChangesAsync(cancellationToken);
+                return "جست‌وجوی مشتری در راهکاران ناموفق بود؛ هیچ درخواست ایجاد مشتری ارسال نشد. پس از بررسی ارتباط دوباره تلاش کنید.";
             }
 
             var matches = remoteCustomers
