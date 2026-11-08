@@ -1,7 +1,6 @@
 using CakeOrders.Domain.Entities;
 using CakeOrders.Infrastructure.Data;
 using CakeOrders.Infrastructure.Rahkaran;
-using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -20,7 +19,6 @@ public sealed class CustomersController(
     CakeOrdersDbContext db,
     IRahkaranMasterDataClient rahkaran,
     IRahkaranCustomerClient rahkaranCustomer,
-    IOptions<RahkaranOptions> rahkaranOptions,
     ILogger<CustomersController> logger) : Controller
 {
     [HttpPost]
