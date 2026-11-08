@@ -358,7 +358,11 @@ public sealed class CustomersController(
             var phoneLessMatches = await db.Customers
                 .Where(x => x.FirstName == model.FirstName.Trim() &&
                             x.LastName == model.LastName.Trim() &&
-                            x.Phone == string.Empty)
+                            x.Phone == string.Empty &&
+                            (x.RahkaranCustomerId != null ||
+                             (x.RahkaranRawDataJson != null &&
+                              (x.RahkaranRawDataJson.Contains("\"createAttemptPending\":true") ||
+                               x.RahkaranRawDataJson.Contains("\"createAttemptFailed\":true")))))
                 .OrderByDescending(x => x.CreatedAtUtc)
                 .Take(2)
                 .ToListAsync(cancellationToken);
@@ -508,7 +512,7 @@ public sealed class CustomersController(
         {
             if (created.HttpStatusCode is >= 400 and < 500)
             {
-                customer.RahkaranRawDataJson = null;
+                customer.RahkaranRawDataJson = "{\"createAttemptFailed\":true}";
                 await db.SaveChangesAsync(cancellationToken);
             }
 
