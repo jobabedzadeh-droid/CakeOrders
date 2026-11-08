@@ -9,4 +9,17 @@ public interface IOrderProductionRoutingService
         string? actorUserId,
         DateTime now,
         CancellationToken cancellationToken);
+
+    Task<bool> TryRouteBirthdayCakeAsync(
+        Order order,
+        string? actorUserId,
+        DateTime now,
+        CancellationToken cancellationToken);
+
+    void ChangeOrderStatus(
+        Order order,
+        OrderStatus newStatus,
+        string? actorUserId,
+        DateTime now,
+        string note);
 }
