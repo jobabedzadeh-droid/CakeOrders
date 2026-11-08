@@ -39,6 +39,9 @@ public sealed class OrderProductionRoutingService(CakeOrdersDbContext db)
                 hasZeroDepositReferral
                     ? "ارجاع خودکار به کارگاه به‌دلیل ثبت کد معرف معتبر برای سفارش بدون بیعانه."
                     : "ارجاع خودکار به کارگاه پس از تکمیل پرداخت بیعانه.");
+
+            await RahkaranSalesRequestOutboxEnqueuer.EnqueueIfMissingAsync(
+                db, order.Id, now, cancellationToken);
         }
 
         return true;
