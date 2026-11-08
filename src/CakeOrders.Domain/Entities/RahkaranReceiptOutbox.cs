@@ -29,6 +29,9 @@ public sealed class RahkaranReceiptOutbox
     public long? PaymentTransactionId { get; set; }
 
     public RahkaranReceiptSource Source { get; set; }
+
+    // Existing rows default to Deposit for backward-compatible reconciliation.
+    public PaymentPurpose Purpose { get; set; } = PaymentPurpose.Deposit;
     public RahkaranReceiptSyncStatus Status { get; set; } = RahkaranReceiptSyncStatus.Pending;
 
     public decimal Amount { get; set; }
