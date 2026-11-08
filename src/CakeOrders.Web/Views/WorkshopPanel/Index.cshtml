@@ -72,7 +72,7 @@ else
                         <td>@task.Order.DeliveryAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</td>
                         <td>@StatusLabel(task.Status)</td>
                         <td>
-                            @if (task.Status == ProductionTaskStatus.InProgress)
+                            @if (task.Status is ProductionTaskStatus.InProgress or ProductionTaskStatus.Pending)
                             {
                                 <form asp-controller="WorkshopPanel" asp-action="CompleteProduction" method="post">
                                     @Html.AntiForgeryToken()
