@@ -199,7 +199,7 @@ public sealed class RahkaranReceiptOutboxWorker(
                         CounterPartDLCode = customerCode,
                         Date = localDate,
                         Description = description,
-                        Description_En = $"Payment for order {order.OrderNumber} - Cash",
+                        Description_En = $"{(isSettlement ? "Settlement" : "Deposit")} for order {order.OrderNumber} - Cash",
                         IsApproved = true,
                         Number = documentNumber,
                         ReceiptCashMoneys =
@@ -211,7 +211,7 @@ public sealed class RahkaranReceiptOutboxWorker(
                                 CashFlowFactorID = cashFlowFactorId.Value,
                                 CounterPartDLCode = customerCode,
                                 Description = description,
-                                Description_En = $"Payment for order {order.OrderNumber}"
+                                Description_En = $"{(isSettlement ? "Settlement" : "Deposit")} for order {order.OrderNumber}"
                             }
                         ]
                     }, ct);
@@ -234,7 +234,7 @@ public sealed class RahkaranReceiptOutboxWorker(
                         CounterPartDLCode = customerCode,
                         Date = localDate,
                         Description = description,
-                        Description_En = $"Payment for order {order.OrderNumber} - POS",
+                        Description_En = $"{(isSettlement ? "Settlement" : "Deposit")} for order {order.OrderNumber} - POS",
                         IsApproved = true,
                         Number = documentNumber,
                         ReceiptDeposits =
