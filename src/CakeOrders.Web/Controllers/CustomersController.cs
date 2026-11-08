@@ -435,7 +435,41 @@ public sealed class CustomersController(
         // A previous request may have reached Rahkaran but lost its response.
         // Never issue a second PlaceCustomer call until that attempt is reconciled.
         if (customer.RahkaranRawDataJson?.Contains("\"createAttemptPending\":true", StringComparison.Ordinal) == true)
-            return "درخواست قبلی ایجاد مشتری ممکن است در راهکاران ثبت شده باشد، اما پاسخ آن دریافت نشده است. برای جلوگیری از ایجاد مشتری تکراری، ارسال مجدد خودکار متوقف شده است؛ ابتدا مشتری را در راهکاران با شماره موبایل/نام بررسی کنید.";
+        {
+            try
+            {
+                var pendingMatches = (await rahkaran.GetCustomersAsync(cancellationToken))
+                    .Where(x =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(customer.Phone))
+                            return CustomerPhoneNormalizer.TryNormalize(x.Mobile, out var mobile) &&
+                                   mobile == customer.Phone;
+
+                        return string.Equals(x.FirstName?.Trim(), customer.FirstName, StringComparison.OrdinalIgnoreCase) &&
+                               string.Equals(x.LastName?.Trim(), customer.LastName, StringComparison.OrdinalIgnoreCase);
+                    })
+                    .ToList();
+
+                if (pendingMatches.Count == 1)
+                {
+                    customer.RahkaranCustomerId = pendingMatches[0].Id.ToString(CultureInfo.InvariantCulture);
+                    customer.RahkaranPartyId = pendingMatches[0].PartyId ?? pendingMatches[0].PartyRef;
+                    customer.RahkaranRawDataJson = null;
+                    customer.UpdatedAtUtc = DateTime.UtcNow;
+                    await db.SaveChangesAsync(cancellationToken);
+                    return await RefreshRahkaranCustomerDetailsAsync(customer, cancellationToken);
+                }
+
+                if (pendingMatches.Count > 1)
+                    return "چند مشتری مطابق درخواست قبلی در راهکاران پیدا شد؛ برای جلوگیری از اتصال اشتباه، تطبیق باید به‌صورت دستی انجام شود.";
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not reconcile pending Rahkaran customer creation for local customer {LocalCustomerId}.", customer.Id);
+            }
+
+            return "وضعیت درخواست قبلی ایجاد مشتری در راهکاران هنوز قابل تعیین نیست. برای جلوگیری از ایجاد مشتری تکراری، ارسال مجدد خودکار متوقف شده است؛ پس از بررسی راهکاران دوباره تلاش کنید.";
+        }
 
         var settings = await db.RahkaranIntegrationSettings
             .AsNoTracking()
