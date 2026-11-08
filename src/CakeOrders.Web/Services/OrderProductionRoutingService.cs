@@ -44,6 +44,19 @@ public sealed class OrderProductionRoutingService(CakeOrdersDbContext db)
         return true;
     }
 
+    public void MarkDeliveredIfSettled(Order order, string? actorUserId, DateTime now)
+    {
+        if (order.Status == OrderStatus.ReadyForDelivery && order.RemainingAmount <= 0)
+        {
+            ChangeOrderStatus(
+                order,
+                OrderStatus.Delivered,
+                actorUserId,
+                now,
+                "تحویل خودکار ثبت شد؛ تولید تکمیل شده و کل مبلغ سفارش تسویه شده است.");
+        }
+    }
+
     public void ChangeOrderStatus(
         Order order,
         OrderStatus newStatus,
