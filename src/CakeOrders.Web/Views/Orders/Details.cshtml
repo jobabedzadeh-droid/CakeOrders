@@ -117,7 +117,7 @@
         {
             <div><small>نوع کیک</small><b>@cake</b></div>
         }
-        <div><small>وضعیت</small><b>@(Model.RequestedDepositAmount > Model.DepositAmount && Model.Status == OrderStatus.PendingReview ? "در انتظار پرداخت بیعانه" : Model.Status.ToString())</b></div>
+        <div><small>وضعیت</small><b>@GetStatusName(Model.Status)</b></div>
         @if (isBirthdayCake)
         {
             <div><small>وزن</small><b>@Model.RequestedWeightKg.ToString("N1") کیلوگرم</b></div>
@@ -241,81 +241,6 @@
     </section>
 }
 
-@{
-    var allowedTransitions = Model.Status switch
-    {
-        OrderStatus.PendingReview => new[]
-        {
-            OrderStatus.Confirmed,
-            OrderStatus.Rejected,
-            OrderStatus.Cancelled
-        },
-        OrderStatus.Confirmed => new[]
-        {
-            OrderStatus.InProduction,
-            OrderStatus.Cancelled
-        },
-        OrderStatus.InProduction => new[]
-        {
-            OrderStatus.ReadyForDelivery,
-            OrderStatus.Cancelled
-        },
-        OrderStatus.ReadyForDelivery => new[]
-        {
-            OrderStatus.Delivered
-        },
-        _ => Array.Empty<OrderStatus>()
-    };
-}
-
-@if (!isWorkshopMember)
-{
-<section class="form-panel">
-    <h3>تغییر وضعیت سفارش</h3>
-
-    @if (allowedTransitions.Length > 0)
-    {
-        <form asp-action="UpdateStatus" method="post">
-            @Html.AntiForgeryToken()
-
-            <input type="hidden" name="OrderId" value="@Model.Id" />
-
-            <div class="form-group">
-                <label for="NewStatus">وضعیت جدید</label>
-                <select name="NewStatus" id="NewStatus" class="form-control" required>
-                    @foreach (var status in allowedTransitions)
-                    {
-                        <option value="@((int)status)">
-                            @GetStatusName(status)
-                        </option>
-                    }
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="Note">توضیحات / دلیل تغییر وضعیت</label>
-                <textarea name="Note"
-                          id="Note"
-                          class="form-control"
-                          rows="3"
-                          maxlength="1000"
-                          placeholder="دلیل تأیید، رد یا توضیح تغییر وضعیت را وارد کنید..."
-                          required></textarea>
-            </div>
-
-            <button type="submit" class="btn btn-primary">
-                ثبت تغییر وضعیت
-            </button>
-        </form>
-    }
-    else
-    {
-        <p class="text-muted">
-            این سفارش در وضعیت نهایی قرار دارد و امکان تغییر وضعیت آن وجود ندارد.
-        </p>
-    }
-</section>
-}
 @{
     var historyUserNames =
         ViewBag.StatusHistoryUserNames
@@ -501,6 +426,7 @@
         {
             OrderStatus.PendingReview => "در انتظار بررسی",
             OrderStatus.Confirmed => "تأیید شده",
+            OrderStatus.SentToWorkshop => "ارسال‌شده به کارگاه",
             OrderStatus.Rejected => "رد شده",
             OrderStatus.InProduction => "در حال تولید",
             OrderStatus.ReadyForDelivery => "آماده تحویل",
