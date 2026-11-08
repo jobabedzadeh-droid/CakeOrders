@@ -9,11 +9,13 @@ using System.Data;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace CakeOrders.Web.Controllers;
 
 [Authorize(Roles = "Admin,User")]
-public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment environment, IOrderProductionRoutingService productionRouting) : Controller
+public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment environment, IOrderProductionRoutingService productionRouting, ILogger<OrdersController> logger) : Controller
 {
     private const long MaxImageBytes = 5 * 1024 * 1024;
 
@@ -149,6 +151,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         OrderCreateViewModel model,
         CancellationToken cancellationToken)
     {
+        model.DraftImageBaseUrl = GetDraftImageBaseUrl();
         model.ProductionBranches = await db.Branches
             .AsNoTracking()
             .Where(x => x.IsActive)
@@ -180,6 +183,45 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<IActionResult> UploadDraftImage(IFormFile? file, CancellationToken cancellationToken)
+    {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
+        if (file is null || file.Length == 0)
+            return BadRequest(new { success = false, message = "فایلی برای بارگذاری انتخاب نشده است." });
+        if (file.Length > MaxImageBytes)
+            return BadRequest(new { success = false, message = "حجم هر تصویر حداکثر باید ۵ مگابایت باشد." });
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (extension is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+            return BadRequest(new { success = false, message = "فرمت تصویر باید JPG، PNG یا WebP باشد." });
+
+        await using var input = file.OpenReadStream();
+        var header = new byte[12];
+        var read = await input.ReadAsync(header.AsMemory(0, header.Length), cancellationToken);
+        if (!IsSupportedImage(header, read, extension))
+            return BadRequest(new { success = false, message = "محتوای فایل انتخاب‌شده تصویر معتبر نیست." });
+
+        var folder = GetDraftImageFolderPath();
+        Directory.CreateDirectory(folder);
+        var token = $"{Guid.NewGuid():N}{extension}";
+        var fullPath = Path.Combine(folder, token);
+        input.Position = 0;
+        await using (var output = System.IO.File.Create(fullPath))
+            await input.CopyToAsync(output, cancellationToken);
+
+        return Json(new
+        {
+            success = true,
+            token,
+            url = GetDraftImageBaseUrl() + token
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     [RequestSizeLimit(11 * 1024 * 1024)]
     public async Task<IActionResult> CreateBirthdayCake(OrderCreateViewModel model, CancellationToken cancellationToken)
     {
@@ -202,9 +244,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
                 ModelState.AddModelError(nameof(model.CustomerId), "مشتری انتخاب‌شده معتبر یا فعال نیست؛ دوباره جست‌وجو و انتخاب کنید.");
                 selectedCustomer = null;
             }
-            else if (!string.IsNullOrWhiteSpace(selectedCustomer.Phone) &&
-                     (!CustomerPhoneNormalizer.TryNormalize(model.CustomerPhone, out var normalizedPhone) ||
-                      !string.Equals(normalizedPhone, selectedCustomer.NormalizedPhone, StringComparison.Ordinal)))
+            else if ((!string.IsNullOrWhiteSpace(selectedCustomer.Phone) &&
+                      (!CustomerPhoneNormalizer.TryNormalize(model.CustomerPhone, out var normalizedPhone) ||
+                       !string.Equals(normalizedPhone, selectedCustomer.NormalizedPhone, StringComparison.Ordinal))) ||
+                     (string.IsNullOrWhiteSpace(selectedCustomer.Phone) && !string.IsNullOrWhiteSpace(model.CustomerPhone)))
             {
                 ModelState.AddModelError(nameof(model.CustomerPhone), "شماره موبایل با مشتری انتخاب‌شده مطابقت ندارد؛ دوباره مشتری را جست‌وجو و انتخاب کنید.");
                 selectedCustomer = null;
@@ -353,8 +396,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         string? printImagePath = null;
         try
         {
-            sampleImagePath = await SaveImageAsync(model.SampleImage, cancellationToken);
-            printImagePath = await SaveImageAsync(model.PrintImage, cancellationToken);
+            sampleImagePath = await PromoteDraftImageAsync(model.SampleImageDraftToken, cancellationToken)
+                ?? await SaveImageAsync(model.SampleImage, cancellationToken);
+            printImagePath = await PromoteDraftImageAsync(model.PrintImageDraftToken, cancellationToken)
+                ?? await SaveImageAsync(model.PrintImage, cancellationToken);
         }
         catch (InvalidDataException ex)
         {
@@ -687,6 +732,51 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             : "وضعیت سفارش با موفقیت تغییر کرد.";
 
         return RedirectToAction(nameof(Details), new { id = order.Id });
+    }
+
+    private string GetDraftImageFolderName()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(userId)))[..16];
+    }
+
+    private string GetDraftImageFolderPath() =>
+        Path.Combine(environment.WebRootPath, "uploads", "order-drafts", GetDraftImageFolderName());
+
+    private string GetDraftImageBaseUrl() =>
+        $"/uploads/order-drafts/{GetDraftImageFolderName()}/";
+
+    private async Task<string?> PromoteDraftImageAsync(string? token, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return null;
+
+        var fileName = Path.GetFileName(token);
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        if (!string.Equals(fileName, token, StringComparison.Ordinal) ||
+            !Guid.TryParseExact(Path.GetFileNameWithoutExtension(fileName), "N", out _) ||
+            extension is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+            throw new InvalidDataException("شناسه تصویر بارگذاری‌شده معتبر نیست؛ تصویر را دوباره انتخاب کنید.");
+
+        var source = Path.Combine(GetDraftImageFolderPath(), fileName);
+        if (!System.IO.File.Exists(source))
+            throw new InvalidDataException("تصویر موقت پیدا نشد یا منقضی شده است؛ تصویر را دوباره انتخاب کنید.");
+
+        var destinationFolder = Path.Combine(environment.WebRootPath, "uploads", "orders");
+        Directory.CreateDirectory(destinationFolder);
+        var destinationName = $"{Guid.NewGuid():N}{extension}";
+        var destination = Path.Combine(destinationFolder, destinationName);
+
+        await using (var input = System.IO.File.OpenRead(source))
+        {
+            var header = new byte[12];
+            var read = await input.ReadAsync(header.AsMemory(0, header.Length), cancellationToken);
+            if (!IsSupportedImage(header, read, extension))
+                throw new InvalidDataException("محتوای تصویر بارگذاری‌شده معتبر نیست؛ تصویر را دوباره انتخاب کنید.");
+        }
+
+        System.IO.File.Move(source, destination);
+        return $"/uploads/orders/{destinationName}";
     }
 
     private void ValidateImage(Microsoft.AspNetCore.Http.IFormFile? file, string key)
