@@ -33,6 +33,11 @@ public sealed class RahkaranSettingsController(
             PosBankAccountId = settings?.PosBankAccountId,
             PosAccountingOperationId = settings?.PosAccountingOperationId,
             PosCashFlowFactorId = settings?.PosCashFlowFactorId,
+            SettlementCashAccountingOperationId = settings?.SettlementCashAccountingOperationId,
+            SettlementCashFlowFactorId = settings?.SettlementCashFlowFactorId,
+            SettlementPosBankAccountId = settings?.SettlementPosBankAccountId,
+            SettlementPosAccountingOperationId = settings?.SettlementPosAccountingOperationId,
+            SettlementPosCashFlowFactorId = settings?.SettlementPosCashFlowFactorId,
             SalesOfficeId = settings?.SalesOfficeId,
             SalesAreaId = settings?.SalesAreaId,
             SalesTypeId = settings?.SalesTypeId,
@@ -229,6 +234,11 @@ public sealed class RahkaranSettingsController(
         settings.PosBankAccountId = model.PosBankAccountId;
         settings.PosAccountingOperationId = model.PosAccountingOperationId;
         settings.PosCashFlowFactorId = model.PosCashFlowFactorId;
+        settings.SettlementCashAccountingOperationId = model.SettlementCashAccountingOperationId;
+        settings.SettlementCashFlowFactorId = model.SettlementCashFlowFactorId;
+        settings.SettlementPosBankAccountId = model.SettlementPosBankAccountId;
+        settings.SettlementPosAccountingOperationId = model.SettlementPosAccountingOperationId;
+        settings.SettlementPosCashFlowFactorId = model.SettlementPosCashFlowFactorId;
         settings.SalesOfficeId = model.SalesOfficeId;
         settings.SalesAreaId = model.SalesAreaId;
         settings.SalesTypeId = model.SalesTypeId;
@@ -326,6 +336,11 @@ public sealed class RahkaranSettingsController(
         if (model.PosBankAccountId <= 0) model.PosBankAccountId = null;
         if (model.PosAccountingOperationId <= 0) model.PosAccountingOperationId = null;
         if (model.PosCashFlowFactorId <= 0) model.PosCashFlowFactorId = null;
+        if (model.SettlementCashAccountingOperationId <= 0) model.SettlementCashAccountingOperationId = null;
+        if (model.SettlementCashFlowFactorId <= 0) model.SettlementCashFlowFactorId = null;
+        if (model.SettlementPosBankAccountId <= 0) model.SettlementPosBankAccountId = null;
+        if (model.SettlementPosAccountingOperationId <= 0) model.SettlementPosAccountingOperationId = null;
+        if (model.SettlementPosCashFlowFactorId <= 0) model.SettlementPosCashFlowFactorId = null;
         if (model.SalesOfficeId <= 0) model.SalesOfficeId = null;
         if (model.SalesAreaId <= 0) model.SalesAreaId = null;
         if (model.SalesTypeId <= 0) model.SalesTypeId = null;
