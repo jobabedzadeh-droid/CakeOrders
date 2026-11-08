@@ -224,7 +224,13 @@
 
                             <td>
                                 <span class="status">
-                                    @(order.RequestedDepositAmount > order.DepositAmount && order.Status == OrderStatus.PendingReview ? "در انتظار پرداخت بیعانه" : StatusText(order.Status))
+                                    @(order.Status == OrderStatus.PendingReview && order.RequestedDepositAmount == 0 && string.IsNullOrWhiteSpace(order.ReferrerCode)
+                                    ? "در انتظار ثبت کد معرف"
+                                    : order.Status == OrderStatus.PendingReview && order.RequestedDepositAmount == 0
+                                        ? "در انتظار ارجاع به کارگاه"
+                                        : order.RequestedDepositAmount > order.DepositAmount && order.Status == OrderStatus.PendingReview
+                                            ? "در انتظار پرداخت بیعانه"
+                                            : StatusText(order.Status))
                                 </span>
                             </td>
 
@@ -287,6 +293,7 @@
     {
         OrderStatus.PendingReview => "در انتظار بررسی",
         OrderStatus.Confirmed => "تأیید شده",
+        OrderStatus.SentToWorkshop => "ارسال‌شده به کارگاه",
         OrderStatus.Rejected => "رد شده",
         OrderStatus.InProduction => "در حال تولید",
         OrderStatus.ReadyForDelivery => "آماده تحویل",
