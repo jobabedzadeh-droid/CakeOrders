@@ -218,9 +218,11 @@ body.customer-modal-open { overflow:hidden; }
         box.input.addEventListener('input', () => {
             customerSearchVersion++;
             const version = customerSearchVersion;
+            const typedValue = box.input.value;
             clearSelectedCustomer();
+            box.input.value = typedValue;
             hideCustomerResults();
-            const term = box.input.value.trim();
+            const term = typedValue.trim();
             if (term.length < 2) return;
 
             clearTimeout(customerSearchTimer);
