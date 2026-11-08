@@ -975,6 +975,21 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                     b.Property<long?>("PosCashFlowFactorId")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("SettlementCashAccountingOperationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SettlementCashFlowFactorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SettlementPosBankAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SettlementPosAccountingOperationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SettlementPosCashFlowFactorId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -1070,6 +1085,9 @@ namespace CakeOrders.Infrastructure.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Purpose")
                         .HasColumnType("int");
 
                     b.Property<int>("Status")
