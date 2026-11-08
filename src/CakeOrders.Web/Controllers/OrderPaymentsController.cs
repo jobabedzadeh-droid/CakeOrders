@@ -93,29 +93,14 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
             CreatedAtUtc = now
         });
 
-        if (purpose == PaymentPurpose.Deposit && order.Status == OrderStatus.PendingReview &&
-            order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount)
+        if (order.Status == OrderStatus.PendingReview &&
+            ((order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount) ||
+             (order.RequestedDepositAmount == 0 && !string.IsNullOrWhiteSpace(order.ReferrerCode))))
         {
-            if (order.Kind == OrderKind.BirthdayCake &&
-                !await productionRouting.EnsureBirthdayCakeTaskAsync(order, userId, now, cancellationToken))
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                TempData["Error"] = "کارگاه فعال کیک‌سازی پیدا نشد؛ دریافت وجه ثبت نشد تا سفارش بدون وظیفه تولید تأیید نشود.";
-                return RedirectToAction("Details", "Orders", new { id = orderId });
-            }
-
-            var previous = order.Status;
-            order.Status = OrderStatus.Confirmed;
-            order.UpdatedByUserId = userId;
-
-            await RahkaranSalesRequestOutboxEnqueuer.EnqueueIfMissingAsync(
-                db, order.Id, now, cancellationToken);
-            order.StatusHistory.Add(new OrderStatusHistory
-            {
-                PreviousStatus = previous, NewStatus = OrderStatus.Confirmed,
-                ChangedAtUtc = now, ChangedByUserId = null,
-                Note = "تأیید خودکار سیستمی: بیعانه درخواستی به‌طور کامل به‌صورت نقدی دریافت و توسط اپراتور ثبت شد."
-            });
+            var routed = await productionRouting.TryRouteBirthdayCakeAsync(
+                order, userId, now, cancellationToken);
+            if (!routed)
+                TempData["Warning"] = "دریافت وجه ثبت شد، اما ارجاع خودکار به‌دلیل آماده نبودن اطلاعات کارگاه انجام نشد.";
         }
 
         await db.SaveChangesAsync(cancellationToken);
