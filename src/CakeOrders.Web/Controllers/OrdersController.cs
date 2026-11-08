@@ -506,8 +506,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             ChangedAtUtc = DateTime.UtcNow,
             ChangedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
             Note = model.RequestedDepositAmount > 0
-                ? "ثبت سفارش؛ در انتظار پرداخت بیعانه و تأیید خودکار پس از تکمیل آن"
-                : "ثبت اولیه سفارش؛ در انتظار بررسی و تأیید دستی"
+                ? "ثبت سفارش؛ در انتظار پرداخت کامل بیعانه و ارجاع خودکار به کارگاه"
+                : "ثبت سفارش بدون بیعانه؛ تا ثبت معرف معتبر به کارگاه ارجاع نمی‌شود"
         });
 
         try
@@ -516,6 +516,15 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
             db.Orders.Add(order);
             await db.SaveChangesAsync(cancellationToken);
+
+            if (order.RequestedDepositAmount == 0 && !string.IsNullOrWhiteSpace(order.ReferrerCode))
+            {
+                await productionRouting.TryRouteBirthdayCakeAsync(
+                    order,
+                    User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    DateTime.UtcNow,
+                    cancellationToken);
+            }
 
             if (order.Status == OrderStatus.Confirmed &&
                 !await productionRouting.EnsureBirthdayCakeTaskAsync(
@@ -1031,6 +1040,17 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         order.ReferrerCode = model.ReferrerCode?.Trim();
         order.ReferrerId = referrerId;
+
+        if (order.Status == OrderStatus.PendingReview &&
+            ((order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount) ||
+             (order.RequestedDepositAmount == 0 && order.ReferrerId.HasValue)))
+        {
+            await productionRouting.TryRouteBirthdayCakeAsync(
+                order,
+                changedByUserId,
+                changedAtUtc,
+                cancellationToken);
+        }
 
         order.UpdatedByUserId =
             User.FindFirstValue(ClaimTypes.NameIdentifier);
