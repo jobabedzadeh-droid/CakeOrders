@@ -181,6 +181,36 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             : Json(new { found = true, fullName = (referrer.FirstName + " " + referrer.LastName).Trim() });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> DraftImage(string? token, CancellationToken cancellationToken)
+    {
+        if (await IsWorkshopMemberAsync(cancellationToken))
+            return Forbid();
+
+        if (string.IsNullOrWhiteSpace(token))
+            return NotFound();
+
+        var fileName = Path.GetFileName(token);
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        if (!string.Equals(fileName, token, StringComparison.Ordinal) ||
+            !Guid.TryParseExact(Path.GetFileNameWithoutExtension(fileName), "N", out _) ||
+            extension is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+            return NotFound();
+
+        var path = Path.Combine(GetDraftImageFolderPath(), fileName);
+        if (!System.IO.File.Exists(path))
+            return NotFound();
+
+        var contentType = extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+        return PhysicalFile(path, contentType);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(6 * 1024 * 1024)]
@@ -206,6 +236,14 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
         var folder = GetDraftImageFolderPath();
         Directory.CreateDirectory(folder);
+        foreach (var oldDraft in new DirectoryInfo(folder).GetFiles())
+        {
+            if (oldDraft.LastWriteTimeUtc < DateTime.UtcNow.AddDays(-7))
+            {
+                try { oldDraft.Delete(); }
+                catch (IOException) { /* A currently viewed draft will be cleaned up on a later upload. */ }
+            }
+        }
         var token = $"{Guid.NewGuid():N}{extension}";
         var fullPath = Path.Combine(folder, token);
         input.Position = 0;
@@ -216,7 +254,7 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         {
             success = true,
             token,
-            url = GetDraftImageBaseUrl() + token
+            url = GetDraftImageBaseUrl() + Uri.EscapeDataString(token)
         });
     }
 
@@ -756,10 +794,10 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
     }
 
     private string GetDraftImageFolderPath() =>
-        Path.Combine(environment.WebRootPath, "uploads", "order-drafts", GetDraftImageFolderName());
+        Path.Combine(environment.ContentRootPath, "App_Data", "order-drafts", GetDraftImageFolderName());
 
     private string GetDraftImageBaseUrl() =>
-        $"/uploads/order-drafts/{GetDraftImageFolderName()}/";
+        (Url.Action(nameof(DraftImage), "Orders") ?? "/Orders/DraftImage") + "?token=";
 
     private string? ReturnImageToDraft(string? imagePath)
     {
