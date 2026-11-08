@@ -443,6 +443,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         {
             model.SampleImageDraftToken = ReturnImageToDraft(sampleImagePath) ?? model.SampleImageDraftToken;
             model.PrintImageDraftToken = ReturnImageToDraft(printImagePath) ?? model.PrintImageDraftToken;
+            ModelState.Remove(nameof(model.SampleImageDraftToken));
+            ModelState.Remove(nameof(model.PrintImageDraftToken));
             ModelState.AddModelError(string.Empty, ex.Message);
             await PopulateProductionBranchesAsync(model, cancellationToken);
             return View(model);
@@ -513,6 +515,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
                 await transaction.RollbackAsync(cancellationToken);
                 model.SampleImageDraftToken = ReturnImageToDraft(sampleImagePath) ?? model.SampleImageDraftToken;
                 model.PrintImageDraftToken = ReturnImageToDraft(printImagePath) ?? model.PrintImageDraftToken;
+                ModelState.Remove(nameof(model.SampleImageDraftToken));
+                ModelState.Remove(nameof(model.PrintImageDraftToken));
 
                 ModelState.AddModelError(
                     nameof(model.ProductionBranchId),
@@ -527,9 +531,11 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(ex, "Failed to save birthday cake order. CustomerId={CustomerId}", selectedCustomer.Id);
+            logger.LogError(ex, "Failed to save birthday cake order. CustomerId={CustomerId}", selectedCustomer?.Id);
             model.SampleImageDraftToken = ReturnImageToDraft(sampleImagePath) ?? model.SampleImageDraftToken;
             model.PrintImageDraftToken = ReturnImageToDraft(printImagePath) ?? model.PrintImageDraftToken;
+            ModelState.Remove(nameof(model.SampleImageDraftToken));
+            ModelState.Remove(nameof(model.PrintImageDraftToken));
             ModelState.AddModelError(string.Empty,
                 "ذخیره سفارش در پایگاه داده انجام نشد. اطلاعات واردشده و تصاویر حفظ شده‌اند؛ لطفاً پیام خطا را به مدیر سامانه اعلام کنید و دوباره تلاش کنید.");
             await PopulateProductionBranchesAsync(model, cancellationToken);
