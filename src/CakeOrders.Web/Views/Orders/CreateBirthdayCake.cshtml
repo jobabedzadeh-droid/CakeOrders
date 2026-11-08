@@ -208,7 +208,6 @@ body.customer-modal-open { overflow:hidden; }
     const lastNameInput = document.getElementById('newCustomerLastName');
     const modalError = document.getElementById('customerModalError');
     const saveCustomerButton = document.getElementById('saveNewCustomerButton');
-    const antiForgeryToken = document.querySelector('#customerAntiForgeryToken input[name="__RequestVerificationToken"]')?.value;
     const firstNameSearch = customerDisplayFirstName;
     const lastNameSearch = customerDisplayLastName;
     const searchBoxes = [
@@ -333,10 +332,10 @@ body.customer-modal-open { overflow:hidden; }
         customerDisplayFirstName.value = customer.firstName;
         customerDisplayLastName.value = customer.lastName;
         if (!customer.isRahkaranLinked) {
-            lookupMessage.textContent = 'مشتری در سیستم داخلی شناسایی شد، اما هنوز به مشتری راهکاران متصل نیست. ثبت سفارش ممکن است؛ ارسال درخواست فروش تا تطبیق مشتری متوقف می‌ماند.';
+            lookupMessage.textContent = 'مشتری در سیستم داخلی شناسایی شد، اما به راهکاران متصل نیست؛ تا تکمیل شناسه مشتری و کد تفصیلی راهکاران امکان ثبت سفارش وجود ندارد.';
             lookupMessage.className = 'customer-lookup-message is-warning';
         } else if (!customer.hasRahkaranDLCode) {
-            lookupMessage.textContent = 'مشتری به راهکاران متصل است، اما کد تفصیلی ندارد؛ ثبت سند مالی تا تکمیل کد تفصیلی متوقف می‌ماند.';
+            lookupMessage.textContent = 'مشتری به راهکاران متصل است، اما کد تفصیلی ندارد؛ تا تکمیل کد تفصیلی امکان ثبت سفارش وجود ندارد.';
             lookupMessage.className = 'customer-lookup-message is-warning';
         } else {
             lookupMessage.textContent = 'مشتری شناسایی و با اطلاعات راهکاران تطبیق داده شد.';
