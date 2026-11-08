@@ -339,6 +339,7 @@ public sealed class BridgeController(CakeOrdersDbContext db, IOrderProductionRou
                     OrderId = payment.OrderId,
                     PaymentTransactionId = payment.Id,
                     Source = RahkaranReceiptSource.PointOfSale,
+                    Purpose = payment.Purpose,
                     Amount = payment.Amount,
                     Status = RahkaranReceiptSyncStatus.Pending,
                     CreatedAtUtc = DateTime.UtcNow
