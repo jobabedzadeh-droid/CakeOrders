@@ -117,7 +117,13 @@
         {
             <div><small>نوع کیک</small><b>@cake</b></div>
         }
-        <div><small>وضعیت</small><b>@GetStatusName(Model.Status)</b></div>
+        <div><small>وضعیت</small><b>@(Model.Status == OrderStatus.PendingReview && Model.RequestedDepositAmount == 0 && string.IsNullOrWhiteSpace(Model.ReferrerCode)
+                ? "در انتظار ثبت کد معرف"
+                : Model.Status == OrderStatus.PendingReview && Model.RequestedDepositAmount == 0
+                    ? "در انتظار ارجاع به کارگاه"
+                    : Model.RequestedDepositAmount > Model.DepositAmount && Model.Status == OrderStatus.PendingReview
+                        ? "در انتظار پرداخت بیعانه"
+                        : GetStatusName(Model.Status))</b></div>
         @if (isBirthdayCake)
         {
             <div><small>وزن</small><b>@Model.RequestedWeightKg.ToString("N1") کیلوگرم</b></div>
