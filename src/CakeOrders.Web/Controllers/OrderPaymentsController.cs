@@ -81,6 +81,8 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
         if (purpose == PaymentPurpose.Deposit)
             order.DepositAmount += amount;
 
+        productionRouting.MarkDeliveredIfSettled(order, userId, now);
+
         // Every confirmed cash receipt (deposit or settlement) is sent to Rahkaran.
         db.RahkaranReceiptOutbox.Add(new RahkaranReceiptOutbox
         {
