@@ -70,9 +70,13 @@ public class OrderCreateViewModel
 
     [Display(Name = "تصویر نمونه کیک")]
     public IFormFile? SampleImage { get; set; }
+    public string? SampleImageDraftToken { get; set; }
 
     [Display(Name = "تصویر موردنظر برای چاپ")]
     public IFormFile? PrintImage { get; set; }
+    public string? PrintImageDraftToken { get; set; }
+
+    public string DraftImageBaseUrl { get; set; } = string.Empty;
 
     [Display(Name = "مبلغ بیعانه درخواستی")]
     [Range(typeof(decimal), "0", "1000000000")]
