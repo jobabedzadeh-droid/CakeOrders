@@ -41,6 +41,10 @@
 {
     <div class="alert-danger">@error</div>
 }
+@if (TempData["Warning"] is string warning)
+{
+    <div class="alert-warning">@warning</div>
+}
 @{
     var receiptOutboxes = ViewBag.RahkaranReceiptOutboxes as List<RahkaranReceiptOutbox>
         ?? new List<RahkaranReceiptOutbox>();
