@@ -477,7 +477,11 @@ public sealed class CustomersController(
 
         if (settings?.SalesOfficeId is not long salesOfficeId ||
             settings.SalesCurrencyId is not long currencyId)
+        {
+            customer.RahkaranRawDataJson = "{\"createAttemptFailed\":true}";
+            await db.SaveChangesAsync(cancellationToken);
             return "برای ایجاد مشتری در راهکاران، «مرکز فروش» و «ارز فروش» را در تنظیمات راهکاران تکمیل کنید.";
+        }
 
         // Claim this local customer row before any remote create call. The SQL row lock
         // prevents two simultaneous requests from creating two Rahkaran customers.
