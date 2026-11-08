@@ -87,6 +87,7 @@ public sealed class OrderPaymentsController(CakeOrdersDbContext db, IOrderProduc
             OrderId = order.Id,
             OrderCashPaymentId = cashPayment.Id,
             Source = RahkaranReceiptSource.Cash,
+            Purpose = purpose,
             Amount = amount,
             Status = RahkaranReceiptSyncStatus.Pending,
             CreatedAtUtc = now
