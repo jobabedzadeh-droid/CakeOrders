@@ -1041,37 +1041,20 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         order.ReferrerCode = model.ReferrerCode?.Trim();
         order.ReferrerId = referrerId;
 
-        if (order.Status == OrderStatus.PendingReview &&
-            ((order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount) ||
-             (order.RequestedDepositAmount == 0 && order.ReferrerId.HasValue)))
-        {
-            await productionRouting.TryRouteBirthdayCakeAsync(
-                order,
-                changedByUserId,
-                changedAtUtc,
-                cancellationToken);
-        }
-
         order.UpdatedByUserId =
             User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         try
         {
-            var latestProductionTaskStatus = await db.ProductionTasks
-                .Where(x => x.OrderId == order.Id)
-                .OrderByDescending(x => x.CreatedAtUtc)
-                .ThenByDescending(x => x.Id)
-                .Select(x => (ProductionTaskStatus?)x.Status)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (latestProductionTaskStatus == ProductionTaskStatus.Rejected &&
-                !await productionRouting.EnsureBirthdayCakeTaskAsync(
-                    order, changedByUserId, DateTime.UtcNow, cancellationToken))
+            if (order.Status == OrderStatus.PendingReview &&
+                ((order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount) ||
+                 (order.RequestedDepositAmount == 0 && order.ReferrerId.HasValue)))
             {
-                DeleteOrderImage(newSampleImagePath);
-                DeleteOrderImage(newPrintImagePath);
-                ModelState.AddModelError(string.Empty, "کارگاه فعال کیک‌سازی برای ارجاع مجدد سفارش پیدا نشد.");
-                return View(model);
+                await productionRouting.TryRouteBirthdayCakeAsync(
+                    order,
+                    changedByUserId,
+                    changedAtUtc,
+                    cancellationToken);
             }
 
             await db.SaveChangesAsync(cancellationToken);
