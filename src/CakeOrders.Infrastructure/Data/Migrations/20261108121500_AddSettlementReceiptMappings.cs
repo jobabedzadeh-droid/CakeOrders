@@ -51,6 +51,21 @@ public sealed class AddSettlementReceiptMappings : Migration
             type: "int",
             nullable: false,
             defaultValue: 1);
+
+        // Preserve the real purpose of historical receipts where the originating
+        // payment record still exists; do not classify old settlements as deposits.
+        migrationBuilder.Sql(@"
+UPDATE receipt
+SET Purpose = CASE
+    WHEN COALESCE(cashPayment.Purpose, posPayment.Purpose, 1) = 2 THEN 2
+    ELSE 1
+END
+FROM RahkaranReceiptOutbox AS receipt
+LEFT JOIN OrderCashPayments AS cashPayment
+    ON cashPayment.Id = receipt.OrderCashPaymentId
+LEFT JOIN PaymentTransactions AS posPayment
+    ON posPayment.Id = receipt.PaymentTransactionId;
+");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
