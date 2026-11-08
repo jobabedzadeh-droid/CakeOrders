@@ -519,11 +519,13 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
             if (order.RequestedDepositAmount == 0 && !string.IsNullOrWhiteSpace(order.ReferrerCode))
             {
-                await productionRouting.TryRouteBirthdayCakeAsync(
+                var routed = await productionRouting.TryRouteBirthdayCakeAsync(
                     order,
                     User.FindFirstValue(ClaimTypes.NameIdentifier),
                     DateTime.UtcNow,
                     cancellationToken);
+                if (!routed)
+                    TempData["Warning"] = "سفارش ثبت شد، اما کارگاه فعال کیک‌سازی پیدا نشد؛ پس از اصلاح تنظیمات شعبه، ارجاع را دوباره از طریق ویرایش اطلاعات سفارش بررسی کنید.";
             }
 
             if (order.Status == OrderStatus.Confirmed &&
@@ -563,9 +565,11 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             return View(model);
         }
 
-        TempData["Success"] = order.Status == OrderStatus.Confirmed
+        TempData["Success"] = order.Status == OrderStatus.SentToWorkshop
             ? $"سفارش {order.OrderNumber} ثبت و به کارگاه کیک‌سازی ارجاع شد."
-            : $"سفارش {order.OrderNumber} ثبت شد و پس از تأیید به تولید ارجاع می‌شود.";
+            : order.RequestedDepositAmount == 0 && string.IsNullOrWhiteSpace(order.ReferrerCode)
+                ? $"سفارش {order.OrderNumber} ثبت شد؛ تا ثبت کد معرف معتبر به کارگاه ارجاع نمی‌شود."
+                : $"سفارش {order.OrderNumber} ثبت شد؛ پس از پرداخت کامل بیعانه به کارگاه ارجاع خواهد شد.";
         return RedirectToAction(nameof(Details), new { id = order.Id });
     }
 
