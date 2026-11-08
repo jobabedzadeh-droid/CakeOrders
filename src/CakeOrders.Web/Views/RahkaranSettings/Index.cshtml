@@ -161,6 +161,50 @@
     </section>
 
     <section class="form-panel">
+        <h2>تنظیمات تسویه حساب نقدی</h2>
+        <p>این نگاشت‌ها فقط برای ثبت رسیدهای تسویه نهایی سفارش استفاده می‌شوند و با تنظیمات دریافت بیعانه مستقل هستند.</p>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="SettlementCashAccountingOperationId">عملیات حسابداری تسویه نقدی</label>
+                <select asp-for="SettlementCashAccountingOperationId" asp-items="Model.AccountingOperations">
+                    <option value="">انتخاب عملیات حسابداری تسویه نقدی</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="SettlementCashFlowFactorId">عامل گردش نقدینگی تسویه نقدی</label>
+                <select asp-for="SettlementCashFlowFactorId" asp-items="Model.CashFlowFactors">
+                    <option value="">انتخاب عامل گردش نقدینگی تسویه نقدی</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-panel">
+        <h2>تنظیمات تسویه حساب از طریق کارت‌خوان</h2>
+        <p>حساب بانکی مقصد، عملیات حسابداری و عامل گردش نقدینگی تسویه کارت‌خوان را جداگانه انتخاب کنید.</p>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="SettlementPosBankAccountId">حساب بانکی مقصد تسویه POS</label>
+                <select asp-for="SettlementPosBankAccountId" asp-items="Model.BankAccounts">
+                    <option value="">انتخاب حساب بانکی تسویه</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="SettlementPosAccountingOperationId">عملیات حسابداری تسویه کارت‌خوان</label>
+                <select asp-for="SettlementPosAccountingOperationId" asp-items="Model.AccountingOperations">
+                    <option value="">انتخاب عملیات حسابداری تسویه</option>
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="SettlementPosCashFlowFactorId">عامل گردش نقدینگی تسویه کارت‌خوان</label>
+                <select asp-for="SettlementPosCashFlowFactorId" asp-items="Model.CashFlowFactors">
+                    <option value="">انتخاب عامل گردش نقدینگی تسویه</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-panel">
         <h2>نگاشت درخواست فروش راهکاران</h2>
         <p>
             مرکز فروش، حوزه فروش و نحوه فروش از سرویس‌های مستند راهکاران دریافت می‌شوند.
