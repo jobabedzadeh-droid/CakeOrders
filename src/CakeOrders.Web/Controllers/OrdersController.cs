@@ -403,6 +403,8 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
         }
         catch (InvalidDataException ex)
         {
+            model.SampleImageDraftToken = ReturnImageToDraft(sampleImagePath) ?? model.SampleImageDraftToken;
+            model.PrintImageDraftToken = ReturnImageToDraft(printImagePath) ?? model.PrintImageDraftToken;
             ModelState.AddModelError(string.Empty, ex.Message);
             await PopulateProductionBranchesAsync(model, cancellationToken);
             return View(model);
@@ -456,32 +458,45 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
                 : "ثبت اولیه سفارش؛ در انتظار بررسی و تأیید دستی"
         });
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-
-        db.Orders.Add(order);
-        await db.SaveChangesAsync(cancellationToken);
-
-        if (order.Status == OrderStatus.Confirmed &&
-            !await productionRouting.EnsureBirthdayCakeTaskAsync(
-                order,
-                User.FindFirstValue(ClaimTypes.NameIdentifier),
-                DateTime.UtcNow,
-                cancellationToken))
+        try
         {
-            await transaction.RollbackAsync(cancellationToken);
-            DeleteOrderImage(sampleImagePath);
-            DeleteOrderImage(printImagePath);
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
-            ModelState.AddModelError(
-                nameof(model.ProductionBranchId),
-                "ایجاد وظیفه تولید ممکن نشد؛ کارگاه فعال کیک‌سازی شعبه را بررسی کنید.");
+            db.Orders.Add(order);
+            await db.SaveChangesAsync(cancellationToken);
 
+            if (order.Status == OrderStatus.Confirmed &&
+                !await productionRouting.EnsureBirthdayCakeTaskAsync(
+                    order,
+                    User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    DateTime.UtcNow,
+                    cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                model.SampleImageDraftToken = ReturnImageToDraft(sampleImagePath) ?? model.SampleImageDraftToken;
+                model.PrintImageDraftToken = ReturnImageToDraft(printImagePath) ?? model.PrintImageDraftToken;
+
+                ModelState.AddModelError(
+                    nameof(model.ProductionBranchId),
+                    "ایجاد وظیفه تولید ممکن نشد؛ کارگاه فعال کیک‌سازی شعبه را بررسی کنید. اطلاعات فرم و تصاویر حفظ شده‌اند.");
+
+                await PopulateProductionBranchesAsync(model, cancellationToken);
+                return View(model);
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to save birthday cake order. CustomerId={CustomerId}", selectedCustomer.Id);
+            model.SampleImageDraftToken = ReturnImageToDraft(sampleImagePath) ?? model.SampleImageDraftToken;
+            model.PrintImageDraftToken = ReturnImageToDraft(printImagePath) ?? model.PrintImageDraftToken;
+            ModelState.AddModelError(string.Empty,
+                "ذخیره سفارش در پایگاه داده انجام نشد. اطلاعات واردشده و تصاویر حفظ شده‌اند؛ لطفاً پیام خطا را به مدیر سامانه اعلام کنید و دوباره تلاش کنید.");
             await PopulateProductionBranchesAsync(model, cancellationToken);
             return View(model);
         }
-
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
         TempData["Success"] = order.Status == OrderStatus.Confirmed
             ? $"سفارش {order.OrderNumber} ثبت و به کارگاه کیک‌سازی ارجاع شد."
@@ -745,6 +760,35 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
 
     private string GetDraftImageBaseUrl() =>
         $"/uploads/order-drafts/{GetDraftImageFolderName()}/";
+
+    private string? ReturnImageToDraft(string? imagePath)
+    {
+        const string allowedFolder = "/uploads/orders/";
+        if (string.IsNullOrWhiteSpace(imagePath) ||
+            !imagePath.StartsWith(allowedFolder, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var fileName = Path.GetFileName(imagePath);
+        if (string.IsNullOrWhiteSpace(fileName))
+            return null;
+
+        var source = Path.Combine(environment.WebRootPath, "uploads", "orders", fileName);
+        if (!System.IO.File.Exists(source))
+            return null;
+
+        var draftFolder = GetDraftImageFolderPath();
+        Directory.CreateDirectory(draftFolder);
+        var destination = Path.Combine(draftFolder, fileName);
+        if (System.IO.File.Exists(destination))
+        {
+            var extension = Path.GetExtension(fileName);
+            destination = Path.Combine(draftFolder, $"{Guid.NewGuid():N}{extension}");
+            fileName = Path.GetFileName(destination);
+        }
+
+        System.IO.File.Move(source, destination);
+        return fileName;
+    }
 
     private async Task<string?> PromoteDraftImageAsync(string? token, CancellationToken cancellationToken)
     {
