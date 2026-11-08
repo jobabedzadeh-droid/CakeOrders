@@ -16,6 +16,8 @@ public interface IOrderProductionRoutingService
         DateTime now,
         CancellationToken cancellationToken);
 
+    void MarkDeliveredIfSettled(Order order, string? actorUserId, DateTime now);
+
     void ChangeOrderStatus(
         Order order,
         OrderStatus newStatus,
