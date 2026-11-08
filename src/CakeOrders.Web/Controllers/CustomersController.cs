@@ -326,7 +326,9 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
         if (await IsWorkshopMemberAsync(cancellationToken))
             return Forbid();
 
-        if (!CustomerPhoneNormalizer.TryNormalize(model.Phone, out var normalizedPhone))
+        var hasMobile = !string.IsNullOrWhiteSpace(model.Phone);
+        var normalizedPhone = string.Empty;
+        if (hasMobile && !CustomerPhoneNormalizer.TryNormalize(model.Phone, out normalizedPhone))
             ModelState.AddModelError(nameof(model.Phone), "شماره موبایل معتبر نیست. شماره باید متعلق به موبایل ایران باشد.");
 
         if (!ModelState.IsValid)
@@ -338,28 +340,35 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
                     .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "اطلاعات مشتری معتبر نیست."
             });
 
-        var existing = await db.Customers
-            .SingleOrDefaultAsync(x => x.NormalizedPhone == normalizedPhone, cancellationToken);
-
-        if (existing is not null)
+        if (hasMobile)
         {
-            if (!existing.IsActive)
-                return Conflict(new { success = false, message = "این شماره متعلق به مشتری غیرفعال است؛ ابتدا وضعیت مشتری را بررسی کنید." });
+            var existing = await db.Customers
+                .SingleOrDefaultAsync(x => x.NormalizedPhone == normalizedPhone, cancellationToken);
 
-            return Json(new
+            if (existing is not null)
             {
-                success = true,
-                alreadyExists = true,
-                customer = ToCustomerResponse(existing)
-            });
+                if (!existing.IsActive)
+                    return Conflict(new { success = false, message = "این شماره متعلق به مشتری غیرفعال است؛ ابتدا وضعیت مشتری را بررسی کنید." });
+
+                return Json(new
+                {
+                    success = true,
+                    alreadyExists = true,
+                    customer = ToCustomerResponse(existing)
+                });
+            }
         }
 
+        // Phone-less local customers receive a unique internal key that cannot be
+        // mistaken for an Iranian mobile number or matched by the phone lookup.
         var customer = new Customer
         {
             FirstName = model.FirstName.Trim(),
             LastName = model.LastName.Trim(),
-            Phone = normalizedPhone,
-            NormalizedPhone = normalizedPhone,
+            Phone = hasMobile ? normalizedPhone : string.Empty,
+            NormalizedPhone = hasMobile
+                ? normalizedPhone
+                : "N" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(),
             IsActive = true,
             CreatedAtUtc = DateTime.UtcNow
         };
@@ -370,7 +379,7 @@ public sealed class CustomersController(CakeOrdersDbContext db, IRahkaranMasterD
         {
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException) when (hasMobile)
         {
             // A concurrent request may have registered the same phone after the lookup.
             var concurrentCustomer = await db.Customers
