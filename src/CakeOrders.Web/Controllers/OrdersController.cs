@@ -449,6 +449,18 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
             await PopulateProductionBranchesAsync(model, cancellationToken);
             return View(model);
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Could not prepare birthday cake order images.");
+            model.SampleImageDraftToken = ReturnImageToDraft(sampleImagePath) ?? model.SampleImageDraftToken;
+            model.PrintImageDraftToken = ReturnImageToDraft(printImagePath) ?? model.PrintImageDraftToken;
+            ModelState.Remove(nameof(model.SampleImageDraftToken));
+            ModelState.Remove(nameof(model.PrintImageDraftToken));
+            ModelState.AddModelError(string.Empty,
+                "آماده‌سازی تصاویر سفارش انجام نشد. اطلاعات فرم حفظ شده است؛ لطفاً وضعیت فضای ذخیره‌سازی تصاویر را بررسی کنید.");
+            await PopulateProductionBranchesAsync(model, cancellationToken);
+            return View(model);
+        }
 
         var order = new Order
         {
