@@ -179,7 +179,7 @@ body.customer-modal-open { overflow:hidden; }
             return false;
         } finally {
             input.disabled = false;
-            input.value = '';
+            if (tokenField.value) input.value = '';
         }
     }
 
@@ -429,6 +429,12 @@ body.customer-modal-open { overflow:hidden; }
     orderForm.addEventListener('submit', async function (event) {
         if (isSubmittingOrder) return;
         event.preventDefault();
+
+        document.querySelectorAll('input[type=file][data-preview-target]').forEach(input => {
+            const tokenField = document.getElementById(input.id + 'DraftToken');
+            if (input.files && input.files.length && !tokenField.value && !input.disabled)
+                pendingImageUploads.push(uploadDraftImage(input));
+        });
 
         if (pendingImageUploads.length) {
             const uploadResults = await Promise.all(pendingImageUploads.splice(0));
