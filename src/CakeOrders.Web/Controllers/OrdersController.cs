@@ -528,27 +528,6 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
                     TempData["Warning"] = "سفارش ثبت شد، اما کارگاه فعال کیک‌سازی پیدا نشد؛ پس از اصلاح تنظیمات شعبه، ارجاع را دوباره از طریق ویرایش اطلاعات سفارش بررسی کنید.";
             }
 
-            if (order.Status == OrderStatus.Confirmed &&
-                !await productionRouting.EnsureBirthdayCakeTaskAsync(
-                    order,
-                    User.FindFirstValue(ClaimTypes.NameIdentifier),
-                    DateTime.UtcNow,
-                    cancellationToken))
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                model.SampleImageDraftToken = ReturnImageToDraft(sampleImagePath) ?? model.SampleImageDraftToken;
-                model.PrintImageDraftToken = ReturnImageToDraft(printImagePath) ?? model.PrintImageDraftToken;
-                ModelState.Remove(nameof(model.SampleImageDraftToken));
-                ModelState.Remove(nameof(model.PrintImageDraftToken));
-
-                ModelState.AddModelError(
-                    nameof(model.ProductionBranchId),
-                    "ایجاد وظیفه تولید ممکن نشد؛ کارگاه فعال کیک‌سازی شعبه را بررسی کنید. اطلاعات فرم و تصاویر حفظ شده‌اند.");
-
-                await PopulateProductionBranchesAsync(model, cancellationToken);
-                return View(model);
-            }
-
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
@@ -1054,11 +1033,13 @@ public sealed class OrdersController(CakeOrdersDbContext db, IWebHostEnvironment
                 ((order.RequestedDepositAmount > 0 && order.DepositAmount >= order.RequestedDepositAmount) ||
                  (order.RequestedDepositAmount == 0 && order.ReferrerId.HasValue)))
             {
-                await productionRouting.TryRouteBirthdayCakeAsync(
+                var routed = await productionRouting.TryRouteBirthdayCakeAsync(
                     order,
                     changedByUserId,
                     changedAtUtc,
                     cancellationToken);
+                if (!routed)
+                    TempData["Warning"] = "اطلاعات سفارش و کد معرف ذخیره شد، اما کارگاه فعال کیک‌سازی پیدا نشد؛ پس از اصلاح تنظیمات شعبه، ویرایش سفارش را دوباره ذخیره کنید.";
             }
 
             await db.SaveChangesAsync(cancellationToken);
