@@ -154,6 +154,7 @@ body.customer-modal-open { overflow:hidden; }
 
         const target = document.getElementById(input.dataset.previewTarget);
         const tokenField = document.getElementById(input.id + 'DraftToken');
+        tokenField.value = '';
         target.textContent = 'در حال بارگذاری تصویر برای حفظ آن در صورت بروز خطا…';
         input.disabled = true;
 
@@ -178,6 +179,7 @@ body.customer-modal-open { overflow:hidden; }
             return false;
         } finally {
             input.disabled = false;
+            input.value = '';
         }
     }
 
