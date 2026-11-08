@@ -7,6 +7,66 @@ namespace CakeOrders.Web.Services;
 public sealed class OrderProductionRoutingService(CakeOrdersDbContext db)
     : IOrderProductionRoutingService
 {
+    public async Task<bool> TryRouteBirthdayCakeAsync(
+        Order order,
+        string? actorUserId,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (order.Kind != OrderKind.BirthdayCake)
+            return true;
+
+        var hasRequiredDeposit = order.RequestedDepositAmount > 0 &&
+            order.DepositAmount >= order.RequestedDepositAmount;
+        var hasZeroDepositReferral = order.RequestedDepositAmount == 0 &&
+            !string.IsNullOrWhiteSpace(order.ReferrerCode) &&
+            await db.Referrers.AnyAsync(x => x.IsActive && x.Code == order.ReferrerCode.Trim(), cancellationToken);
+
+        if (!hasRequiredDeposit && !hasZeroDepositReferral)
+            return false;
+
+        if (!await EnsureBirthdayCakeTaskAsync(order, actorUserId, now, cancellationToken))
+            return false;
+
+        var taskExists = await db.ProductionTasks.AnyAsync(x => x.OrderId == order.Id, cancellationToken);
+        if (taskExists && order.Status is OrderStatus.PendingReview or OrderStatus.Confirmed)
+        {
+            ChangeOrderStatus(
+                order,
+                OrderStatus.SentToWorkshop,
+                actorUserId,
+                now,
+                hasZeroDepositReferral
+                    ? "ارجاع خودکار به کارگاه به‌دلیل ثبت کد معرف معتبر برای سفارش بدون بیعانه."
+                    : "ارجاع خودکار به کارگاه پس از تکمیل پرداخت بیعانه.");
+        }
+
+        return true;
+    }
+
+    public void ChangeOrderStatus(
+        Order order,
+        OrderStatus newStatus,
+        string? actorUserId,
+        DateTime now,
+        string note)
+    {
+        if (order.Status == newStatus)
+            return;
+
+        var previousStatus = order.Status;
+        order.Status = newStatus;
+        order.UpdatedByUserId = actorUserId;
+        order.StatusHistory.Add(new OrderStatusHistory
+        {
+            PreviousStatus = previousStatus,
+            NewStatus = newStatus,
+            ChangedAtUtc = now,
+            ChangedByUserId = actorUserId,
+            Note = note
+        });
+    }
+
     public async Task<bool> EnsureBirthdayCakeTaskAsync(
         Order order,
         string? actorUserId,
