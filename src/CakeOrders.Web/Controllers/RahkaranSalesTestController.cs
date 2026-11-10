@@ -136,6 +136,13 @@ public sealed class RahkaranSalesTestController(
             ]
         };
 
+        model.RequestJson = JsonSerializer.Serialize(request, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            WriteIndented = true
+        });
+
+        logger.LogInformation("Rahkaran sales test request payload: {RequestJson}", model.RequestJson);
+
         logger.LogWarning(
             "Manual Rahkaran sales-request test initiated by {User}. SourceOrderId={OrderId}, OrderNumber={OrderNumber}, CustomerId={RahkaranCustomerId}, QuantityKg={QuantityKg}, PricePerKg={PricePerKg}, Total={Total}.",
             User.Identity?.Name, order.Id, order.OrderNumber, customerId, quantity, pricePerKg, total);
