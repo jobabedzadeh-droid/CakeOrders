@@ -8,6 +8,7 @@ public sealed class RahkaranSalesTestViewModel
     public string? Confirmation { get; set; }
     public IReadOnlyList<RahkaranSalesTestOrderOption> Orders { get; set; } = [];
     public string? ResultMessage { get; set; }
+    public string? RequestJson { get; set; }
     public string? ResponseBody { get; set; }
     public string? RemoteSalesRequestId { get; set; }
     public int? HttpStatusCode { get; set; }
