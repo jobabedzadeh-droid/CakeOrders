@@ -29,13 +29,13 @@ public sealed class RahkaranSalesTestController(
         RahkaranSalesTestViewModel model,
         CancellationToken cancellationToken)
     {
-        if (model.OrderId is null || model.OrderId <= 0)
+        if (model.OrderId.GetValueOrDefault() <= 0)
             ModelState.AddModelError(nameof(model.OrderId), "یک سفارش انتخاب کنید.");
 
-        if (model.QuantityKg is null || model.QuantityKg <= 0)
+        if (model.QuantityKg.GetValueOrDefault() <= 0)
             ModelState.AddModelError(nameof(model.QuantityKg), "وزن آزمایشی باید بیشتر از صفر باشد.");
 
-        if (model.PricePerKg is null || model.PricePerKg <= 0)
+        if (model.PricePerKg.GetValueOrDefault() <= 0)
             ModelState.AddModelError(nameof(model.PricePerKg), "قیمت هر کیلو باید بیشتر از صفر باشد.");
 
         if (!ModelState.IsValid)
