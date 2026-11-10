@@ -33,6 +33,13 @@
         {
             <p>شناسه درخواست فروش راهکاران: <strong dir="ltr">@Model.RemoteSalesRequestId</strong></p>
         }
+        @if (!string.IsNullOrWhiteSpace(Model.RequestJson))
+        {
+            <details open>
+                <summary>JSON درخواست ارسالی به راهکاران</summary>
+                <pre dir="ltr" style="white-space:pre-wrap;overflow-wrap:anywhere">@Model.RequestJson</pre>
+            </details>
+        }
         @if (!string.IsNullOrWhiteSpace(Model.ResponseBody))
         {
             <details>
