@@ -198,9 +198,14 @@ public sealed class RahkaranSettingsController(
             var cashes = await rahkaran.GetCashesAsync(cancellationToken);
             TempData["Success"] = $"ارتباط با راهکاران برقرار است. تعداد صندوق‌های دریافتی: {cashes.Count}";
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            TempData["Error"] = "ارتباط با راهکاران برقرار نشد. نشانی سرویس، دسترسی شبکه و مجوز وب‌سرویس را بررسی کنید.";
+            logger.LogError(
+                ex,
+                "Rahkaran connection test failed while requesting cash master data.");
+
+            TempData["Error"] =
+                "ارتباط با راهکاران برقرار نشد. جزئیات فنی خطا در لاگ برنامه ثبت شد.";
         }
 
         return RedirectToAction(nameof(Index));
